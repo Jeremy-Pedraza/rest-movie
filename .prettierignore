@@ -1,0 +1,44 @@
+# ============================================
+# 🎨 PRETTIER IGNORE
+# ============================================
+
+# Dependencies
+node_modules/
+
+# Build
+dist/
+build/
+
+# Coverage
+coverage/
+
+# Logs
+logs/
+*.log
+
+# Lock files
+yarn.lock
+package-lock.json
+pnpm-lock.yaml
+
+# Documentation
+documentation/
+compodoc/
+docs/EXAMPLES/
+
+# Uploads
+uploads/
+storage/
+
+# IDE
+.idea/
+.vscode/
+
+# Cache
+.cache/
+.eslintcache
+
+# Misc
+*.min.js
+*.min.css
+*.map

@@ -1,0 +1,27 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "..",
+  "testEnvironment": "node",
+  "testRegex": ".e2e-spec.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "moduleNameMapper": {
+    "^@/(.*)$": "<rootDir>/src/$1",
+    "^@config/(.*)$": "<rootDir>/src/config/$1",
+    "^@modules/(.*)$": "<rootDir>/src/modules/$1",
+    "^@shared/(.*)$": "<rootDir>/src/shared/$1",
+    "^@decorators/(.*)$": "<rootDir>/src/decorators/$1",
+    "^@guards/(.*)$": "<rootDir>/src/guards/$1",
+    "^@filters/(.*)$": "<rootDir>/src/filters/$1",
+    "^@interceptors/(.*)$": "<rootDir>/src/interceptors/$1",
+    "^@middleware/(.*)$": "<rootDir>/src/middleware/$1",
+    "^@pipes/(.*)$": "<rootDir>/src/pipes/$1",
+    "^@constants/(.*)$": "<rootDir>/src/constants/$1",
+    "^@database/(.*)$": "<rootDir>/src/database/$1",
+    "^@types/(.*)$": "<rootDir>/src/@types/$1",
+    "^@test/(.*)$": "<rootDir>/test/$1"
+  },
+  "setupFilesAfterEnv": ["<rootDir>/test/setup-e2e.ts"],
+  "testTimeout": 60000
+}

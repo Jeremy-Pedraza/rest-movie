@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  ExecutionContext,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from '@decorators/public.decorator';
@@ -38,9 +34,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     }
 
     if (err || !user) {
-      throw new UnauthorizedException(
-        info?.message || 'No autorizado - Token no proporcionado',
-      );
+      throw new UnauthorizedException(info?.message || 'No autorizado - Token no proporcionado');
     }
 
     return user;

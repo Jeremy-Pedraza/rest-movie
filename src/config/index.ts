@@ -1,5 +1,7 @@
+// src/config/index.ts
+
 // App
-export { default as appConfig } from './app.config';
+export { default as appConfig, type LogDbLevel } from './app.config';
 
 // Database
 export * from './database';

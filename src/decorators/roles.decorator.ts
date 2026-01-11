@@ -1,5 +1,6 @@
+// src/decorators/roles.decorator.ts
+
 import { SetMetadata } from '@nestjs/common';
-import { RoleType } from '@constants/roles.constant';
 
 export const ROLES_KEY = 'roles';
 
@@ -7,8 +8,8 @@ export const ROLES_KEY = 'roles';
  * Decorator para requerir roles específicos
  * @param roles - Lista de roles permitidos (OR lógico)
  * @example
- * @Roles('admin', 'manager')
+ * @Roles(ROLES.ADMIN, ROLES.MANAGER)
  * @Get('users')
  * getUsers() {}
  */
-export const Roles = (...roles: RoleType[]) => SetMetadata(ROLES_KEY, roles);
+export const Roles = (...roles: string[]) => SetMetadata(ROLES_KEY, roles);

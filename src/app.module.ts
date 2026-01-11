@@ -1,3 +1,5 @@
+// src/app.module.ts
+
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -6,10 +8,26 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CacheModule } from '@nestjs/cache-manager';
 import { BullModule } from '@nestjs/bull';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR, APP_FILTER } from '@nestjs/core';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+
+// Shared Modules
+import { CommonModule } from '@shared/common';
+import { DatabaseModule } from '@shared/database';
+import { UtilsModule } from '@shared/utils';
+import { RedisModule } from '@shared/redis';
+import { RouterModule } from '@shared/router';
+
+// Feature Modules
+import { HealthModule } from '@modules/health';
+import { LoggerModule } from '@modules/logger';
+import { UserModule } from '@modules/user';
+
+// Global Interceptors & Filters
+import { LoggingInterceptor } from '@interceptors/logging.interceptor';
+import { AllExceptionsFilter } from '@filters/all-exceptions.filter';
 
 // Configurations
 import appConfig from '@config/app.config';
@@ -77,14 +95,35 @@ import { bullConfig } from '@config/bull';
       }),
     }),
 
-    // Feature Modules (add here as you create them)
-    // HealthModule,
+    // Shared Modules (Global)
+    CommonModule,
+    DatabaseModule,
+    UtilsModule,
+    RedisModule,
+    RouterModule,
+
+    // Feature Modules
+    HealthModule,
+    LoggerModule,
+    UserModule,
     // AuthModule,
-    // UserModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
+
+    // Global Exception Filter (orden importa: filters primero)
+    {
+      provide: APP_FILTER,
+      useClass: AllExceptionsFilter,
+    },
+
+    // Global Logging Interceptor
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: LoggingInterceptor,
+    },
+
     // Global Throttler Guard
     {
       provide: APP_GUARD,

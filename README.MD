@@ -4,17 +4,77 @@ NestJS Backend API - Production Ready
 
 ---
 
+## 🚨 LECTURA OBLIGATORIA ANTES DE CODIFICAR
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│   ANTES DE ESCRIBIR CUALQUIER CÓDIGO:                                       │
+│                                                                             │
+│   1. docs/CODING-CHECKLIST.md → Checklist obligatorio paso a paso           │
+│   2. docs/QUICK-REFERENCE.md  → Referencia rápida de patrones               │
+│   3. docs/CODE-PATTERNS.md    → Templates para copiar                       │
+│                                                                             │
+│   REGLAS DE ORO (NUNCA VIOLAR):                                             │
+│                                                                             │
+│   ✅ Repository: SIEMPRE createQueryBuilder (previene SQL injection)        │
+│   ✅ Service: SIEMPRE inyectar SanitizerService + HandleErrorService        │
+│   ✅ Controller: NUNCA try-catch (AllExceptionsFilter lo maneja)            │
+│   ✅ DTO: SIEMPRE validaciones @IsString, @IsEmail + @ApiProperty           │
+│   ✅ Entity: SIEMPRE @Index, @DeleteDateColumn, timestamps                  │
+│                                                                             │
+│   ❌ CÓDIGO SIN SEGUIR ESTAS REGLAS SERÁ RECHAZADO                          │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## 📊 Estado del Proyecto
 
-| Categoría | Estado | Progreso |
-|-----------|--------|----------|
-| Configuración Base | ✅ Completo | 100% |
-| Shared Modules | ✅ Completo | 100% |
-| Feature Modules | 🔄 En progreso | 40% |
-| Database (Migraciones) | ⏳ Pendiente | 10% |
-| Testing | ⏳ Pendiente | 10% |
+| Fase | Descripción | Estado | Progreso |
+|------|-------------|--------|----------|
+| 1 | Configuración Base | ✅ Completo | 100% |
+| 2 | Shared Modules | ✅ Completo | 100% |
+| 3 | Feature Modules | 🔄 En progreso | 75% |
+| 4 | Database & Seeds | 🔄 En progreso | 50% |
+| 5 | Testing | ⏳ Pendiente | 10% |
+| 6 | **Integración Global** | ✅ **Completo** | **100%** |
 
-> **Última actualización:** Enero 2025 - Sesión 7
+> **Última actualización:** Enero 2025 - Sesión 9
+
+---
+
+## 📚 Documentación (Por Orden de Lectura)
+
+### Obligatorios Antes de Codificar
+
+| # | Documento | Descripción |
+|---|-----------|-------------|
+| 1 | [CODING-CHECKLIST.md](docs/CODING-CHECKLIST.md) | ⚡ **Checklist obligatorio** para cada módulo |
+| 2 | [QUICK-REFERENCE.md](docs/QUICK-REFERENCE.md) | ⚡ Referencia rápida de patrones |
+| 3 | [CODE-PATTERNS.md](docs/CODE-PATTERNS.md) | Templates completos para copiar |
+
+### Referencia
+
+| Documento | Cuándo Consultar |
+|-----------|------------------|
+| [MASTER.md](docs/MASTER.md) | Arquitectura general y reglas |
+| [API-STANDARDS.md](docs/API-STANDARDS.md) | Formato de responses y errores |
+| [DATABASE-PATTERNS.md](docs/DATABASE-PATTERNS.md) | Queries TypeORM y transacciones |
+| [SECURITY-GUIDE.md](docs/SECURITY-GUIDE.md) | JWT, guards, autenticación |
+| [INTEGRATION-STATUS.md](docs/INTEGRATION-STATUS.md) | Qué componentes están activos |
+| [PROGRESS.md](docs/PROGRESS.md) | Historial de desarrollo |
+| [CAMBIOS-ARQUITECTURA.md](docs/CAMBIOS-ARQUITECTURA.md) | Cambios por sesión |
+
+### Ejemplos Funcionales
+
+| Archivo | Contenido |
+|---------|-----------|
+| [complete-crud.example.ts](docs/EXAMPLES/complete-crud.example.ts) | CRUD completo con todos los patrones |
+| [complete-auth.example.ts](docs/EXAMPLES/complete-auth.example.ts) | Autenticación JWT completa |
+| [complete-relations.example.ts](docs/EXAMPLES/complete-relations.example.ts) | Relaciones TypeORM |
+| [complete-testing.example.ts](docs/EXAMPLES/complete-testing.example.ts) | Testing con Jest |
 
 ---
 
@@ -26,377 +86,210 @@ NestJS Backend API - Production Ready
 | **TypeScript** | 5.x | Lenguaje |
 | **PostgreSQL** | 15+ | Base de datos |
 | **TypeORM** | 0.3.x | ORM |
-| **Redis** | 7+ | Cache + Sessions + Queues |
+| **Redis** | 7+ | Cache + Sessions |
 | **Bull** | 4.x | Job queues |
-| **Passport** | 0.7.x | Autenticación |
-| **JWT** | - | Tokens |
+| **JWT** | - | Autenticación |
 | **Winston** | 3.x | Logging |
 | **Swagger** | 11.x | Documentación API |
 | **Jest** | 29.x | Testing |
 
 ---
 
-## 🛠️ Instalación
+## 🛠️ Instalación Rápida
 
 ```bash
-# Clonar repositorio
+# Clonar e instalar
 git clone <repository-url>
 cd mokka-backend
-
-# Instalar dependencias
 yarn install
 
-# Copiar variables de entorno
+# Configurar
 cp .env.example .env
+# Editar .env con tus credenciales
 
-# Configurar base de datos y redis en .env
-
-# Ejecutar migraciones (cuando estén disponibles)
-yarn migration:run
-
-# Ejecutar seeds (cuando estén disponibles)
-yarn seed
-```
-
----
-
-## 🚀 Ejecución
-
-```bash
-# Desarrollo (hot-reload)
+# Iniciar
 yarn start:dev
-
-# Debug
-yarn start:debug
-
-# Producción
-yarn build
-yarn start:prod
 ```
 
 ---
 
-## 📝 Scripts Disponibles
+## 🔧 Scripts Principales
 
 | Script | Descripción |
 |--------|-------------|
 | `yarn start:dev` | Desarrollo con hot-reload |
-| `yarn start:debug` | Modo debug |
-| `yarn start:prod` | Producción |
-| `yarn build` | Compilar |
+| `yarn build` | Compilar producción |
+| `yarn test` | Unit tests |
+| `yarn test:e2e` | E2E tests |
 | `yarn lint` | ESLint |
-| `yarn format` | Prettier |
-| `yarn test` | Tests unitarios |
-| `yarn test:watch` | Tests en watch mode |
-| `yarn test:cov` | Tests con coverage |
-| `yarn test:e2e` | Tests E2E |
-| `yarn migration:generate` | Generar migración |
 | `yarn migration:run` | Ejecutar migraciones |
-| `yarn migration:revert` | Revertir migración |
-| `yarn seed` | Ejecutar seeds |
-| `yarn docs` | Generar documentación |
 
 ---
 
-## 📂 Estructura del Proyecto
+## 🏗️ Arquitectura - Flujo de Request
 
 ```
-src/
-├── @types/              # TypeScript type definitions
-├── config/              # Configuraciones (DB, Redis, JWT, etc.)
-├── constants/           # Constantes globales
-├── database/            # Migraciones, seeds, factories
-├── decorators/          # Decoradores personalizados
-├── filters/             # Exception filters (con logging BD)
-├── guards/              # Guards de autenticación
-├── interceptors/        # Interceptores (con logging BD)
-├── middleware/          # Middleware
-├── modules/             # Módulos de la aplicación
-│   ├── health/          # ✅ Health checks
-│   ├── logger/          # ✅ Logging persistente
-│   ├── user/            # ✅ Gestión de usuarios
-│   └── auth/            # ⏳ Autenticación
-├── pipes/               # Pipes de validación
-├── shared/              # Módulos compartidos
-│   ├── common/          # ✅ DTOs, entities, interfaces
-│   ├── database/        # ✅ TransactionService
-│   ├── redis/           # ✅ RedisService (60+ métodos)
-│   ├── router/          # ✅ HTTP Client (Axios)
-│   └── utils/           # ✅ Helpers
-├── app.module.ts        # Módulo principal
-└── main.ts              # Bootstrap
+Request HTTP
+    │
+    ├── Middlewares: RequestId (UUIDv7) → Logger (HTTP log)
+    │
+    ├── Guards: Throttler → JwtAuth → Roles
+    │           │            │         │
+    │           │            │         └── 403 si no tiene rol
+    │           │            └── 401 si no tiene token (@Public lo bypasea)
+    │           └── 429 si excede rate limit
+    │
+    ├── Interceptors: Logging (BD) → Timeout (30s) → Cache (si @Cacheable)
+    │
+    ├── Pipes: ValidationPipe (DTOs)
+    │
+    ├── Controller (SIN try-catch)
+    │       │
+    │       └── Service (SanitizerService + HandleErrorService)
+    │               │
+    │               └── Repository (createQueryBuilder SIEMPRE)
+    │
+    ├── Success → { success: true, data, message }
+    └── Error → AllExceptionsFilter → { success: false, code, message, ... }
 ```
 
 ---
 
-## 🔌 Módulos Implementados
+## ⚙️ Componentes Globales Activos
 
-### ✅ Health Module (`/health`)
-
-Monitoreo de salud de la aplicación con Terminus.
-
-| Endpoint | Descripción |
-|----------|-------------|
-| `GET /health` | Liveness probe |
-| `GET /health/ready` | Readiness probe (DB + Redis + Memory + Disk) |
-| `GET /health/database` | Estado de PostgreSQL |
-| `GET /health/redis` | Estado de Redis |
-| `GET /health/memory` | Estado de memoria |
-| `GET /health/disk` | Estado de disco |
-| `GET /health/metrics/database` | Métricas detalladas DB |
-| `GET /health/metrics/redis` | Métricas detalladas Redis |
-| `GET /health/info` | Información del sistema |
-
-### ✅ Logger Module (`/logs`)
-
-Logging persistente en base de datos con buffer y auto-flush.
-
-**Características:**
-- Buffer de 100 logs o flush cada 5 segundos
-- Niveles: error, warn, info, debug, verbose
-- Contextos: http, database, auth, business, system, queue, cache, external
-- Tracing por requestId
-- Integración automática con interceptors y filters
-- Configurable por ambiente
-
-| Endpoint | Descripción |
-|----------|-------------|
-| `POST /logs` | Crear log |
-| `GET /logs` | Listar con filtros y paginación |
-| `GET /logs/:id` | Obtener por ID |
-| `GET /logs/trace/:requestId` | Logs por request (tracing) |
-| `GET /logs/user/:userId` | Logs por usuario |
-| `GET /logs/errors/recent` | Errores recientes |
-| `GET /logs/stats/grouped` | Estadísticas agrupadas |
-| `GET /logs/stats/summary` | Resumen general |
-| `DELETE /logs/cleanup` | Eliminar logs antiguos |
-| `POST /logs/flush` | Forzar flush del buffer |
-
-**Configuración por ambiente:**
-
-```env
-# development - Guarda todo
-LOG_DB_LEVEL=all
-
-# staging - Solo warnings y errors (4xx, 5xx)
-LOG_DB_LEVEL=warnings
-
-# production - Solo errores críticos (5xx)
-LOG_DB_LEVEL=errors
-
-# test - No guarda nada
-LOG_DB_LEVEL=none
-```
-
-### ✅ User Module (`/users`)
-
-Gestión completa de usuarios con roles y permisos.
-
-**Entidades:**
-- `UserEntity` - Usuario con estado, verificación, bloqueo
-- `RoleEntity` - Roles con jerarquía
-- `PermissionEntity` - Permisos por módulo/acción
-
-| Endpoint | Descripción | Roles |
-|----------|-------------|-------|
-| `POST /users` | Crear usuario | Admin, Manager |
-| `GET /users` | Listar usuarios | Admin, Manager |
-| `GET /users/stats` | Estadísticas | Admin |
-| `GET /users/:id` | Obtener usuario | Admin, Manager |
-| `PUT /users/:id` | Actualizar usuario | Admin, Manager |
-| `DELETE /users/:id` | Eliminar (soft) | Admin |
-| `POST /users/:id/restore` | Restaurar | Admin |
-| `PATCH /users/:id/activate` | Activar | Admin, Manager |
-| `PATCH /users/:id/deactivate` | Desactivar | Admin, Manager |
-| `PATCH /users/:id/suspend` | Suspender | Admin |
-| `PATCH /users/:id/block` | Bloquear | Admin |
-| `GET /users/me/profile` | Mi perfil | * |
-| `PATCH /users/me/profile` | Actualizar mi perfil | * |
-| `POST /users/me/change-password` | Cambiar contraseña | * |
+| Componente | Tipo | Bypass |
+|------------|------|--------|
+| `RequestIdMiddleware` | Middleware | - |
+| `LoggerMiddleware` | Middleware | - |
+| `ThrottlerGuard` | Guard Global | - |
+| `JwtAuthGuard` | Guard Global | `@Public()` |
+| `RolesGuard` | Guard Global | Sin `@Roles()` |
+| `LoggingInterceptor` | Interceptor Global | `LOG_IGNORE_PATHS` |
+| `TimeoutInterceptor` | Interceptor Global | - |
+| `AllExceptionsFilter` | Filter Global | - |
 
 ---
 
-## 📦 Shared Modules
+## 📁 Estructura del Proyecto
 
-### RedisService
+```
+mokka-backend/
+├── docs/                       # 📚 DOCUMENTACIÓN
+│   ├── CODING-CHECKLIST.md     # ⚡ Checklist obligatorio
+│   ├── QUICK-REFERENCE.md      # ⚡ Referencia rápida
+│   ├── CODE-PATTERNS.md        # Templates
+│   ├── MASTER.md               # Reglas
+│   ├── API-STANDARDS.md        # Responses
+│   ├── DATABASE-PATTERNS.md    # TypeORM
+│   ├── SECURITY-GUIDE.md       # Auth
+│   ├── INTEGRATION-STATUS.md   # Estado
+│   └── EXAMPLES/               # Ejemplos
+│
+├── src/
+│   ├── config/                 # Configuraciones
+│   ├── constants/              # ERROR_CODES, ROLES
+│   ├── decorators/             # @Public, @Roles, @Cacheable
+│   ├── filters/                # AllExceptionsFilter
+│   ├── guards/                 # JWT, Roles
+│   ├── interceptors/           # Logging, Timeout
+│   ├── middleware/             # RequestId, Logger
+│   ├── pipes/                  # Validation
+│   ├── modules/                # Módulos de negocio
+│   │   ├── auth/
+│   │   ├── user/
+│   │   ├── logger/
+│   │   └── health/
+│   └── shared/                 # Módulos compartidos
+│       ├── common/             # SanitizerService, HandleErrorService
+│       ├── database/           # TransactionService
+│       ├── redis/              # RedisService
+│       └── utils/              # Helpers
+│
+└── test/                       # Tests
+```
 
-60+ métodos para operaciones Redis.
+---
+
+## ✅ Checklist Rápido Pre-Commit
+
+```
+[ ] Leí docs/CODING-CHECKLIST.md
+[ ] Repository usa createQueryBuilder
+[ ] Service inyecta SanitizerService + HandleErrorService
+[ ] Controller NO tiene try-catch
+[ ] DTOs tienen @ApiProperty + validadores
+[ ] Entity tiene @Index + @DeleteDateColumn
+[ ] Swagger decorators en endpoints
+[ ] yarn lint pasa
+```
+
+---
+
+## 🔐 Ejemplo de Endpoint Seguro
 
 ```typescript
-// Inyección
-constructor(private readonly redis: RedisService) {}
+// Controller - SIN try-catch
+@Post()
+@Roles(ROLES.ADMIN, ROLES.MANAGER)
+@ApiOperation({ summary: 'Crear producto' })
+@ApiResponse({ status: 201, description: 'Creado' })
+@ApiResponse({ status: 401, description: 'No autorizado' })
+@ApiResponse({ status: 403, description: 'Sin permisos' })
+async create(@Body() dto: CreateProductDto): Promise<IApiResponse<IProductResponse>> {
+  const data = await this.productService.create(dto);
+  return { success: true, message: 'Producto creado', data };
+}
 
-// Operaciones básicas
-await this.redis.set('key', 'value', 3600);
-const value = await this.redis.get('key');
+// Service - CON Shared Services
+constructor(
+  private readonly repository: ProductRepository,
+  private readonly sanitizer: SanitizerService,      // ✅ OBLIGATORIO
+  private readonly handleError: HandleErrorService,  // ✅ OBLIGATORIO
+) {}
 
-// Cache helpers
-const data = await this.redis.getOrSet('key', () => fetchData(), 3600);
+async create(dto: CreateProductDto): Promise<IProductResponse> {
+  const sanitized = { ...dto, name: this.sanitizer.sanitizeString(dto.name) };
+  
+  if (await this.repository.existsBySku(dto.sku)) {
+    this.handleError.conflict('SKU ya existe', 'sku');  // Lanza 409
+  }
+  
+  const entity = await this.repository.create(sanitized);
+  return this.toResponse(entity);
+}
 
-// Listas, Sets, Hashes, Sorted Sets, Pub/Sub...
-```
-
-### RouterService
-
-Cliente HTTP con retry, cache y paginación.
-
-```typescript
-// Inyección
-constructor(private readonly router: RouterService) {}
-
-// Peticiones simples
-const data = await this.router.get<User>('https://api.example.com/users/1');
-
-// Con retry automático
-const data = await this.router.requestWithRetry({
-  method: 'POST',
-  url: 'https://api.example.com/orders',
-  data: orderData,
-});
-
-// Con cache
-const data = await this.router.getWithCache<Product[]>(
-  'https://api.example.com/products',
-  'products:all',
-  3600
-);
-```
-
-### UtilsService
-
-Helpers unificados para strings, fechas, crypto, validaciones.
-
-```typescript
-// Inyección
-constructor(private readonly utils: UtilsService) {}
-
-// Strings
-this.utils.slugify('Hello World'); // 'hello-world'
-this.utils.truncate('Long text...', 10); // 'Long te...'
-
-// Fechas
-this.utils.formatDate(new Date(), 'YYYY-MM-DD');
-this.utils.addDays(new Date(), 7);
-
-// Crypto
-const hash = await this.utils.hashPassword('password');
-const token = this.utils.generateToken(32);
-
-// Validaciones
-this.utils.isValidEmail('test@example.com'); // true
-this.utils.isValidUUID('...'); // true/false
+// Repository - SIEMPRE createQueryBuilder
+async findById(id: string): Promise<Entity | null> {
+  return await this.repo
+    .createQueryBuilder('e')
+    .where('e.id = :id', { id })  // ✅ Parámetro seguro
+    .getOne();
+}
 ```
 
 ---
 
-## 🔐 Variables de Entorno
+## 📤 URLs de la API
 
-```env
-# Application
-NODE_ENV=development
-APP_PORT=3000
-APP_DEBUG=true
-
-# Database
-DB_HOST=localhost
-DB_PORT=5432
-DB_USERNAME=postgres
-DB_PASSWORD=your_password
-DB_DATABASE=mokka_db
-
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-
-# JWT
-JWT_SECRET=your_secret_key_min_32_chars
-JWT_EXPIRES_IN=15m
-
-# Logging (NEW)
-LOG_DB_LEVEL=all          # all | warnings | errors | none
-LOG_CONSOLE=true          # true | false
-LOG_IGNORE_PATHS=/health,/favicon.ico
-```
-
-Ver `.env.example` para la lista completa.
+| Ruta | Descripción |
+|------|-------------|
+| `GET /api/v1/health` | Health check (público) |
+| `GET /docs` | Swagger UI |
+| `GET /docs-json` | OpenAPI JSON |
 
 ---
 
-## 📖 Documentación
+## 👥 Equipo
 
-| Documento | Descripción |
-|-----------|-------------|
-| [MASTER.md](./docs/MASTER.md) | Guía maestra de arquitectura |
-| [CODE-PATTERNS.md](./docs/CODE-PATTERNS.md) | Patrones de código y templates |
-| [API-STANDARDS.md](./docs/API-STANDARDS.md) | Estándares de API |
-| [DATABASE-PATTERNS.md](./docs/DATABASE-PATTERNS.md) | Patrones de base de datos |
-| [SECURITY-GUIDE.md](./docs/SECURITY-GUIDE.md) | Guía de seguridad |
-| [PROGRESS.md](./docs/PROGRESS.md) | Estado de implementación |
+**Backend Team** - Softlogy S.A.S
 
 ---
 
-## 📚 API Documentation
+## 📝 Licencia
 
-Swagger UI disponible en desarrollo:
-
-```
-http://localhost:3000/docs
-```
+Softlogy Internal Use Only
 
 ---
 
-## 🧪 Testing
-
-```bash
-# Unit tests
-yarn test
-
-# Watch mode
-yarn test:watch
-
-# Coverage
-yarn test:cov
-
-# E2E tests
-yarn test:e2e
-```
-
----
-
-## 🚀 Deployment
-
-### Docker (recomendado)
-
-```bash
-# Build
-docker build -t mokka-backend .
-
-# Run
-docker run -p 3000:3000 --env-file .env.production mokka-backend
-```
-
-### Manual
-
-```bash
-# Build
-yarn build
-
-# Start
-NODE_ENV=production node dist/main.js
-```
-
----
-
-## 📄 Licencia
-
-Softlogy S.A.S - Uso interno
-
----
-
-## 🤝 Contribución
-
-1. Leer `docs/MASTER.md` antes de empezar
-2. Seguir los patrones de `docs/CODE-PATTERNS.md`
-3. Validar contra `docs/API-STANDARDS.md`
-4. Crear tests para nuevo código
-5. Actualizar documentación si es necesario
+> **⚠️ IMPORTANTE:** La documentación en `/docs` es OBLIGATORIA.
+> Código que no siga los patrones establecidos será rechazado.

@@ -232,8 +232,8 @@ export class LoggerService {
    * Inicia el auto-flush periódico
    */
   private startAutoFlush(): void {
-    this.flushTimeout = setInterval(async () => {
-      await this.flush();
+    this.flushTimeout = setInterval(() => {
+      void this.flush();
     }, this.flushInterval);
   }
 

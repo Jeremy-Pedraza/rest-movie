@@ -1,19 +1,25 @@
+// src/pipes/validation.pipe.ts
+
 import { PipeTransform, Injectable, ArgumentMetadata, BadRequestException } from '@nestjs/common';
-import { validate } from 'class-validator';
+import { validate, ValidationError } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 
+/**
+ * Tipo para clases constructoras
+ */
+type ClassConstructor<T = unknown> = new (...args: unknown[]) => T;
+
 @Injectable()
-export class CustomValidationPipe implements PipeTransform<any> {
-  async transform(value: any, { metatype }: ArgumentMetadata) {
+export class CustomValidationPipe implements PipeTransform<unknown> {
+  async transform(value: unknown, { metatype }: ArgumentMetadata): Promise<unknown> {
     if (!metatype || !this.toValidate(metatype)) {
       return value;
     }
 
-    const object = plainToInstance(metatype, value);
-    const errors = await validate(object, {
+    const object = plainToInstance(metatype, value as Record<string, unknown>);
+    const errors = await validate(object as object, {
       whitelist: true,
       forbidNonWhitelisted: true,
-      transform: true,
     });
 
     if (errors.length > 0) {
@@ -27,15 +33,15 @@ export class CustomValidationPipe implements PipeTransform<any> {
     return object;
   }
 
-  private toValidate(metatype: Function): boolean {
-    const types: Function[] = [String, Boolean, Number, Array, Object];
+  private toValidate(metatype: ClassConstructor): boolean {
+    const types: ClassConstructor[] = [String, Boolean, Number, Array, Object];
     return !types.includes(metatype);
   }
 
-  private formatErrors(errors: any[]): Record<string, string[]> {
+  private formatErrors(errors: ValidationError[]): Record<string, string[]> {
     const result: Record<string, string[]> = {};
 
-    errors.forEach((error) => {
+    for (const error of errors) {
       const property = error.property;
       const constraints = error.constraints;
 
@@ -46,11 +52,11 @@ export class CustomValidationPipe implements PipeTransform<any> {
       // Manejar errores anidados
       if (error.children && error.children.length > 0) {
         const nestedErrors = this.formatErrors(error.children);
-        Object.keys(nestedErrors).forEach((key) => {
+        for (const key of Object.keys(nestedErrors)) {
           result[`${property}.${key}`] = nestedErrors[key];
-        });
+        }
       }
-    });
+    }
 
     return result;
   }

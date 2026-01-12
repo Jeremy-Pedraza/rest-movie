@@ -1,6 +1,16 @@
+// src/middleware/raw-body.middleware.ts
+
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import * as bodyParser from 'body-parser';
+import { IncomingMessage } from 'http';
+
+/**
+ * Request con rawBody para verificar callback
+ */
+interface RawBodyRequest extends IncomingMessage {
+  rawBody?: Buffer;
+}
 
 /**
  * Middleware para preservar el raw body
@@ -8,22 +18,11 @@ import * as bodyParser from 'body-parser';
  */
 @Injectable()
 export class RawBodyMiddleware implements NestMiddleware {
-  use(req: Request, res: Response, next: NextFunction) {
+  use(req: Request, res: Response, next: NextFunction): void {
     bodyParser.json({
-      verify: (req: any, res, buf) => {
-        req.rawBody = buf;
+      verify: (rawReq: RawBodyRequest, _res: Response, buf: Buffer) => {
+        rawReq.rawBody = buf;
       },
     })(req, res, next);
-  }
-}
-
-/**
- * Interface extendida del Request con rawBody
- */
-declare global {
-  namespace Express {
-    interface Request {
-      rawBody?: Buffer;
-    }
   }
 }

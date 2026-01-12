@@ -6,8 +6,34 @@
  */
 
 import { Injectable, Logger } from '@nestjs/common';
-import { HealthIndicator, HealthIndicatorResult, HealthCheckError } from '@nestjs/terminus';
+import { HealthCheckError, HealthIndicator, HealthIndicatorResult } from '@nestjs/terminus';
 import { DataSource } from 'typeorm';
+
+/**
+ * Resultado de pg_stat_database
+ */
+interface DatabaseStats {
+  active_connections: string;
+  transactions_committed: string;
+  transactions_rolledback: string;
+  blocks_read: string;
+  blocks_hit: string;
+  rows_returned: string;
+  rows_fetched: string;
+  rows_inserted: string;
+  rows_updated: string;
+  rows_deleted: string;
+}
+
+/**
+ * Resultado de pg_stat_activity para conexiones
+ */
+interface ConnectionInfo {
+  total_connections: string;
+  active: string;
+  idle: string;
+  idle_in_transaction: string;
+}
 
 @Injectable()
 export class DatabaseHealthIndicator extends HealthIndicator {
@@ -103,7 +129,7 @@ export class DatabaseHealthIndicator extends HealthIndicator {
       }
 
       // Query para obtener estadísticas de PostgreSQL
-      const [stats] = await this.dataSource.query(`
+      const result = await this.dataSource.query<DatabaseStats[]>(`
         SELECT 
           numbackends as active_connections,
           xact_commit as transactions_committed,
@@ -119,11 +145,16 @@ export class DatabaseHealthIndicator extends HealthIndicator {
         WHERE datname = current_database()
       `);
 
+      const stats = result[0];
+      if (!stats) {
+        return { error: 'No database stats available' };
+      }
+
       // Calcular hit ratio
+      const blocksHit = parseInt(stats.blocks_hit, 10);
+      const blocksRead = parseInt(stats.blocks_read, 10);
       const hitRatio =
-        stats.blocks_hit > 0
-          ? ((stats.blocks_hit / (stats.blocks_hit + stats.blocks_read)) * 100).toFixed(2)
-          : '0';
+        blocksHit > 0 ? ((blocksHit / (blocksHit + blocksRead)) * 100).toFixed(2) : '0';
 
       return {
         activeConnections: parseInt(stats.active_connections, 10),
@@ -158,7 +189,7 @@ export class DatabaseHealthIndicator extends HealthIndicator {
       // Obtener información del pool si está disponible
       const poolSize = (this.dataSource.options as { poolSize?: number }).poolSize || 'N/A';
 
-      const [connectionInfo] = await this.dataSource.query(`
+      const result = await this.dataSource.query<ConnectionInfo[]>(`
         SELECT 
           count(*) as total_connections,
           count(*) FILTER (WHERE state = 'active') as active,
@@ -167,6 +198,11 @@ export class DatabaseHealthIndicator extends HealthIndicator {
         FROM pg_stat_activity 
         WHERE datname = current_database()
       `);
+
+      const connectionInfo = result[0];
+      if (!connectionInfo) {
+        return { error: 'No connection info available', configured: poolSize };
+      }
 
       return {
         configured: poolSize,

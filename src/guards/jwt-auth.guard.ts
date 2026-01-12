@@ -1,7 +1,37 @@
-import { Injectable, ExecutionContext, UnauthorizedException } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
-import { Reflector } from '@nestjs/core';
+// src/guards/jwt-auth.guard.ts
+
+/**
+ * @fileoverview Guard para autenticación JWT
+ * @module guards
+ *
+ * Valida tokens JWT en endpoints protegidos.
+ * Usar @Public() para marcar rutas que no requieren autenticación.
+ */
+
 import { IS_PUBLIC_KEY } from '@decorators/public.decorator';
+import { ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { AuthGuard } from '@nestjs/passport';
+
+import { ERROR_CODES } from '@constants/error-codes.constant';
+import { RESPONSE_MESSAGES } from '@constants/response-messages.constant';
+
+/**
+ * Información del token JWT
+ */
+interface JwtInfo {
+  name?: string;
+  message?: string;
+}
+
+/**
+ * Usuario autenticado
+ */
+interface AuthUser {
+  id: string;
+  email: string;
+  roles?: string[];
+}
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
@@ -23,18 +53,38 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     return super.canActivate(context);
   }
 
-  handleRequest(err: any, user: any, info: any, context: ExecutionContext) {
-    // Manejar errores específicos de JWT
+  handleRequest<TUser = AuthUser>(err: Error | null, user: TUser | false, info?: JwtInfo): TUser {
+    // Token expirado
     if (info?.name === 'TokenExpiredError') {
-      throw new UnauthorizedException('Token expirado');
+      throw new UnauthorizedException({
+        success: false,
+        statusCode: 401,
+        message: RESPONSE_MESSAGES.AUTH.TOKEN_EXPIRED,
+        error: 'Unauthorized',
+        code: ERROR_CODES.AUTH_TOKEN_EXPIRED,
+      });
     }
 
+    // Token inválido (malformado, firma incorrecta, etc.)
     if (info?.name === 'JsonWebTokenError') {
-      throw new UnauthorizedException('Token inválido');
+      throw new UnauthorizedException({
+        success: false,
+        statusCode: 401,
+        message: RESPONSE_MESSAGES.AUTH.TOKEN_INVALID,
+        error: 'Unauthorized',
+        code: ERROR_CODES.AUTH_TOKEN_INVALID,
+      });
     }
 
+    // Sin token o error genérico
     if (err || !user) {
-      throw new UnauthorizedException(info?.message || 'No autorizado - Token no proporcionado');
+      throw new UnauthorizedException({
+        success: false,
+        statusCode: 401,
+        message: info?.message || RESPONSE_MESSAGES.AUTH.UNAUTHORIZED,
+        error: 'Unauthorized',
+        code: ERROR_CODES.AUTH_UNAUTHORIZED,
+      });
     }
 
     return user;

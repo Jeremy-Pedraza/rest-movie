@@ -350,4 +350,70 @@ export class UserRepository {
 
     return counts;
   }
+
+  // ============================================
+  // AUTH SPECIFIC METHODS
+  // ============================================
+
+  /**
+   * Busca un usuario por ID incluyendo password
+   * @param id - ID del usuario
+   * @returns Usuario con password o null
+   */
+  async findByIdWithPassword(id: string): Promise<UserEntity | null> {
+    return this.userRepo
+      .createQueryBuilder('user')
+      .addSelect('user.password')
+      .where('user.id = :id', { id })
+      .getOne();
+  }
+
+  /**
+   * Busca un usuario por ID incluyendo roles y permisos
+   * @param id - ID del usuario
+   * @returns Usuario con roles o null
+   */
+  async findByIdWithRoles(id: string): Promise<UserEntity | null> {
+    return this.userRepo
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.roles', 'roles')
+      .leftJoinAndSelect('roles.permissions', 'permissions')
+      .where('user.id = :id', { id })
+      .getOne();
+  }
+
+  /**
+   * Resetea los intentos fallidos de login
+   * @param id - ID del usuario
+   */
+  async resetFailedAttempts(id: string): Promise<void> {
+    await this.userRepo.update(id, {
+      failedLoginAttempts: 0,
+      lockedUntil: null,
+    });
+  }
+
+  /**
+   * Guarda token de reset de contraseña
+   * @param id - ID del usuario
+   * @param token - Token de reset
+   * @param expiresAt - Fecha de expiración
+   */
+  async savePasswordResetToken(id: string, token: string, expiresAt: Date): Promise<void> {
+    await this.userRepo.update(id, {
+      passwordResetToken: token,
+      passwordResetExpires: expiresAt,
+    });
+  }
+
+  /**
+   * Invalida el token de reset de contraseña
+   * @param id - ID del usuario
+   */
+  async invalidatePasswordResetToken(id: string): Promise<void> {
+    await this.userRepo.update(id, {
+      passwordResetToken: null,
+      passwordResetExpires: null,
+    });
+  }
 }

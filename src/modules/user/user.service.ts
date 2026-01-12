@@ -3,18 +3,18 @@
 /**
  * @fileoverview Service para usuarios
  * @module modules/user
+ *
+ * Integra:
+ * - SanitizerService: Sanitización de inputs
+ * - HandleErrorService: Manejo centralizado de errores
+ * - TransactionService: Transacciones de BD (disponible para operaciones complejas)
  */
 
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 
-import { IPaginatedResponse } from '@shared/common';
+import { IPaginatedResponse, SanitizerService, HandleErrorService } from '@shared/common';
+import { TransactionService } from '@shared/database';
 import { ChangePasswordDto, CreateUserDto, QueryUserDto, UpdateUserDto } from './dto';
 import { UserEntity, UserStatus } from './entities/user.entity';
 import { IUserProfileResponse, IUserResponse } from './interfaces';
@@ -24,7 +24,12 @@ import { UserRepository } from './user.repository';
 export class UserService {
   private readonly logger = new Logger(UserService.name);
 
-  constructor(private readonly userRepository: UserRepository) {}
+  constructor(
+    private readonly userRepository: UserRepository,
+    private readonly sanitizer: SanitizerService,
+    private readonly handleError: HandleErrorService,
+    private readonly transactionService: TransactionService,
+  ) {}
 
   // ============================================
   // CRUD OPERATIONS
@@ -36,19 +41,21 @@ export class UserService {
    * @returns Usuario creado
    */
   async create(dto: CreateUserDto): Promise<IUserResponse> {
+    // Sanitizar inputs
+    const sanitizedDto = this.sanitizeCreateDto(dto);
+
     // Verificar si el email ya existe
-    const emailExists = await this.userRepository.emailExists(dto.email);
+    const emailExists = await this.userRepository.emailExists(sanitizedDto.email);
     if (emailExists) {
-      throw new ConflictException('El email ya está registrado');
+      this.handleError.conflict('El email ya está registrado', 'email');
     }
 
     try {
-      const user = await this.userRepository.create(dto);
+      const user = await this.userRepository.create(sanitizedDto);
       this.logger.log(`User created: ${user.id} (${user.email})`);
       return this.toUserResponse(user);
     } catch (error) {
-      this.logger.error('Error creating user', error);
-      throw error;
+      throw this.handleError.handle(error, 'Error creando usuario');
     }
   }
 
@@ -60,7 +67,7 @@ export class UserService {
   async findById(id: string): Promise<IUserResponse> {
     const user = await this.userRepository.findById(id);
     if (!user) {
-      throw new NotFoundException('Usuario no encontrado');
+      this.handleError.notFound('Usuario', id);
     }
     return this.toUserResponse(user);
   }
@@ -71,9 +78,10 @@ export class UserService {
    * @returns Usuario encontrado
    */
   async findByEmail(email: string): Promise<IUserResponse> {
-    const user = await this.userRepository.findByEmail(email);
+    const sanitizedEmail = this.sanitizer.sanitizeEmail(email);
+    const user = await this.userRepository.findByEmail(sanitizedEmail);
     if (!user) {
-      throw new NotFoundException('Usuario no encontrado');
+      this.handleError.notFound('Usuario');
     }
     return this.toUserResponse(user);
   }
@@ -84,6 +92,11 @@ export class UserService {
    * @returns Usuarios paginados
    */
   async findAll(query: QueryUserDto): Promise<IPaginatedResponse<IUserResponse>> {
+    // Sanitizar búsqueda si existe
+    if (query.search) {
+      query.search = this.sanitizer.sanitizeString(query.search);
+    }
+
     const result = await this.userRepository.findAll(query);
 
     return {
@@ -102,27 +115,29 @@ export class UserService {
     // Verificar que el usuario existe
     const existingUser = await this.userRepository.findById(id);
     if (!existingUser) {
-      throw new NotFoundException('Usuario no encontrado');
+      this.handleError.notFound('Usuario', id);
     }
 
+    // Sanitizar inputs
+    const sanitizedDto = this.sanitizeUpdateDto(dto);
+
     // Verificar email duplicado si se está cambiando
-    if (dto.email && dto.email !== existingUser.email) {
-      const emailExists = await this.userRepository.emailExists(dto.email, id);
+    if (sanitizedDto.email && sanitizedDto.email !== existingUser.email) {
+      const emailExists = await this.userRepository.emailExists(sanitizedDto.email, id);
       if (emailExists) {
-        throw new ConflictException('El email ya está registrado');
+        this.handleError.conflict('El email ya está registrado', 'email');
       }
     }
 
     try {
-      const user = await this.userRepository.update(id, dto);
+      const user = await this.userRepository.update(id, sanitizedDto);
       if (!user) {
-        throw new NotFoundException('Usuario no encontrado');
+        this.handleError.notFound('Usuario', id);
       }
       this.logger.log(`User updated: ${user.id}`);
       return this.toUserResponse(user);
     } catch (error) {
-      this.logger.error('Error updating user', error);
-      throw error;
+      throw this.handleError.handle(error, 'Error actualizando usuario');
     }
   }
 
@@ -133,12 +148,12 @@ export class UserService {
   async softDelete(id: string): Promise<void> {
     const user = await this.userRepository.findById(id);
     if (!user) {
-      throw new NotFoundException('Usuario no encontrado');
+      this.handleError.notFound('Usuario', id);
     }
 
     const deleted = await this.userRepository.softDelete(id);
     if (!deleted) {
-      throw new BadRequestException('No se pudo eliminar el usuario');
+      this.handleError.badRequest('No se pudo eliminar el usuario');
     }
 
     this.logger.log(`User soft deleted: ${id}`);
@@ -151,12 +166,12 @@ export class UserService {
   async restore(id: string): Promise<IUserResponse> {
     const restored = await this.userRepository.restore(id);
     if (!restored) {
-      throw new NotFoundException('Usuario no encontrado');
+      this.handleError.notFound('Usuario', id);
     }
 
     const user = await this.userRepository.findById(id);
     if (!user) {
-      throw new NotFoundException('Usuario no encontrado');
+      this.handleError.notFound('Usuario', id);
     }
 
     this.logger.log(`User restored: ${id}`);
@@ -173,19 +188,21 @@ export class UserService {
    * @param dto - Datos de cambio de contraseña
    */
   async changePassword(id: string, dto: ChangePasswordDto): Promise<void> {
-    const user = await this.userRepository.findByEmail(
-      (await this.userRepository.findById(id))?.email || '',
-      true,
-    );
+    // Buscar usuario con password
+    const existingUser = await this.userRepository.findById(id);
+    if (!existingUser) {
+      this.handleError.notFound('Usuario', id);
+    }
 
+    const user = await this.userRepository.findByEmail(existingUser.email, true);
     if (!user) {
-      throw new NotFoundException('Usuario no encontrado');
+      this.handleError.notFound('Usuario', id);
     }
 
     // Verificar contraseña actual
     const isValid = await bcrypt.compare(dto.currentPassword, user.password);
     if (!isValid) {
-      throw new BadRequestException('La contraseña actual es incorrecta');
+      this.handleError.badRequest('La contraseña actual es incorrecta');
     }
 
     // Hash de la nueva contraseña
@@ -193,7 +210,7 @@ export class UserService {
 
     const updated = await this.userRepository.updatePassword(id, hashedPassword);
     if (!updated) {
-      throw new BadRequestException('No se pudo actualizar la contraseña');
+      this.handleError.badRequest('No se pudo actualizar la contraseña');
     }
 
     this.logger.log(`Password changed for user: ${id}`);
@@ -208,14 +225,7 @@ export class UserService {
    * @param id - ID del usuario
    */
   async activate(id: string): Promise<IUserResponse> {
-    const user = await this.userRepository.findById(id);
-    if (!user) {
-      throw new NotFoundException('Usuario no encontrado');
-    }
-
-    await this.userRepository.updateStatus(id, UserStatus.ACTIVE);
-    this.logger.log(`User activated: ${id}`);
-
+    await this.updateStatusWithValidation(id, UserStatus.ACTIVE, 'activated');
     return this.findById(id);
   }
 
@@ -224,14 +234,7 @@ export class UserService {
    * @param id - ID del usuario
    */
   async deactivate(id: string): Promise<IUserResponse> {
-    const user = await this.userRepository.findById(id);
-    if (!user) {
-      throw new NotFoundException('Usuario no encontrado');
-    }
-
-    await this.userRepository.updateStatus(id, UserStatus.INACTIVE);
-    this.logger.log(`User deactivated: ${id}`);
-
+    await this.updateStatusWithValidation(id, UserStatus.INACTIVE, 'deactivated');
     return this.findById(id);
   }
 
@@ -240,14 +243,7 @@ export class UserService {
    * @param id - ID del usuario
    */
   async suspend(id: string): Promise<IUserResponse> {
-    const user = await this.userRepository.findById(id);
-    if (!user) {
-      throw new NotFoundException('Usuario no encontrado');
-    }
-
-    await this.userRepository.updateStatus(id, UserStatus.SUSPENDED);
-    this.logger.log(`User suspended: ${id}`);
-
+    await this.updateStatusWithValidation(id, UserStatus.SUSPENDED, 'suspended');
     return this.findById(id);
   }
 
@@ -256,14 +252,7 @@ export class UserService {
    * @param id - ID del usuario
    */
   async block(id: string): Promise<IUserResponse> {
-    const user = await this.userRepository.findById(id);
-    if (!user) {
-      throw new NotFoundException('Usuario no encontrado');
-    }
-
-    await this.userRepository.updateStatus(id, UserStatus.BLOCKED);
-    this.logger.log(`User blocked: ${id}`);
-
+    await this.updateStatusWithValidation(id, UserStatus.BLOCKED, 'blocked');
     return this.findById(id);
   }
 
@@ -279,7 +268,7 @@ export class UserService {
   async getProfile(id: string): Promise<IUserProfileResponse> {
     const user = await this.userRepository.findById(id);
     if (!user) {
-      throw new NotFoundException('Usuario no encontrado');
+      this.handleError.notFound('Usuario', id);
     }
     return this.toUserProfileResponse(user);
   }
@@ -294,9 +283,17 @@ export class UserService {
     id: string,
     dto: Pick<UpdateUserDto, 'firstName' | 'lastName' | 'phone' | 'avatar' | 'preferences'>,
   ): Promise<IUserProfileResponse> {
-    const user = await this.userRepository.update(id, dto);
+    // Sanitizar inputs del perfil
+    const sanitizedDto = {
+      ...dto,
+      firstName: dto.firstName ? this.sanitizer.sanitizeString(dto.firstName) : undefined,
+      lastName: dto.lastName ? this.sanitizer.sanitizeString(dto.lastName) : undefined,
+      phone: dto.phone ? this.sanitizer.sanitizePhone(dto.phone) : undefined,
+    };
+
+    const user = await this.userRepository.update(id, sanitizedDto);
     if (!user) {
-      throw new NotFoundException('Usuario no encontrado');
+      this.handleError.notFound('Usuario', id);
     }
     return this.toUserProfileResponse(user);
   }
@@ -322,8 +319,60 @@ export class UserService {
   }
 
   // ============================================
-  // PRIVATE METHODS
+  // PRIVATE HELPER METHODS
   // ============================================
+
+  /**
+   * Sanitiza los datos de creación de usuario
+   */
+  private sanitizeCreateDto(dto: CreateUserDto): CreateUserDto {
+    return {
+      ...dto,
+      email: this.sanitizer.sanitizeEmail(dto.email),
+      firstName: this.sanitizer.sanitizeString(dto.firstName),
+      lastName: this.sanitizer.sanitizeString(dto.lastName),
+      phone: dto.phone ? this.sanitizer.sanitizePhone(dto.phone) : undefined,
+    };
+  }
+
+  /**
+   * Sanitiza los datos de actualización de usuario
+   */
+  private sanitizeUpdateDto(dto: UpdateUserDto): UpdateUserDto {
+    const sanitized: UpdateUserDto = { ...dto };
+
+    if (dto.email) {
+      sanitized.email = this.sanitizer.sanitizeEmail(dto.email);
+    }
+    if (dto.firstName) {
+      sanitized.firstName = this.sanitizer.sanitizeString(dto.firstName);
+    }
+    if (dto.lastName) {
+      sanitized.lastName = this.sanitizer.sanitizeString(dto.lastName);
+    }
+    if (dto.phone) {
+      sanitized.phone = this.sanitizer.sanitizePhone(dto.phone);
+    }
+
+    return sanitized;
+  }
+
+  /**
+   * Actualiza el status con validación previa
+   */
+  private async updateStatusWithValidation(
+    id: string,
+    status: UserStatus,
+    action: string,
+  ): Promise<void> {
+    const user = await this.userRepository.findById(id);
+    if (!user) {
+      this.handleError.notFound('Usuario', id);
+    }
+
+    await this.userRepository.updateStatus(id, status);
+    this.logger.log(`User ${action}: ${id}`);
+  }
 
   /**
    * Convierte entidad a respuesta de usuario
@@ -360,5 +409,114 @@ export class UserService {
       metadata: user.metadata,
       preferences: user.preferences,
     };
+  }
+
+  // ============================================
+  // AUTH SPECIFIC METHODS (para AuthService)
+  // ============================================
+
+  /**
+   * Busca un usuario por email incluyendo password
+   * ⚠️ Solo para uso interno de autenticación
+   * @param email - Email del usuario
+   * @returns Usuario con password o null
+   */
+  async findByEmailWithPassword(email: string): Promise<UserEntity | null> {
+    const sanitizedEmail = this.sanitizer.sanitizeEmail(email);
+    return await this.userRepository.findByEmail(sanitizedEmail, true);
+  }
+
+  /**
+   * Busca un usuario por ID incluyendo password
+   * ⚠️ Solo para uso interno de autenticación
+   * @param id - ID del usuario
+   * @returns Usuario con password o null
+   */
+  async findByIdWithPassword(id: string): Promise<UserEntity | null> {
+    return await this.userRepository.findByIdWithPassword(id);
+  }
+
+  /**
+   * Busca un usuario por ID incluyendo roles completos
+   * @param id - ID del usuario
+   * @returns Usuario con roles y permisos o null
+   */
+  async findByIdWithRoles(id: string): Promise<UserEntity | null> {
+    return await this.userRepository.findByIdWithRoles(id);
+  }
+
+  /**
+   * Verifica si un email existe
+   * @param email - Email a verificar
+   * @returns true si existe
+   */
+  async existsByEmail(email: string): Promise<boolean> {
+    const sanitizedEmail = this.sanitizer.sanitizeEmail(email);
+    return await this.userRepository.emailExists(sanitizedEmail);
+  }
+
+  /**
+   * Incrementa los intentos fallidos de login
+   * @param id - ID del usuario
+   */
+  async incrementFailedAttempts(id: string): Promise<void> {
+    await this.userRepository.registerFailedLogin(id);
+    this.logger.warn(`Failed login attempt registered for user: ${id}`);
+  }
+
+  /**
+   * Resetea los intentos fallidos de login
+   * @param id - ID del usuario
+   */
+  async resetFailedAttempts(id: string): Promise<void> {
+    await this.userRepository.resetFailedAttempts(id);
+  }
+
+  /**
+   * Actualiza la fecha de último login
+   * @param id - ID del usuario
+   * @param ip - IP del cliente (opcional)
+   */
+  async updateLastLogin(id: string, ip?: string): Promise<void> {
+    await this.userRepository.registerLogin(id, ip);
+  }
+
+  /**
+   * Actualiza la contraseña de un usuario
+   * ⚠️ Esta función NO valida la contraseña actual
+   * @param id - ID del usuario
+   * @param newPassword - Nueva contraseña en texto plano (será hasheada)
+   */
+  async updatePassword(id: string, newPassword: string): Promise<void> {
+    // Hash de la nueva contraseña
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    const updated = await this.userRepository.updatePassword(id, hashedPassword);
+    if (!updated) {
+      this.handleError.notFound('Usuario', id);
+    }
+
+    this.logger.log(`Password updated for user: ${id}`);
+  }
+
+  /**
+   * Guarda token de reset de contraseña
+   * @param id - ID del usuario
+   * @param token - Token de reset (JWT)
+   */
+  async savePasswordResetToken(id: string, token: string): Promise<void> {
+    // El token expira en 1 hora
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    await this.userRepository.savePasswordResetToken(id, token, expiresAt);
+    this.logger.log(`Password reset token saved for user: ${id}`);
+  }
+
+  /**
+   * Invalida el token de reset de contraseña
+   * @param id - ID del usuario
+   */
+  async invalidatePasswordResetToken(id: string): Promise<void> {
+    await this.userRepository.invalidatePasswordResetToken(id);
+    this.logger.log(`Password reset token invalidated for user: ${id}`);
   }
 }

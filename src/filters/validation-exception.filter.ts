@@ -1,3 +1,5 @@
+// src/filters/validation-exception.filter.ts
+
 import {
   ExceptionFilter,
   Catch,
@@ -8,16 +10,25 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 
+/**
+ * Estructura de respuesta de BadRequestException
+ */
+interface ValidationExceptionResponse {
+  message: string | string[];
+  error?: string;
+  statusCode?: number;
+}
+
 @Catch(BadRequestException)
 export class ValidationExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(ValidationExceptionFilter.name);
 
-  catch(exception: BadRequestException, host: ArgumentsHost) {
+  catch(exception: BadRequestException, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
     const status = HttpStatus.BAD_REQUEST;
-    const exceptionResponse = exception.getResponse() as any;
+    const exceptionResponse = exception.getResponse() as ValidationExceptionResponse;
 
     // Formatear errores de validación
     let validationErrors: Record<string, string[]> | null = null;

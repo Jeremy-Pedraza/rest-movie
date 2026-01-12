@@ -1,6 +1,6 @@
 // src/app.module.ts
 
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
@@ -24,10 +24,19 @@ import { RouterModule } from '@shared/router';
 import { HealthModule } from '@modules/health';
 import { LoggerModule } from '@modules/logger';
 import { UserModule } from '@modules/user';
+import { AuthModule } from '@modules/auth';
 
 // Global Interceptors & Filters
 import { LoggingInterceptor } from '@interceptors/logging.interceptor';
+import { TimeoutInterceptor } from '@interceptors/timeout.interceptor';
 import { AllExceptionsFilter } from '@filters/all-exceptions.filter';
+
+// Global Guards
+import { JwtAuthGuard } from '@guards/jwt-auth.guard';
+import { RolesGuard } from '@guards/roles.guard';
+
+// Middlewares
+import { RequestIdMiddleware, LoggerMiddleware } from '@middleware/index';
 
 // Configurations
 import appConfig from '@config/app.config';
@@ -106,7 +115,7 @@ import { bullConfig } from '@config/bull';
     HealthModule,
     LoggerModule,
     UserModule,
-    // AuthModule,
+    AuthModule, // JWT Strategy + Passport
   ],
   controllers: [AppController],
   providers: [
@@ -124,11 +133,39 @@ import { bullConfig } from '@config/bull';
       useClass: LoggingInterceptor,
     },
 
+    // Global Timeout Interceptor (30s default, configurable via APP_REQUEST_TIMEOUT)
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: TimeoutInterceptor,
+    },
+
     // Global Throttler Guard
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
     },
+
+    // Global JWT Auth Guard (autenticación)
+    // Usar @Public() para rutas sin autenticación
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+
+    // Global Roles Guard (autorización)
+    // Usar @Roles() para restringir por rol
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
+    },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  /**
+   * Configura los middlewares globales
+   * Orden: RequestId -> Logger (Logger necesita requestId)
+   */
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RequestIdMiddleware, LoggerMiddleware).forRoutes('*'); // Aplicar a todas las rutas
+  }
+}

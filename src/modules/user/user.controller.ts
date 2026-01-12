@@ -3,6 +3,9 @@
 /**
  * @fileoverview Controller para usuarios
  * @module modules/user
+ *
+ * Los errores son manejados globalmente por AllExceptionsFilter,
+ * por lo que no necesitamos try-catch en cada método.
  */
 
 import {
@@ -18,7 +21,6 @@ import {
   ParseUUIDPipe,
   HttpCode,
   HttpStatus,
-  Logger,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 
@@ -28,14 +30,13 @@ import { IUserResponse, IUserProfileResponse } from './interfaces';
 import { IPaginatedResponse, IApiResponse } from '@shared/common';
 import { Roles } from '@decorators/roles.decorator';
 import { CurrentUser } from '@decorators/current-user.decorator';
+import { Cacheable } from '@decorators/cacheable.decorator';
 import { ROLES } from '@constants/roles.constant';
 
 @ApiTags('Users')
 @ApiBearerAuth()
 @Controller('users')
 export class UserController {
-  private readonly logger = new Logger(UserController.name);
-
   constructor(private readonly userService: UserService) {}
 
   // ============================================
@@ -52,17 +53,12 @@ export class UserController {
   @ApiResponse({ status: 400, description: 'Datos inválidos' })
   @ApiResponse({ status: 409, description: 'Email ya existe' })
   async create(@Body() dto: CreateUserDto): Promise<IApiResponse<IUserResponse>> {
-    try {
-      const user = await this.userService.create(dto);
-      return {
-        success: true,
-        message: 'Usuario creado exitosamente',
-        data: user,
-      };
-    } catch (error) {
-      this.logger.error('Error creating user', error);
-      throw error;
-    }
+    const user = await this.userService.create(dto);
+    return {
+      success: true,
+      message: 'Usuario creado exitosamente',
+      data: user,
+    };
   }
 
   /**
@@ -75,38 +71,30 @@ export class UserController {
   async findAll(
     @Query() query: QueryUserDto,
   ): Promise<IApiResponse<IPaginatedResponse<IUserResponse>>> {
-    try {
-      const result = await this.userService.findAll(query);
-      return {
-        success: true,
-        message: 'Usuarios obtenidos exitosamente',
-        data: result,
-      };
-    } catch (error) {
-      this.logger.error('Error fetching users', error);
-      throw error;
-    }
+    const result = await this.userService.findAll(query);
+    return {
+      success: true,
+      message: 'Usuarios obtenidos exitosamente',
+      data: result,
+    };
   }
 
   /**
    * Obtiene estadísticas de usuarios
+   * Cache: 60 segundos
    */
   @Get('stats')
+  @Cacheable(60)
   @Roles(ROLES.ADMIN)
   @ApiOperation({ summary: 'Obtener estadísticas de usuarios' })
   @ApiResponse({ status: 200, description: 'Estadísticas de usuarios' })
   async getStats(): Promise<IApiResponse<Record<string, unknown>>> {
-    try {
-      const stats = await this.userService.getStats();
-      return {
-        success: true,
-        message: 'Estadísticas obtenidas',
-        data: stats,
-      };
-    } catch (error) {
-      this.logger.error('Error fetching user stats', error);
-      throw error;
-    }
+    const stats = await this.userService.getStats();
+    return {
+      success: true,
+      message: 'Estadísticas obtenidas',
+      data: stats,
+    };
   }
 
   /**
@@ -119,17 +107,12 @@ export class UserController {
   @ApiResponse({ status: 200, description: 'Usuario encontrado' })
   @ApiResponse({ status: 404, description: 'Usuario no encontrado' })
   async findById(@Param('id', ParseUUIDPipe) id: string): Promise<IApiResponse<IUserResponse>> {
-    try {
-      const user = await this.userService.findById(id);
-      return {
-        success: true,
-        message: 'Usuario encontrado',
-        data: user,
-      };
-    } catch (error) {
-      this.logger.error('Error fetching user', error);
-      throw error;
-    }
+    const user = await this.userService.findById(id);
+    return {
+      success: true,
+      message: 'Usuario encontrado',
+      data: user,
+    };
   }
 
   /**
@@ -145,17 +128,12 @@ export class UserController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateUserDto,
   ): Promise<IApiResponse<IUserResponse>> {
-    try {
-      const user = await this.userService.update(id, dto);
-      return {
-        success: true,
-        message: 'Usuario actualizado exitosamente',
-        data: user,
-      };
-    } catch (error) {
-      this.logger.error('Error updating user', error);
-      throw error;
-    }
+    const user = await this.userService.update(id, dto);
+    return {
+      success: true,
+      message: 'Usuario actualizado exitosamente',
+      data: user,
+    };
   }
 
   /**
@@ -169,17 +147,12 @@ export class UserController {
   @ApiResponse({ status: 200, description: 'Usuario eliminado' })
   @ApiResponse({ status: 404, description: 'Usuario no encontrado' })
   async delete(@Param('id', ParseUUIDPipe) id: string): Promise<IApiResponse<null>> {
-    try {
-      await this.userService.softDelete(id);
-      return {
-        success: true,
-        message: 'Usuario eliminado exitosamente',
-        data: null,
-      };
-    } catch (error) {
-      this.logger.error('Error deleting user', error);
-      throw error;
-    }
+    await this.userService.softDelete(id);
+    return {
+      success: true,
+      message: 'Usuario eliminado exitosamente',
+      data: null,
+    };
   }
 
   /**
@@ -192,17 +165,12 @@ export class UserController {
   @ApiResponse({ status: 200, description: 'Usuario restaurado' })
   @ApiResponse({ status: 404, description: 'Usuario no encontrado' })
   async restore(@Param('id', ParseUUIDPipe) id: string): Promise<IApiResponse<IUserResponse>> {
-    try {
-      const user = await this.userService.restore(id);
-      return {
-        success: true,
-        message: 'Usuario restaurado exitosamente',
-        data: user,
-      };
-    } catch (error) {
-      this.logger.error('Error restoring user', error);
-      throw error;
-    }
+    const user = await this.userService.restore(id);
+    return {
+      success: true,
+      message: 'Usuario restaurado exitosamente',
+      data: user,
+    };
   }
 
   // ============================================
@@ -218,17 +186,12 @@ export class UserController {
   @ApiParam({ name: 'id', description: 'ID del usuario' })
   @ApiResponse({ status: 200, description: 'Usuario activado' })
   async activate(@Param('id', ParseUUIDPipe) id: string): Promise<IApiResponse<IUserResponse>> {
-    try {
-      const user = await this.userService.activate(id);
-      return {
-        success: true,
-        message: 'Usuario activado',
-        data: user,
-      };
-    } catch (error) {
-      this.logger.error('Error activating user', error);
-      throw error;
-    }
+    const user = await this.userService.activate(id);
+    return {
+      success: true,
+      message: 'Usuario activado',
+      data: user,
+    };
   }
 
   /**
@@ -240,17 +203,12 @@ export class UserController {
   @ApiParam({ name: 'id', description: 'ID del usuario' })
   @ApiResponse({ status: 200, description: 'Usuario desactivado' })
   async deactivate(@Param('id', ParseUUIDPipe) id: string): Promise<IApiResponse<IUserResponse>> {
-    try {
-      const user = await this.userService.deactivate(id);
-      return {
-        success: true,
-        message: 'Usuario desactivado',
-        data: user,
-      };
-    } catch (error) {
-      this.logger.error('Error deactivating user', error);
-      throw error;
-    }
+    const user = await this.userService.deactivate(id);
+    return {
+      success: true,
+      message: 'Usuario desactivado',
+      data: user,
+    };
   }
 
   /**
@@ -262,17 +220,12 @@ export class UserController {
   @ApiParam({ name: 'id', description: 'ID del usuario' })
   @ApiResponse({ status: 200, description: 'Usuario suspendido' })
   async suspend(@Param('id', ParseUUIDPipe) id: string): Promise<IApiResponse<IUserResponse>> {
-    try {
-      const user = await this.userService.suspend(id);
-      return {
-        success: true,
-        message: 'Usuario suspendido',
-        data: user,
-      };
-    } catch (error) {
-      this.logger.error('Error suspending user', error);
-      throw error;
-    }
+    const user = await this.userService.suspend(id);
+    return {
+      success: true,
+      message: 'Usuario suspendido',
+      data: user,
+    };
   }
 
   /**
@@ -284,17 +237,12 @@ export class UserController {
   @ApiParam({ name: 'id', description: 'ID del usuario' })
   @ApiResponse({ status: 200, description: 'Usuario bloqueado' })
   async block(@Param('id', ParseUUIDPipe) id: string): Promise<IApiResponse<IUserResponse>> {
-    try {
-      const user = await this.userService.block(id);
-      return {
-        success: true,
-        message: 'Usuario bloqueado',
-        data: user,
-      };
-    } catch (error) {
-      this.logger.error('Error blocking user', error);
-      throw error;
-    }
+    const user = await this.userService.block(id);
+    return {
+      success: true,
+      message: 'Usuario bloqueado',
+      data: user,
+    };
   }
 
   // ============================================
@@ -310,17 +258,12 @@ export class UserController {
   async getMyProfile(
     @CurrentUser('id') userId: string,
   ): Promise<IApiResponse<IUserProfileResponse>> {
-    try {
-      const profile = await this.userService.getProfile(userId);
-      return {
-        success: true,
-        message: 'Perfil obtenido',
-        data: profile,
-      };
-    } catch (error) {
-      this.logger.error('Error fetching profile', error);
-      throw error;
-    }
+    const profile = await this.userService.getProfile(userId);
+    return {
+      success: true,
+      message: 'Perfil obtenido',
+      data: profile,
+    };
   }
 
   /**
@@ -333,17 +276,12 @@ export class UserController {
     @CurrentUser('id') userId: string,
     @Body() dto: Pick<UpdateUserDto, 'firstName' | 'lastName' | 'phone' | 'avatar' | 'preferences'>,
   ): Promise<IApiResponse<IUserProfileResponse>> {
-    try {
-      const profile = await this.userService.updateProfile(userId, dto);
-      return {
-        success: true,
-        message: 'Perfil actualizado',
-        data: profile,
-      };
-    } catch (error) {
-      this.logger.error('Error updating profile', error);
-      throw error;
-    }
+    const profile = await this.userService.updateProfile(userId, dto);
+    return {
+      success: true,
+      message: 'Perfil actualizado',
+      data: profile,
+    };
   }
 
   /**
@@ -358,16 +296,11 @@ export class UserController {
     @CurrentUser('id') userId: string,
     @Body() dto: ChangePasswordDto,
   ): Promise<IApiResponse<null>> {
-    try {
-      await this.userService.changePassword(userId, dto);
-      return {
-        success: true,
-        message: 'Contraseña actualizada exitosamente',
-        data: null,
-      };
-    } catch (error) {
-      this.logger.error('Error changing password', error);
-      throw error;
-    }
+    await this.userService.changePassword(userId, dto);
+    return {
+      success: true,
+      message: 'Contraseña actualizada exitosamente',
+      data: null,
+    };
   }
 }

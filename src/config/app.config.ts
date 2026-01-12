@@ -21,6 +21,12 @@ export default registerAs('app', () => ({
   debug: process.env.APP_DEBUG === 'true',
 
   /**
+   * Timeout para requests HTTP (en milisegundos)
+   * @default 30000 (30 segundos)
+   */
+  requestTimeout: parseInt(process.env.APP_REQUEST_TIMEOUT || '30000', 10),
+
+  /**
    * Configuración de logging en base de datos
    */
   logging: {
@@ -28,7 +34,8 @@ export default registerAs('app', () => ({
      * Nivel de logging en BD
      * @default 'all' en development, 'errors' en production
      */
-    dbLevel: (process.env.LOG_DB_LEVEL as LogDbLevel) || 
+    dbLevel:
+      (process.env.LOG_DB_LEVEL as LogDbLevel) ||
       (process.env.NODE_ENV === 'production' ? 'errors' : 'all'),
 
     /**

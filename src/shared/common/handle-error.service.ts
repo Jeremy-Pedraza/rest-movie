@@ -1,4 +1,12 @@
 // src/shared/common/handle-error.service.ts
+
+/**
+ * @fileoverview Servicio centralizado para manejo de errores
+ * @module shared/common
+ *
+ * Integra ERROR_CODES para códigos consistentes en toda la aplicación.
+ */
+
 import {
   Injectable,
   Logger,
@@ -10,18 +18,24 @@ import {
   NotFoundException,
   ConflictException,
   InternalServerErrorException,
+  RequestTimeoutException,
 } from '@nestjs/common';
 import { QueryFailedError } from 'typeorm';
+
+import { ERROR_CODES, ErrorCode } from '@constants/error-codes.constant';
+import { RESPONSE_MESSAGES } from '@constants/response-messages.constant';
 
 /**
  * Interfaz para errores estructurados
  */
 export interface IStructuredError {
+  success: false;
   statusCode: number;
   message: string;
   error: string;
-  details?: any;
-  code?: string;
+  code?: ErrorCode;
+  details?: unknown;
+  field?: string;
 }
 
 /**
@@ -39,15 +53,18 @@ export const PG_ERROR_CODES = {
 /**
  * HandleErrorService - Servicio centralizado para manejo de errores
  *
- * Proporciona métodos estandarizados para el manejo y transformación
- * de errores en toda la aplicación.
- *
  * @example
  * ```typescript
+ * // En un service
+ * if (!user) {
+ *   this.handleError.notFound('Usuario', id);
+ * }
+ *
+ * // Manejar errores de BD
  * try {
- *   await this.repository.create(dto);
+ *   await this.repository.save(entity);
  * } catch (error) {
- *   throw this.handleError.handle(error, 'Error al crear usuario');
+ *   throw this.handleError.handle(error, 'Error guardando usuario');
  * }
  * ```
  */
@@ -62,7 +79,7 @@ export class HandleErrorService {
    * @param context - Contexto adicional para el log
    * @returns HttpException con el error apropiado
    */
-  handle(error: any, context?: string): HttpException {
+  handle(error: unknown, context?: string): HttpException {
     // Si ya es una HttpException, re-lanzarla
     if (error instanceof HttpException) {
       this.logError(error, context);
@@ -80,31 +97,34 @@ export class HandleErrorService {
     }
 
     // Error genérico
-    this.logger.error(`${context || 'Error'}: ${error.message}`, error.stack);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+
+    this.logger.error(`${context || 'Error'}: ${errorMessage}`, errorStack);
 
     return new InternalServerErrorException({
       success: false,
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-      message: 'Error interno del servidor',
+      message: RESPONSE_MESSAGES.ERROR.INTERNAL_SERVER,
       error: 'Internal Server Error',
-    });
+      code: ERROR_CODES.INTERNAL_SERVER_ERROR,
+    } satisfies IStructuredError);
   }
 
   /**
    * Maneja errores específicos de base de datos (TypeORM/PostgreSQL)
-   *
-   * @param error - QueryFailedError de TypeORM
-   * @param context - Contexto adicional
-   * @returns HttpException apropiada
    */
   handleDatabaseError(error: QueryFailedError, context?: string): HttpException {
-    const pgError = error as any;
-    const code = pgError.code || pgError.driverError?.code;
+    const pgError = error as unknown as {
+      code?: string;
+      detail?: string;
+      driverError?: { detail?: string };
+    };
+    const code = pgError.code;
 
     this.logger.error(`Database Error [${code}]: ${error.message}`, {
       context,
-      query: pgError.query,
-      parameters: pgError.parameters,
+      code,
     });
 
     switch (code) {
@@ -117,17 +137,17 @@ export class HandleErrorService {
           statusCode: HttpStatus.BAD_REQUEST,
           message: 'El registro referenciado no existe',
           error: 'Foreign Key Violation',
-          code: 'FOREIGN_KEY_VIOLATION',
-        });
+          code: ERROR_CODES.DATABASE_ERROR,
+        } satisfies IStructuredError);
 
       case PG_ERROR_CODES.NOT_NULL_VIOLATION:
         return new BadRequestException({
           success: false,
           statusCode: HttpStatus.BAD_REQUEST,
-          message: 'Falta un campo requerido',
+          message: RESPONSE_MESSAGES.VALIDATION.REQUIRED_FIELD,
           error: 'Not Null Violation',
-          code: 'NOT_NULL_VIOLATION',
-        });
+          code: ERROR_CODES.VALIDATION_REQUIRED_FIELD,
+        } satisfies IStructuredError);
 
       case PG_ERROR_CODES.CHECK_VIOLATION:
         return new BadRequestException({
@@ -135,33 +155,36 @@ export class HandleErrorService {
           statusCode: HttpStatus.BAD_REQUEST,
           message: 'El valor no cumple con las restricciones',
           error: 'Check Violation',
-          code: 'CHECK_VIOLATION',
-        });
+          code: ERROR_CODES.VALIDATION_ERROR,
+        } satisfies IStructuredError);
 
       case PG_ERROR_CODES.INVALID_TEXT_REPRESENTATION:
         return new BadRequestException({
           success: false,
           statusCode: HttpStatus.BAD_REQUEST,
-          message: 'Formato de dato inválido',
+          message: RESPONSE_MESSAGES.VALIDATION.INVALID_FORMAT,
           error: 'Invalid Input',
-          code: 'INVALID_INPUT',
-        });
+          code: ERROR_CODES.VALIDATION_INVALID_FORMAT,
+        } satisfies IStructuredError);
 
       default:
         return new InternalServerErrorException({
           success: false,
           statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-          message: 'Error en la base de datos',
+          message: RESPONSE_MESSAGES.ERROR.DATABASE_ERROR,
           error: 'Database Error',
-        });
+          code: ERROR_CODES.DATABASE_ERROR,
+        } satisfies IStructuredError);
     }
   }
 
   /**
    * Extrae el campo duplicado de un error UNIQUE_VIOLATION
    */
-  private handleUniqueViolation(error: any): ConflictException {
-    // Intentar extraer el campo del detalle del error
+  private handleUniqueViolation(error: {
+    detail?: string;
+    driverError?: { detail?: string };
+  }): ConflictException {
     const detail = error.detail || error.driverError?.detail || '';
     const match = detail.match(/Key \(([^)]+)\)/);
     const field = match ? match[1] : 'campo';
@@ -171,9 +194,9 @@ export class HandleErrorService {
       statusCode: HttpStatus.CONFLICT,
       message: `El valor de '${field}' ya existe`,
       error: 'Conflict',
-      code: 'DUPLICATE_ENTRY',
+      code: ERROR_CODES.RESOURCE_ALREADY_EXISTS,
       field,
-    });
+    } satisfies IStructuredError);
   }
 
   /**
@@ -195,29 +218,32 @@ export class HandleErrorService {
   /**
    * Maneja errores de validación
    */
-  private handleValidationError(error: any, context?: string): BadRequestException {
+  private handleValidationError(error: unknown, context?: string): BadRequestException {
     this.logError(error, context);
 
-    const details = error.errors || error.constraints || [];
+    const err = error as Record<string, unknown>;
+    const details = err.errors || err.constraints || [];
 
     return new BadRequestException({
       success: false,
       statusCode: HttpStatus.BAD_REQUEST,
-      message: 'Error de validación',
+      message: RESPONSE_MESSAGES.VALIDATION.INVALID_FORMAT,
       error: 'Bad Request',
+      code: ERROR_CODES.VALIDATION_ERROR,
       details,
-    });
+    } satisfies IStructuredError);
   }
 
   /**
    * Registra el error en el logger
    */
-  private logError(error: any, context?: string): void {
-    const message = error.message || 'Unknown error';
+  private logError(error: unknown, context?: string): void {
+    const err = error as Error & { status?: number };
+    const message = err.message || 'Unknown error';
     const statusCode = error instanceof HttpException ? error.getStatus() : 500;
 
     if (statusCode >= 500) {
-      this.logger.error(`${context || 'Error'}: ${message}`, error.stack);
+      this.logger.error(`${context || 'Error'}: ${message}`, err.stack);
     } else {
       this.logger.warn(`${context || 'Warning'}: ${message}`);
     }
@@ -230,44 +256,61 @@ export class HandleErrorService {
   /**
    * Lanza un BadRequestException
    */
-  badRequest(message: string, details?: any): never {
+  badRequest(
+    message: string,
+    details?: unknown,
+    code: ErrorCode = ERROR_CODES.VALIDATION_ERROR,
+  ): never {
     throw new BadRequestException({
       success: false,
       statusCode: HttpStatus.BAD_REQUEST,
       message,
       error: 'Bad Request',
+      code,
       details,
-    });
+    } satisfies IStructuredError);
   }
 
   /**
    * Lanza un UnauthorizedException
    */
-  unauthorized(message: string = 'No autorizado'): never {
+  unauthorized(
+    message: string = RESPONSE_MESSAGES.AUTH.UNAUTHORIZED,
+    code: ErrorCode = ERROR_CODES.AUTH_UNAUTHORIZED,
+  ): never {
     throw new UnauthorizedException({
       success: false,
       statusCode: HttpStatus.UNAUTHORIZED,
       message,
       error: 'Unauthorized',
-    });
+      code,
+    } satisfies IStructuredError);
   }
 
   /**
    * Lanza un ForbiddenException
    */
-  forbidden(message: string = 'Acceso denegado'): never {
+  forbidden(
+    message: string = RESPONSE_MESSAGES.AUTH.FORBIDDEN,
+    code: ErrorCode = ERROR_CODES.AUTH_FORBIDDEN,
+  ): never {
     throw new ForbiddenException({
       success: false,
       statusCode: HttpStatus.FORBIDDEN,
       message,
       error: 'Forbidden',
-    });
+      code,
+    } satisfies IStructuredError);
   }
 
   /**
    * Lanza un NotFoundException
    */
-  notFound(resource: string, identifier?: string): never {
+  notFound(
+    resource: string,
+    identifier?: string,
+    code: ErrorCode = ERROR_CODES.RESOURCE_NOT_FOUND,
+  ): never {
     const message = identifier
       ? `${resource} con ID '${identifier}' no encontrado`
       : `${resource} no encontrado`;
@@ -277,31 +320,57 @@ export class HandleErrorService {
       statusCode: HttpStatus.NOT_FOUND,
       message,
       error: 'Not Found',
-    });
+      code,
+    } satisfies IStructuredError);
   }
 
   /**
    * Lanza un ConflictException
    */
-  conflict(message: string, field?: string): never {
+  conflict(
+    message: string,
+    field?: string,
+    code: ErrorCode = ERROR_CODES.RESOURCE_CONFLICT,
+  ): never {
     throw new ConflictException({
       success: false,
       statusCode: HttpStatus.CONFLICT,
       message,
       error: 'Conflict',
+      code,
       field,
-    });
+    } satisfies IStructuredError);
   }
 
   /**
    * Lanza un InternalServerErrorException
    */
-  internal(message: string = 'Error interno del servidor'): never {
+  internal(
+    message: string = RESPONSE_MESSAGES.ERROR.INTERNAL_SERVER,
+    code: ErrorCode = ERROR_CODES.INTERNAL_SERVER_ERROR,
+  ): never {
     throw new InternalServerErrorException({
       success: false,
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
       message,
       error: 'Internal Server Error',
-    });
+      code,
+    } satisfies IStructuredError);
+  }
+
+  /**
+   * Lanza un RequestTimeoutException
+   */
+  timeout(
+    message: string = RESPONSE_MESSAGES.ERROR.REQUEST_TIMEOUT,
+    code: ErrorCode = ERROR_CODES.REQUEST_TIMEOUT,
+  ): never {
+    throw new RequestTimeoutException({
+      success: false,
+      statusCode: HttpStatus.REQUEST_TIMEOUT,
+      message,
+      error: 'Request Timeout',
+      code,
+    } satisfies IStructuredError);
   }
 }

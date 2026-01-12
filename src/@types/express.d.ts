@@ -6,6 +6,7 @@
  */
 
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     /**
      * Usuario autenticado en la request
@@ -31,6 +32,11 @@ declare global {
        * Timestamp de inicio de la petición
        */
       startTime?: number;
+
+      /**
+       * Raw body para verificación de webhooks (Stripe, etc.)
+       */
+      rawBody?: Buffer;
     }
   }
 }

@@ -8,6 +8,7 @@
  * - SanitizerService: Sanitización de inputs
  * - HandleErrorService: Manejo centralizado de errores
  * - TransactionService: Transacciones de BD (disponible para operaciones complejas)
+ * - CacheService: Cache inteligente con tags e invalidación
  */
 
 import { Injectable, Logger } from '@nestjs/common';
@@ -15,6 +16,7 @@ import * as bcrypt from 'bcrypt';
 
 import { IPaginatedResponse, SanitizerService, HandleErrorService } from '@shared/common';
 import { TransactionService } from '@shared/database';
+import { CacheService } from '@modules/cache';
 import { ChangePasswordDto, CreateUserDto, QueryUserDto, UpdateUserDto } from './dto';
 import { UserEntity, UserStatus } from './entities/user.entity';
 import { IUserProfileResponse, IUserResponse } from './interfaces';
@@ -29,6 +31,7 @@ export class UserService {
     private readonly sanitizer: SanitizerService,
     private readonly handleError: HandleErrorService,
     private readonly transactionService: TransactionService,
+    private readonly cacheService: CacheService, // ✅ Cache inteligente
   ) {}
 
   // ============================================
@@ -53,6 +56,10 @@ export class UserService {
     try {
       const user = await this.userRepository.create(sanitizedDto);
       this.logger.log(`User created: ${user.id} (${user.email})`);
+      
+      // Invalidar cache de stats al crear usuario
+      await this.cacheService.invalidateTags(['users', 'user-stats']);
+      
       return this.toUserResponse(user);
     } catch (error) {
       throw this.handleError.handle(error, 'Error creando usuario');
@@ -63,13 +70,25 @@ export class UserService {
    * Busca un usuario por ID
    * @param id - ID del usuario
    * @returns Usuario encontrado
+   * 
+   * ✅ Con cache: 1h TTL, tags: ['users', 'user:{id}']
    */
   async findById(id: string): Promise<IUserResponse> {
-    const user = await this.userRepository.findById(id);
-    if (!user) {
-      this.handleError.notFound('Usuario', id);
-    }
-    return this.toUserResponse(user);
+    // remember() = obtener del cache o ejecutar callback
+    return await this.cacheService.remember(
+      `user:${id}`,                               // Key
+      async () => {                               // Callback si no existe
+        const user = await this.userRepository.findById(id);
+        if (!user) {
+          this.handleError.notFound('Usuario', id);
+        }
+        return this.toUserResponse(user);
+      },
+      {
+        ttl: 3600,                                // 1 hora
+        tags: ['users', `user:${id}`],           // Tags para invalidación
+      },
+    );
   }
 
   /**
@@ -135,6 +154,10 @@ export class UserService {
         this.handleError.notFound('Usuario', id);
       }
       this.logger.log(`User updated: ${user.id}`);
+      
+      // Invalidar cache del usuario actualizado + stats
+      await this.cacheService.invalidateTags([`user:${id}`, 'users', 'user-stats']);
+      
       return this.toUserResponse(user);
     } catch (error) {
       throw this.handleError.handle(error, 'Error actualizando usuario');
@@ -157,6 +180,9 @@ export class UserService {
     }
 
     this.logger.log(`User soft deleted: ${id}`);
+    
+    // Invalidar cache del usuario eliminado + stats
+    await this.cacheService.invalidateTags([`user:${id}`, 'users', 'user-stats']);
   }
 
   /**
@@ -175,6 +201,10 @@ export class UserService {
     }
 
     this.logger.log(`User restored: ${id}`);
+    
+    // Invalidar cache del usuario restaurado + stats
+    await this.cacheService.invalidateTags([`user:${id}`, 'users', 'user-stats']);
+    
     return this.toUserResponse(user);
   }
 
@@ -305,17 +335,28 @@ export class UserService {
   /**
    * Obtiene estadísticas de usuarios
    * @returns Estadísticas
+   * 
+   * ✅ Con cache: 5min TTL, tags: ['user-stats', 'users']
    */
   async getStats(): Promise<Record<string, unknown>> {
-    const [total, byStatus] = await Promise.all([
-      this.userRepository.count(),
-      this.userRepository.countByStatus(),
-    ]);
+    return await this.cacheService.remember(
+      'user:stats',
+      async () => {
+        const [total, byStatus] = await Promise.all([
+          this.userRepository.count(),
+          this.userRepository.countByStatus(),
+        ]);
 
-    return {
-      total,
-      byStatus,
-    };
+        return {
+          total,
+          byStatus,
+        };
+      },
+      {
+        ttl: 300,                                 // 5 minutos (stats cambian poco)
+        tags: ['user-stats', 'users'],           // Tags para invalidación
+      },
+    );
   }
 
   // ============================================
@@ -372,6 +413,9 @@ export class UserService {
 
     await this.userRepository.updateStatus(id, status);
     this.logger.log(`User ${action}: ${id}`);
+    
+    // Invalidar cache del usuario + stats (cambió el status)
+    await this.cacheService.invalidateTags([`user:${id}`, 'users', 'user-stats']);
   }
 
   /**

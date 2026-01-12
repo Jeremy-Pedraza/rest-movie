@@ -25,6 +25,7 @@ import { HealthModule } from '@modules/health';
 import { LoggerModule } from '@modules/logger';
 import { UserModule } from '@modules/user';
 import { AuthModule } from '@modules/auth';
+import { CacheModule as CustomCacheModule } from '@modules/cache';
 
 // Global Interceptors & Filters
 import { LoggingInterceptor } from '@interceptors/logging.interceptor';
@@ -116,6 +117,7 @@ import { bullConfig } from '@config/bull';
     LoggerModule,
     UserModule,
     AuthModule, // JWT Strategy + Passport
+    CustomCacheModule, // Cache inteligente con tags
   ],
   controllers: [AppController],
   providers: [

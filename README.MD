@@ -41,7 +41,7 @@ NestJS Backend API - Production Ready
 | 5 | Testing | ⏳ Pendiente | 10% |
 | 6 | **Integración Global** | ✅ **Completo** | **100%** |
 
-> **Última actualización:** Enero 2025 - Sesión 9
+> **Última actualización:** Enero 2025 - Sesión 11 (NotificationModule)
 
 ---
 
@@ -195,10 +195,11 @@ mokka-backend/
 │   ├── middleware/             # RequestId, Logger
 │   ├── pipes/                  # Validation
 │   ├── modules/                # Módulos de negocio
-│   │   ├── auth/
-│   │   ├── user/
-│   │   ├── logger/
-│   │   └── health/
+│   │   ├── auth/               # Autenticación y autorización ✅
+│   │   ├── user/               # Gestión de usuarios ✅
+│   │   ├── notification/       # Notificaciones multi-canal ✅
+│   │   ├── logger/             # Logging a BD
+│   │   └── health/             # Health checks
 │   └── shared/                 # Módulos compartidos
 │       ├── common/             # SanitizerService, HandleErrorService
 │       ├── database/           # TransactionService

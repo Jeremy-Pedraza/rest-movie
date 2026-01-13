@@ -64,8 +64,9 @@ export class BackupJob {
       return envValue.split(',').map((t) => t.trim());
     }
 
-    const config = DEFAULT_JOB_CONFIG[this.jobName] as BackupConfig;
-    return config?.tables ?? ['users', 'roles', 'permissions'];
+    const config = DEFAULT_JOB_CONFIG[this.jobName];
+    // Usar spread para convertir readonly array a mutable array
+    return config && 'tables' in config ? [...config.tables] : ['users', 'roles', 'permissions'];
   }
 
   /**
@@ -77,7 +78,7 @@ export class BackupJob {
       return envValue;
     }
 
-    const config = DEFAULT_JOB_CONFIG[this.jobName] as BackupConfig;
+    const config = DEFAULT_JOB_CONFIG[this.jobName] as { outputDir?: string };
     return config?.outputDir ?? TASKS_CONFIG.BACKUP_DIR;
   }
 
@@ -90,7 +91,7 @@ export class BackupJob {
       return envValue;
     }
 
-    const config = DEFAULT_JOB_CONFIG[this.jobName] as BackupConfig;
+    const config = DEFAULT_JOB_CONFIG[this.jobName] as { keepBackups?: number };
     return config?.keepBackups ?? 4; // Por defecto mantener últimos 4 backups
   }
 

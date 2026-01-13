@@ -16,10 +16,7 @@ import { ReportJobDataDto } from '../dto';
  * - schedule-report: Programar generación de reporte
  * - export-report: Exportar reporte a formato específico
  */
-@Processor({
-  name: QUEUE_NAMES.REPORT,
-  concurrency: PROCESSOR_CONCURRENCY.REPORT,
-})
+@Processor(QUEUE_NAMES.REPORT)
 export class ReportProcessor {
   private readonly logger = new Logger(ReportProcessor.name);
 
@@ -63,7 +60,7 @@ export class ReportProcessor {
       await this.delay(2000);
       await job.progress(100);
 
-      const result = {
+      const result: Record<string, any> = {
         success: true,
         reportId: `report-${Date.now()}`,
         reportType: job.data.reportType,

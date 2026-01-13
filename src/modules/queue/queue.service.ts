@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
-import { Queue, Job, JobCounts } from 'bull';
+import { Queue, Job, JobCounts, JobStatus as BullJobStatus } from 'bull';
 import { ConfigService } from '@nestjs/config';
 import { SanitizerService } from '@shared/common/sanitizer.service';
 import { HandleErrorService } from '@shared/common/handle-error.service';
@@ -135,7 +135,7 @@ export class QueueService implements OnModuleInit {
       completed: counts.completed || 0,
       failed: counts.failed || 0,
       delayed: counts.delayed || 0,
-      paused: counts.paused || 0,
+      paused: (counts as any).paused || 0,
       total:
         (counts.waiting || 0) +
         (counts.active || 0) +
@@ -250,12 +250,12 @@ export class QueueService implements OnModuleInit {
       };
 
       const bullStatus = statusMap[query.status];
-      jobs = await queue.getJobs([bullStatus], start, end);
+      jobs = await queue.getJobs([bullStatus as BullJobStatus], start, end);
       const counts = await queue.getJobCounts();
-      total = counts[bullStatus] || 0;
+      total = (counts as Record<string, number>)[bullStatus] || 0;
     } else {
       // Si no se especifica estado, obtener todos
-      const types = ['waiting', 'active', 'completed', 'failed', 'delayed', 'paused'];
+      const types: BullJobStatus[] = ['waiting', 'active', 'completed', 'failed', 'delayed', 'paused'];
       jobs = await queue.getJobs(types, start, end);
       const counts = await queue.getJobCounts();
       total =
@@ -264,7 +264,7 @@ export class QueueService implements OnModuleInit {
         (counts.completed || 0) +
         (counts.failed || 0) +
         (counts.delayed || 0) +
-        (counts.paused || 0);
+        ((counts as any).paused || 0);
     }
 
     // Filtrar por nombre si se especifica

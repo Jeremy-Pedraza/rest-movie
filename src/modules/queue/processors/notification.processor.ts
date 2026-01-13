@@ -15,10 +15,7 @@ import { NotificationJobDataDto } from '../dto';
  * - send-notification-multi: Envío multi-canal (email + push + sms)
  * - send-notification-batch: Envío de notificaciones en lote
  */
-@Processor({
-  name: QUEUE_NAMES.NOTIFICATION,
-  concurrency: PROCESSOR_CONCURRENCY.NOTIFICATION,
-})
+@Processor(QUEUE_NAMES.NOTIFICATION)
 export class NotificationProcessor {
   private readonly logger = new Logger(NotificationProcessor.name);
 

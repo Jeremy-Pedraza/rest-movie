@@ -432,7 +432,7 @@ export class TasksService implements OnModuleInit {
       const cronJob = this.getCronJob(jobName);
       const config = DEFAULT_JOB_CONFIG[jobName];
 
-      if (cronJob && cronJob.running) {
+      if (cronJob && this.isCronJobRunning(cronJob)) {
         const nextDate = cronJob.nextDate().toJSDate();
         const timeUntil = nextDate.getTime() - now.getTime();
 
@@ -514,7 +514,7 @@ export class TasksService implements OnModuleInit {
       cron: config?.cron || '',
       cronHuman: this.cronToHuman(config?.cron || ''),
       enabled: status.isEnabled,
-      nextRun: cronJob?.running ? cronJob.nextDate().toJSDate() : null,
+      nextRun: cronJob && this.isCronJobRunning(cronJob) ? cronJob.nextDate().toJSDate() : null,
       lastRun: lastExec?.startedAt || null,
       lastRunStatus: lastExec?.status === 'completed' ? 'success' : lastExec?.status === 'failed' ? 'failed' : null,
     };
@@ -523,7 +523,7 @@ export class TasksService implements OnModuleInit {
   /**
    * Obtiene la configuración de un job
    */
-  private getJobConfig(name: string): Record<string, unknown> {
+  private getJobConfig(name: string): ITaskDetailResponse['config'] {
     const jobInstance = this.jobInstances.get(name);
     const status = jobInstance?.getStatus() || {};
     return {
@@ -608,6 +608,16 @@ export class TasksService implements OnModuleInit {
     };
 
     return cronMap[cron] || cron;
+  }
+
+  /**
+   * Verifica si un CronJob está activo/corriendo
+   * La propiedad 'running' existe pero no está correctamente tipada en cron v3.x
+   */
+  private isCronJobRunning(cronJob: CronJob): boolean {
+    // En cron v3.x, 'running' es un getter que existe pero TypeScript no lo reconoce
+    // Usamos type assertion para acceder de forma segura
+    return (cronJob as unknown as { running: boolean }).running ?? false;
   }
 
   /**

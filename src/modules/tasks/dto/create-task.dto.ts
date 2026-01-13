@@ -126,6 +126,7 @@ export class CreateTaskDto {
     description: 'Configuración adicional específica del job',
     example: { retentionDays: 14, tables: ['users', 'orders'] },
     type: 'object',
+    additionalProperties: true,
   })
   @IsOptional()
   @IsObject({ message: 'config debe ser un objeto' })

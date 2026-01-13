@@ -230,6 +230,7 @@ export class RunTaskDto {
     description: 'Parámetros adicionales para la ejecución',
     example: { retentionDays: 7 },
     type: 'object',
+    additionalProperties: true,
   })
   @IsOptional()
   params?: Record<string, unknown>;

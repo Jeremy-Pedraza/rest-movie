@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
-import { Queue } from 'bull';
+import { Queue, Job, JobStatus as BullJobStatus } from 'bull';
 import {
   QUEUE_NAMES,
   JOB_NAMES,
@@ -315,7 +315,7 @@ export class ReportProducer {
    * @param end Índice final
    * @returns Array de jobs
    */
-  async getJobs(status: string, start: number = 0, end: number = 10) {
+  async getJobs(status: BullJobStatus, start: number = 0, end: number = 10): Promise<Job[]> {
     return await this.reportQueue.getJobs([status], start, end);
   }
 

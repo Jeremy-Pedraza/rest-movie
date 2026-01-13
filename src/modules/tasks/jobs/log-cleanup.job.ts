@@ -69,8 +69,10 @@ export class LogCleanupJob {
       return envValue.split(',').map((l) => l.trim() as LogLevel);
     }
 
-    const config = DEFAULT_JOB_CONFIG[this.jobName] as { levels?: string[] };
-    return (config?.levels ?? ['debug', 'verbose']) as LogLevel[];
+    const config = DEFAULT_JOB_CONFIG[this.jobName];
+    // Usar spread para convertir readonly array a mutable array
+    const levels = config && 'levels' in config ? [...config.levels] : ['debug', 'verbose'];
+    return levels as LogLevel[];
   }
 
   /**

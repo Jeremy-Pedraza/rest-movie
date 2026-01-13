@@ -15,10 +15,7 @@ import { EmailJobDataDto } from '../dto';
  * - send-email-batch: Envío de emails en lote
  * - send-email-template: Envío de email con template
  */
-@Processor({
-  name: QUEUE_NAMES.EMAIL,
-  concurrency: PROCESSOR_CONCURRENCY.EMAIL,
-})
+@Processor(QUEUE_NAMES.EMAIL)
 export class EmailProcessor {
   private readonly logger = new Logger(EmailProcessor.name);
 

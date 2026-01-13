@@ -351,6 +351,32 @@ export class UserRepository {
     return counts;
   }
 
+  /**
+   * Obtiene estadísticas de usuarios para cache warmup
+   * @returns Estadísticas de usuarios
+   */
+  async getStats(): Promise<{
+    total: number;
+    byStatus: Record<UserStatus, number>;
+    verified: number;
+    unverified: number;
+  }> {
+    const [total, byStatus, verified, unverified] = await Promise.all([
+      this.count(),
+      this.countByStatus(),
+      this.userRepo
+        .createQueryBuilder('user')
+        .where('user.emailVerified = :verified', { verified: true })
+        .getCount(),
+      this.userRepo
+        .createQueryBuilder('user')
+        .where('user.emailVerified = :verified', { verified: false })
+        .getCount(),
+    ]);
+
+    return { total, byStatus, verified, unverified };
+  }
+
   // ============================================
   // AUTH SPECIFIC METHODS
   // ============================================

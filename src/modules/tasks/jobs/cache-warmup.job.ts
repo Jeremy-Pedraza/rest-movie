@@ -210,7 +210,7 @@ export class CacheWarmupJob {
 
     try {
       const stats = await this.userRepository.getStats();
-      await this.cacheService.set(key, stats, { ttl, tags: ['users', 'stats'] });
+      await this.cacheService.set(key, stats, ttl, ['users', 'stats']);
 
       this.logger.debug(`[${this.jobName}] Precalentado: ${key}`);
       return {
@@ -239,7 +239,7 @@ export class CacheWarmupJob {
 
     try {
       const stats = await this.authRepository.getStats();
-      await this.cacheService.set(key, stats, { ttl, tags: ['sessions', 'stats'] });
+      await this.cacheService.set(key, stats, ttl, ['sessions', 'stats']);
 
       this.logger.debug(`[${this.jobName}] Precalentado: ${key}`);
       return {
@@ -274,7 +274,7 @@ export class CacheWarmupJob {
         updatedAt: new Date().toISOString(),
       };
 
-      await this.cacheService.set(key, counts, { ttl, tags: ['counts', 'stats'] });
+      await this.cacheService.set(key, counts, ttl, ['counts', 'stats']);
 
       this.logger.debug(`[${this.jobName}] Precalentado: ${key}`);
       return {

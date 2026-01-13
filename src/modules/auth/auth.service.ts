@@ -20,6 +20,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { SanitizerService, HandleErrorService } from '@shared/common';
 import { UserService } from '@modules/user';
+import { EmailProducer } from '@modules/queue';
 import { ROLES } from '@constants/roles.constant';
 
 import { AuthRepository } from './auth.repository';
@@ -54,6 +55,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly sanitizer: SanitizerService, // ✅ OBLIGATORIO
     private readonly handleError: HandleErrorService, // ✅ OBLIGATORIO
+    private readonly emailProducer: EmailProducer, // ✅ Para envío asíncrono de emails
   ) {}
 
   // ============================================
@@ -156,7 +158,28 @@ export class AuthService {
       userAgent,
     );
 
-    this.logger.log(`User registered: ${user.email}`);
+    // 6. Encolar email de bienvenida (asíncrono, no bloquea el registro)
+    const activationUrl = `${this.configService.get<string>('APP_URL')}/auth/verify-email?token=${tokens.accessToken}`;
+    await this.emailProducer.queueEmail({
+      to: user.email,
+      subject: '¡Bienvenido a Mokka App! 🎉',
+      content: `
+        <h1>¡Bienvenido ${user.firstName}!</h1>
+        <p>Gracias por registrarte en Mokka App.</p>
+        <p>Tu cuenta ha sido creada exitosamente.</p>
+        <p>Para comenzar, verifica tu email haciendo clic en el siguiente enlace:</p>
+        <p><a href="${activationUrl}">Verificar mi email</a></p>
+        <p>Si no te registraste en nuestra plataforma, ignora este correo.</p>
+        <p>Saludos,<br/>El equipo de Mokka App</p>
+      `,
+      templateData: {
+        userName: user.firstName,
+        userEmail: user.email,
+        activationUrl,
+      },
+    });
+
+    this.logger.log(`User registered: ${user.email} - Welcome email enqueued`);
 
     return {
       user,
@@ -323,13 +346,32 @@ export class AuthService {
       // 2. Generar token de reset (válido por 1 hora)
       const resetToken = this.generateResetToken(user.id);
 
-      // 3. Aquí iría la lógica para enviar el email con el token
-      // await this.notificationService.sendPasswordResetEmail(user.email, resetToken);
+      // 3. Encolar email de reset de contraseña (asíncrono)
+      const resetUrl = `${this.configService.get<string>('APP_URL')}/auth/reset-password?token=${resetToken}`;
+      await this.emailProducer.queueEmailUrgent({
+        to: user.email,
+        subject: 'Restablecer contraseña - Mokka App',
+        content: `
+          <h1>Restablecer contraseña</h1>
+          <p>Hola ${user.firstName},</p>
+          <p>Hemos recibido una solicitud para restablecer tu contraseña.</p>
+          <p>Haz clic en el siguiente enlace para crear una nueva contraseña:</p>
+          <p><a href="${resetUrl}">Restablecer contraseña</a></p>
+          <p>Este enlace es válido por 1 hora.</p>
+          <p>Si no solicitaste este cambio, ignora este correo.</p>
+          <p>Saludos,<br/>El equipo de Mokka App</p>
+        `,
+        templateData: {
+          userName: user.firstName,
+          resetUrl,
+          expirationHours: 1,
+        },
+      });
 
       // 4. Guardar token en metadata del usuario o en tabla separada
       await this.userService.savePasswordResetToken(user.id, resetToken);
 
-      this.logger.log(`Password reset requested for: ${email}`);
+      this.logger.log(`Password reset requested for: ${email} - Email enqueued`);
     } else {
       // Por seguridad, no revelar que el usuario no existe
       this.logger.warn(`Password reset attempted for non-existent user: ${email}`);

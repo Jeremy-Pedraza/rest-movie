@@ -22,6 +22,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 // Shared modules
 import { CommonModule } from '@shared/common';
 import { UserModule } from '@modules/user';
+import { QueueModule } from '@modules/queue';
 
 // Local imports
 import { AuthController } from './auth.controller';
@@ -57,6 +58,7 @@ import { JwtStrategy, LocalStrategy } from './strategies';
     // Shared modules
     CommonModule, // Proporciona SanitizerService y HandleErrorService
     UserModule, // Necesitamos UserService
+    QueueModule, // Sistema de colas para envío de emails
   ],
   controllers: [AuthController],
   providers: [

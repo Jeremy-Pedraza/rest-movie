@@ -41,7 +41,7 @@ NestJS Backend API - Production Ready
 | 5 | Testing | ⏳ Pendiente | 10% |
 | 6 | **Integración Global** | ✅ **Completo** | **100%** |
 
-> **Última actualización:** Enero 2025 - Sesión 11 (NotificationModule)
+> **Última actualización:** Enero 2025 - Sesión 12 (QueueModule)
 
 ---
 
@@ -63,6 +63,8 @@ NestJS Backend API - Production Ready
 | [API-STANDARDS.md](docs/API-STANDARDS.md) | Formato de responses y errores |
 | [DATABASE-PATTERNS.md](docs/DATABASE-PATTERNS.md) | Queries TypeORM y transacciones |
 | [SECURITY-GUIDE.md](docs/SECURITY-GUIDE.md) | JWT, guards, autenticación |
+| [QUEUE-MODULE.md](docs/QUEUE-MODULE.md) | Sistema de colas asíncronas |
+| [NOTIFICATION-MODULE.md](docs/NOTIFICATION-MODULE.md) | Sistema de notificaciones multi-canal |
 | [INTEGRATION-STATUS.md](docs/INTEGRATION-STATUS.md) | Qué componentes están activos |
 | [PROGRESS.md](docs/PROGRESS.md) | Historial de desarrollo |
 | [CAMBIOS-ARQUITECTURA.md](docs/CAMBIOS-ARQUITECTURA.md) | Cambios por sesión |
@@ -197,6 +199,7 @@ mokka-backend/
 │   ├── modules/                # Módulos de negocio
 │   │   ├── auth/               # Autenticación y autorización ✅
 │   │   ├── user/               # Gestión de usuarios ✅
+│   │   ├── queue/              # Colas asíncronas (Bull) ✅
 │   │   ├── notification/       # Notificaciones multi-canal ✅
 │   │   ├── logger/             # Logging a BD
 │   │   └── health/             # Health checks

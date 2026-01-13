@@ -27,6 +27,7 @@ import { UserModule } from '@modules/user';
 import { AuthModule } from '@modules/auth';
 import { CacheModule as CustomCacheModule } from '@modules/cache';
 import { QueueModule } from '@modules/queue';
+import { TasksModule } from '@modules/tasks';
 
 // Global Interceptors & Filters
 import { LoggingInterceptor } from '@interceptors/logging.interceptor';
@@ -120,6 +121,7 @@ import { bullConfig } from '@config/bull';
     AuthModule, // JWT Strategy + Passport
     CustomCacheModule, // Cache inteligente con tags
     QueueModule, // Sistema de colas genérico (email, notification, report)
+    TasksModule, // Tareas programadas (cleanup, backup, session-cleanup, etc.)
   ],
   controllers: [AppController],
   providers: [

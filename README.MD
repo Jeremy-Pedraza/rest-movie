@@ -36,12 +36,33 @@ NestJS Backend API - Production Ready
 |------|-------------|--------|----------|
 | 1 | Configuración Base | ✅ Completo | 100% |
 | 2 | Shared Modules | ✅ Completo | 100% |
-| 3 | Feature Modules | 🔄 En progreso | 75% |
-| 4 | Database & Seeds | 🔄 En progreso | 50% |
+| 3 | Feature Modules | ✅ Completo | 100% |
+| 4 | Database & Seeds | ✅ Completo | 100% |
 | 5 | Testing | ⏳ Pendiente | 10% |
 | 6 | **Integración Global** | ✅ **Completo** | **100%** |
 
-> **Última actualización:** Enero 2025 - Sesión 12 (QueueModule)
+> **Última actualización:** Enero 2025 - Sesión 13 (TasksModule + Seeds)
+
+---
+
+## 📦 Módulos Implementados
+
+| Módulo | Estado | Archivos | Descripción |
+|--------|--------|----------|-------------|
+| **AuthModule** | ✅ 100% | 26 | Login, JWT, Sesiones, Passwords |
+| **UserModule** | ✅ 100% | 12 | CRUD usuarios, roles, permisos |
+| **NotificationModule** | ✅ 93% | 30 | Email, SMS, Push (async queue) |
+| **QueueModule** | ✅ 100% | 20 | Bull Queue genérico |
+| **TasksModule** | ✅ 100% | 18 | Cron jobs, cleanup, backup |
+| **LoggerModule** | ✅ 100% | 7 | Logs a BD, buffer, tracing |
+| **HealthModule** | ✅ 100% | 4 | Health checks, metrics |
+| **CacheModule** | ✅ 100% | 3 | Cache con tags, invalidación |
+
+### Módulos Omitidos (Decisión de Diseño)
+
+| Módulo | Razón |
+|--------|-------|
+| **EventsModule** | No necesario - Bull Queue ya maneja tareas asíncronas y side effects |
 
 ---
 
@@ -55,7 +76,7 @@ NestJS Backend API - Production Ready
 | 2 | [QUICK-REFERENCE.md](docs/QUICK-REFERENCE.md) | ⚡ Referencia rápida de patrones |
 | 3 | [CODE-PATTERNS.md](docs/CODE-PATTERNS.md) | Templates completos para copiar |
 
-### Referencia
+### Referencia por Módulo
 
 | Documento | Cuándo Consultar |
 |-----------|------------------|
@@ -67,7 +88,6 @@ NestJS Backend API - Production Ready
 | [NOTIFICATION-MODULE.md](docs/NOTIFICATION-MODULE.md) | Sistema de notificaciones multi-canal |
 | [INTEGRATION-STATUS.md](docs/INTEGRATION-STATUS.md) | Qué componentes están activos |
 | [PROGRESS.md](docs/PROGRESS.md) | Historial de desarrollo |
-| [CAMBIOS-ARQUITECTURA.md](docs/CAMBIOS-ARQUITECTURA.md) | Cambios por sesión |
 
 ### Ejemplos Funcionales
 
@@ -88,8 +108,9 @@ NestJS Backend API - Production Ready
 | **TypeScript** | 5.x | Lenguaje |
 | **PostgreSQL** | 15+ | Base de datos |
 | **TypeORM** | 0.3.x | ORM |
-| **Redis** | 7+ | Cache + Sessions |
+| **Redis** | 7+ | Cache + Sessions + Queue |
 | **Bull** | 4.x | Job queues |
+| **@nestjs/schedule** | 6.x | Cron jobs |
 | **JWT** | - | Autenticación |
 | **Winston** | 3.x | Logging |
 | **Swagger** | 11.x | Documentación API |
@@ -109,9 +130,37 @@ yarn install
 cp .env.example .env
 # Editar .env con tus credenciales
 
+# Ejecutar migraciones
+yarn migration:run
+
+# Ejecutar seeds (datos iniciales)
+yarn seed
+
 # Iniciar
 yarn start:dev
 ```
+
+---
+
+## 🌱 Seeds de Base de Datos
+
+El proyecto incluye seeds para poblar la BD con datos iniciales:
+
+```bash
+yarn seed
+```
+
+**Datos sembrados:**
+- **30 permisos** (users, roles, logs, tasks, cache, queue, notifications, etc.)
+- **6 roles** con jerarquía (super_admin, admin, system, manager, user, guest)
+- **4 usuarios de prueba**
+
+| Email | Password | Rol |
+|-------|----------|-----|
+| admin@mokka.app | Admin123! | super_admin |
+| system@mokka.app | System123! | system |
+| manager@mokka.app | Manager123! | manager |
+| user@mokka.app | User123! | user |
 
 ---
 
@@ -121,10 +170,13 @@ yarn start:dev
 |--------|-------------|
 | `yarn start:dev` | Desarrollo con hot-reload |
 | `yarn build` | Compilar producción |
+| `yarn start:prod` | Iniciar producción |
 | `yarn test` | Unit tests |
 | `yarn test:e2e` | E2E tests |
 | `yarn lint` | ESLint |
 | `yarn migration:run` | Ejecutar migraciones |
+| `yarn migration:generate` | Generar migración |
+| `yarn seed` | Ejecutar seeds |
 
 ---
 
@@ -172,6 +224,22 @@ Request HTTP
 
 ---
 
+## ⏰ Tareas Programadas (TasksModule)
+
+El sistema incluye 5 jobs programados:
+
+| Job | Cron | Descripción |
+|-----|------|-------------|
+| **CleanupJob** | 3 AM diario | Elimina soft-deleted >30 días |
+| **BackupJob** | 2 AM domingos | Backup de tablas críticas a JSON |
+| **SessionCleanupJob** | Cada 15 min | Elimina sesiones expiradas |
+| **LogCleanupJob** | 4 AM diario | Elimina logs debug >7 días |
+| **CacheWarmupJob** | 6 AM diario | Precalienta cache con stats |
+
+**Endpoints de gestión:** `GET/POST /tasks/*` (requiere rol ADMIN)
+
+---
+
 ## 📁 Estructura del Proyecto
 
 ```
@@ -184,7 +252,10 @@ mokka-backend/
 │   ├── API-STANDARDS.md        # Responses
 │   ├── DATABASE-PATTERNS.md    # TypeORM
 │   ├── SECURITY-GUIDE.md       # Auth
+│   ├── QUEUE-MODULE.md         # Sistema de colas
+│   ├── NOTIFICATION-MODULE.md  # Notificaciones
 │   ├── INTEGRATION-STATUS.md   # Estado
+│   ├── PROGRESS.md             # Historial
 │   └── EXAMPLES/               # Ejemplos
 │
 ├── src/
@@ -196,17 +267,23 @@ mokka-backend/
 │   ├── interceptors/           # Logging, Timeout
 │   ├── middleware/             # RequestId, Logger
 │   ├── pipes/                  # Validation
+│   ├── database/               # Migraciones y Seeds
+│   │   ├── migrations/         # TypeORM migrations
+│   │   └── seeds/              # Datos iniciales
 │   ├── modules/                # Módulos de negocio
-│   │   ├── auth/               # Autenticación y autorización ✅
-│   │   ├── user/               # Gestión de usuarios ✅
-│   │   ├── queue/              # Colas asíncronas (Bull) ✅
-│   │   ├── notification/       # Notificaciones multi-canal ✅
-│   │   ├── logger/             # Logging a BD
-│   │   └── health/             # Health checks
+│   │   ├── auth/               # ✅ Autenticación JWT
+│   │   ├── user/               # ✅ Gestión de usuarios
+│   │   ├── cache/              # ✅ Cache inteligente
+│   │   ├── queue/              # ✅ Colas asíncronas (Bull)
+│   │   ├── notification/       # ✅ Notificaciones multi-canal
+│   │   ├── tasks/              # ✅ Tareas programadas (Cron)
+│   │   ├── logger/             # ✅ Logging a BD
+│   │   └── health/             # ✅ Health checks
 │   └── shared/                 # Módulos compartidos
 │       ├── common/             # SanitizerService, HandleErrorService
 │       ├── database/           # TransactionService
 │       ├── redis/              # RedisService
+│       ├── router/             # HTTP Client
 │       └── utils/              # Helpers
 │
 └── test/                       # Tests
@@ -237,8 +314,6 @@ mokka-backend/
 @Roles(ROLES.ADMIN, ROLES.MANAGER)
 @ApiOperation({ summary: 'Crear producto' })
 @ApiResponse({ status: 201, description: 'Creado' })
-@ApiResponse({ status: 401, description: 'No autorizado' })
-@ApiResponse({ status: 403, description: 'Sin permisos' })
 async create(@Body() dto: CreateProductDto): Promise<IApiResponse<IProductResponse>> {
   const data = await this.productService.create(dto);
   return { success: true, message: 'Producto creado', data };
@@ -250,17 +325,6 @@ constructor(
   private readonly sanitizer: SanitizerService,      // ✅ OBLIGATORIO
   private readonly handleError: HandleErrorService,  // ✅ OBLIGATORIO
 ) {}
-
-async create(dto: CreateProductDto): Promise<IProductResponse> {
-  const sanitized = { ...dto, name: this.sanitizer.sanitizeString(dto.name) };
-  
-  if (await this.repository.existsBySku(dto.sku)) {
-    this.handleError.conflict('SKU ya existe', 'sku');  // Lanza 409
-  }
-  
-  const entity = await this.repository.create(sanitized);
-  return this.toResponse(entity);
-}
 
 // Repository - SIEMPRE createQueryBuilder
 async findById(id: string): Promise<Entity | null> {

@@ -1,29 +1,66 @@
+/**
+ * @fileoverview Runner principal de seeds
+ * @module database/seeds
+ *
+ * Ejecuta todos los seeds en orden:
+ * 1. Permissions (primero, son independientes)
+ * 2. Roles (dependen de permissions)
+ * 3. Users (dependen de roles)
+ *
+ * @example
+ * # Ejecutar seeds
+ * yarn seed
+ *
+ * # O con npm
+ * npm run seed
+ */
+
 import { DataSource } from 'typeorm';
 import { dataSourceOptions } from '@config/database/data-source';
 
+// Seeds
+import { seedPermissions } from './permission.seed';
+import { seedRoles } from './role.seed';
+import { seedUsers } from './user.seed';
+
 async function seed() {
-  console.log('🌱 Starting database seeding...');
+  const startTime = Date.now();
+
+  console.log('╔══════════════════════════════════════════════════════╗');
+  console.log('║           🌱 MOKKA BACKEND - DATABASE SEED           ║');
+  console.log('╚══════════════════════════════════════════════════════╝');
+  console.log(`\n📅 ${new Date().toISOString()}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
 
   const dataSource = new DataSource(dataSourceOptions);
 
   try {
+    // Conectar a la BD
+    console.log('\n🔌 Connecting to database...');
     await dataSource.initialize();
-    console.log('✅ Database connected');
+    console.log('✅ Database connected successfully');
 
-    // Add your seed logic here
-    // Example:
-    // await seedRoles(dataSource);
-    // await seedPermissions(dataSource);
-    // await seedUsers(dataSource);
+    // Ejecutar seeds en orden
+    await seedPermissions(dataSource);
+    await seedRoles(dataSource);
+    await seedUsers(dataSource);
 
-    console.log('✅ Seeding completed successfully');
+    // Resumen
+    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+    console.log('\n╔══════════════════════════════════════════════════════╗');
+    console.log('║              ✅ SEEDING COMPLETED                    ║');
+    console.log('╚══════════════════════════════════════════════════════╝');
+    console.log(`⏱  Duration: ${duration}s`);
+
   } catch (error) {
-    console.error('❌ Error during seeding:', error);
+    console.error('\n❌ Error during seeding:');
+    console.error(error);
     process.exit(1);
   } finally {
     await dataSource.destroy();
-    console.log('🔌 Database connection closed');
+    console.log('\n🔌 Database connection closed');
   }
 }
 
+// Ejecutar si se llama directamente
 seed();

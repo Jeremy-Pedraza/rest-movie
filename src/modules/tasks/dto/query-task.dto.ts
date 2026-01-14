@@ -73,7 +73,7 @@ export class QueryTaskDto {
     example: true,
   })
   @IsOptional()
-  @Transform(({ value }) => {
+  @Transform(({ value }: { value: unknown }): unknown => {
     if (value === 'true') return true;
     if (value === 'false') return false;
     return value;
@@ -195,7 +195,7 @@ export class QueryTaskHistoryDto {
     example: false,
   })
   @IsOptional()
-  @Transform(({ value }) => {
+  @Transform(({ value }: { value: unknown }): unknown => {
     if (value === 'true') return true;
     if (value === 'false') return false;
     return value;

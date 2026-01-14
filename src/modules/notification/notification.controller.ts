@@ -9,25 +9,12 @@
  * - NO usamos TransformInterceptor global (controllers formatean manualmente)
  */
 
-import {
-  Controller,
-  Post,
-  Get,
-  Body,
-  HttpCode,
-  HttpStatus,
-  Query,
-} from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-} from '@nestjs/swagger';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 // Decoradores globales
-import { Roles } from '@decorators/roles.decorator';
 import { Public } from '@decorators/public.decorator';
+import { Roles } from '@decorators/roles.decorator';
 
 // Constants
 import { ROLES } from '@constants/roles.constant';
@@ -36,19 +23,9 @@ import { ROLES } from '@constants/roles.constant';
 import { IApiResponse } from '@shared/common';
 
 // Local imports
+import { SendEmailDto, SendNotificationDto, SendPushDto, SendSmsDto } from './dto';
+import { IEmailResponse, IMultiChannelResponse, IPushResponse, ISmsResponse } from './interfaces';
 import { NotificationService } from './notification.service';
-import {
-  SendNotificationDto,
-  SendEmailDto,
-  SendSmsDto,
-  SendPushDto,
-} from './dto';
-import {
-  IEmailResponse,
-  ISmsResponse,
-  IPushResponse,
-  IMultiChannelResponse,
-} from './interfaces';
 
 /**
  * Controller para gestión de notificaciones multi-canal
@@ -100,9 +77,7 @@ export class NotificationController {
     status: 500,
     description: 'Error al enviar email',
   })
-  async sendEmail(
-    @Body() dto: SendEmailDto,
-  ): Promise<IApiResponse<IEmailResponse>> {
+  async sendEmail(@Body() dto: SendEmailDto): Promise<IApiResponse<IEmailResponse>> {
     const data = await this.notificationService.sendEmail(dto);
     return {
       success: true,
@@ -180,9 +155,7 @@ export class NotificationController {
     status: 500,
     description: 'Error al enviar push notification',
   })
-  async sendPush(
-    @Body() dto: SendPushDto,
-  ): Promise<IApiResponse<IPushResponse>> {
+  async sendPush(@Body() dto: SendPushDto): Promise<IApiResponse<IPushResponse>> {
     const data = await this.notificationService.sendPush(dto);
     return {
       success: true,
@@ -229,7 +202,7 @@ export class NotificationController {
     @Body() dto: SendNotificationDto,
   ): Promise<IApiResponse<IMultiChannelResponse>> {
     const data = await this.notificationService.sendMultiChannel(dto);
-    
+
     const successCount = data.successfulChannels.length;
     const failedCount = data.failedChannels.length;
     const totalChannels = dto.channels.length;
@@ -263,9 +236,7 @@ export class NotificationController {
     status: 200,
     description: 'Estado de canales obtenido',
   })
-  async getChannelsStatus(): Promise<
-    IApiResponse<Record<string, boolean>>
-  > {
+  async getChannelsStatus(): Promise<IApiResponse<Record<string, boolean>>> {
     const data = await this.notificationService.getChannelsStatus();
     return {
       success: true,
@@ -294,9 +265,7 @@ export class NotificationController {
   async checkChannel(
     @Query('channel') channel: string,
   ): Promise<IApiResponse<{ channel: string; available: boolean }>> {
-    const available = await this.notificationService.isChannelAvailable(
-      channel as any,
-    );
+    const available = await this.notificationService.isChannelAvailable(channel as any);
 
     return {
       success: true,

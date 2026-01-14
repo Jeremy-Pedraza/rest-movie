@@ -46,6 +46,7 @@ export class CacheStatsDto {
   @ApiPropertyOptional({
     description: 'Estadísticas por tag',
     type: 'object',
+    additionalProperties: true,
     example: {
       users: { hits: 800, misses: 100, keys: 50, hitRatio: 0.88 },
       products: { hits: 700, misses: 200, keys: 80, hitRatio: 0.77 },

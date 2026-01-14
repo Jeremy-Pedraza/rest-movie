@@ -66,7 +66,15 @@ export abstract class BaseEmailTemplate {
    * @returns HTML completo
    */
   protected static generateHtml(content: string, data: IBaseTemplateData = {}): string {
-    const config = { ...this.DEFAULT_CONFIG, ...data };
+    // Merge con valores por defecto asegurando tipos completos
+    const config = {
+      ...this.DEFAULT_CONFIG,
+      ...data,
+      colors: {
+        ...this.DEFAULT_CONFIG.colors,
+        ...(data.colors || {}),
+      },
+    };
     const year = data.year || new Date().getFullYear();
 
     return `

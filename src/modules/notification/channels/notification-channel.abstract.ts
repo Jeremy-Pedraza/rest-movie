@@ -10,13 +10,13 @@
 
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { NotificationChannel } from '../dto/send-notification.dto';
 import {
   INotificationChannel,
   INotificationOptions,
   INotificationResponse,
   NotificationStatus,
 } from '../interfaces';
-import { NotificationChannel } from '../dto/send-notification.dto';
 
 /**
  * Clase abstracta base para canales de notificación
@@ -89,11 +89,11 @@ export abstract class NotificationChannelAbstract implements INotificationChanne
    * @param messageId - ID del mensaje
    * @returns Estado de la notificación
    */
-  async getStatus(messageId: string): Promise<NotificationStatus> {
+  getStatus(messageId: string): Promise<NotificationStatus> {
     this.logger.warn(
       `getStatus() not implemented for ${this.name} channel. MessageId: ${messageId}`,
     );
-    return NotificationStatus.SENT;
+    return Promise.resolve(NotificationStatus.SENT);
   }
 
   /**
@@ -104,10 +104,11 @@ export abstract class NotificationChannelAbstract implements INotificationChanne
    * @returns Respuesta de error
    */
   protected createErrorResponse(
-    error: Error | any,
+    error: unknown,
     recipient: string | string[],
   ): INotificationResponse {
-    this.logger.error(`Error sending notification: ${error.message}`, error.stack);
+    const errorObj = error instanceof Error ? error : new Error(String(error));
+    this.logger.error(`Error sending notification: ${errorObj.message}`, errorObj.stack);
 
     return {
       success: false,
@@ -115,8 +116,8 @@ export abstract class NotificationChannelAbstract implements INotificationChanne
       status: NotificationStatus.FAILED,
       recipient,
       sentAt: new Date(),
-      error: error.message || 'Unknown error',
-      errorCode: error.code || 'NOTIFICATION_ERROR',
+      error: errorObj.message || 'Unknown error',
+      errorCode: (error as { code?: string }).code || 'NOTIFICATION_ERROR',
       metadata: {
         errorDetails: error,
       },
@@ -134,7 +135,7 @@ export abstract class NotificationChannelAbstract implements INotificationChanne
   protected createSuccessResponse(
     messageId: string,
     recipient: string | string[],
-    metadata?: Record<string, any>,
+    metadata?: Record<string, unknown>,
   ): INotificationResponse {
     return {
       success: true,
@@ -170,9 +171,7 @@ export abstract class NotificationChannelAbstract implements INotificationChanne
   protected getRequiredConfig<T = string>(key: string): T {
     const value = this.configService.get<T>(key);
     if (value === undefined || value === null || value === '') {
-      throw new Error(
-        `Required configuration missing: ${key}. Please check your .env file.`,
-      );
+      throw new Error(`Required configuration missing: ${key}. Please check your .env file.`);
     }
     return value;
   }
@@ -226,7 +225,7 @@ export abstract class NotificationChannelAbstract implements INotificationChanne
    * @param recipient - Destinatario(s)
    * @param metadata - Metadata adicional
    */
-  protected logSendStart(recipient: string | string[], metadata?: Record<string, any>): void {
+  protected logSendStart(recipient: string | string[], metadata?: Record<string, unknown>): void {
     const recipientCount = Array.isArray(recipient) ? recipient.length : 1;
     this.logger.log(
       `Sending notification to ${recipientCount} recipient(s) via ${this.name}`,
@@ -253,11 +252,12 @@ export abstract class NotificationChannelAbstract implements INotificationChanne
    * @param error - Error capturado
    * @param recipient - Destinatario(s)
    */
-  protected logSendError(error: Error | any, recipient: string | string[]): void {
+  protected logSendError(error: unknown, recipient: string | string[]): void {
+    const errorObj = error instanceof Error ? error : new Error(String(error));
     const recipientCount = Array.isArray(recipient) ? recipient.length : 1;
     this.logger.error(
-      `Failed to send notification via ${this.name}. Recipients: ${recipientCount}. Error: ${error.message}`,
-      error.stack,
+      `Failed to send notification via ${this.name}. Recipients: ${recipientCount}. Error: ${errorObj.message}`,
+      errorObj.stack,
     );
   }
 }

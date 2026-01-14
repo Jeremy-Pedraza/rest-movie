@@ -3,10 +3,7 @@
  * @module modules/notification/interfaces
  */
 
-import {
-  NotificationChannel,
-  NotificationPriority,
-} from '../dto/send-notification.dto';
+import { NotificationChannel, NotificationPriority } from '../dto/send-notification.dto';
 import { NotificationStatus } from './notification-channel.interface';
 
 /**

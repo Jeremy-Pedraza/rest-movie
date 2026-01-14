@@ -15,14 +15,20 @@ import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import { Transporter } from 'nodemailer';
 import SMTPTransport from 'nodemailer/lib/smtp-transport';
-import {
-  INotificationOptions,
-  INotificationResponse,
-  IEmailResponse,
-  NotificationStatus,
-} from '../interfaces';
 import { NotificationChannel } from '../dto/send-notification.dto';
+import { IEmailResponse, INotificationOptions, NotificationStatus } from '../interfaces';
 import { NotificationChannelAbstract } from './notification-channel.abstract';
+
+/**
+ * Tipo para archivos adjuntos de Nodemailer
+ */
+interface IEmailAttachment {
+  filename?: string;
+  content?: string | Buffer;
+  path?: string;
+  contentType?: string;
+  encoding?: string;
+}
 
 /**
  * Canal de Email usando Nodemailer
@@ -69,7 +75,7 @@ export class EmailChannel extends NotificationChannelAbstract {
    * Inicializar transporter de Nodemailer
    * Se llama automáticamente al primer envío
    */
-  private async initializeTransporter(): Promise<void> {
+  private initializeTransporter(): void {
     if (this.transporter) {
       return;
     }
@@ -98,7 +104,7 @@ export class EmailChannel extends NotificationChannelAbstract {
 
       this.logger.log('Email transporter initialized successfully');
     } catch (error) {
-      this.logger.error('Failed to initialize email transporter', error.stack);
+      this.logger.error('Failed to initialize email transporter', (error as Error).stack);
       throw error;
     }
   }
@@ -115,7 +121,7 @@ export class EmailChannel extends NotificationChannelAbstract {
       await this.validate(options);
 
       // Inicializar transporter si no existe
-      await this.initializeTransporter();
+      this.initializeTransporter();
 
       const recipients = this.normalizeRecipients(options.recipient);
       this.logSendStart(recipients, { subject: options.subject });
@@ -141,13 +147,15 @@ export class EmailChannel extends NotificationChannelAbstract {
       // Enviar email
       const info = await this.transporter!.sendMail(mailOptions);
 
-      this.logSendSuccess(info.messageId, recipients);
+      // Tipar correctamente messageId
+      const messageId = String(info.messageId);
+      this.logSendSuccess(messageId, recipients);
 
       // Crear respuesta
       return {
         success: true,
-        messageId: info.messageId,
-        emailId: info.messageId,
+        messageId,
+        emailId: messageId,
         channel: this.name,
         status: NotificationStatus.SENT,
         recipient: recipients,
@@ -173,35 +181,43 @@ export class EmailChannel extends NotificationChannelAbstract {
    * @returns true si son válidas
    * @throws Error si son inválidas
    */
-  async validate(options: INotificationOptions): Promise<boolean> {
-    // Validar destinatarios
-    this.validateRecipients(options.recipient);
+  validate(options: INotificationOptions): Promise<boolean> {
+    try {
+      // Validar destinatarios
+      this.validateRecipients(options.recipient);
 
-    // Validar que haya al menos un contenido
-    const hasText = options.data?.text || options.message;
-    const hasHtml = options.data?.html;
-    const hasTemplate = options.template;
+      // Validar que haya al menos un contenido
+      const hasText = options.data?.text || options.message;
+      const hasHtml = options.data?.html;
+      const hasTemplate = options.template;
 
-    if (!hasText && !hasHtml && !hasTemplate) {
-      throw new Error('Email must have at least text, html, or template content');
-    }
-
-    // Validar subject
-    if (!options.subject || options.subject.trim() === '') {
-      throw new Error('Email subject is required');
-    }
-
-    // Validar emails con regex básico
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const recipients = this.normalizeRecipients(options.recipient);
-
-    for (const email of recipients) {
-      if (!emailRegex.test(email)) {
-        throw new Error(`Invalid email address: ${email}`);
+      if (!hasText && !hasHtml && !hasTemplate) {
+        return Promise.reject(
+          new Error('Email must have at least text, html, or template content'),
+        );
       }
-    }
 
-    return true;
+      // Validar subject
+      if (!options.subject || options.subject.trim() === '') {
+        return Promise.reject(new Error('Email subject is required'));
+      }
+
+      // Validar emails con regex básico
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const recipients = this.normalizeRecipients(options.recipient);
+
+      for (const email of recipients) {
+        if (!emailRegex.test(email)) {
+          return Promise.reject(new Error(`Invalid email address: ${email}`));
+        }
+      }
+
+      return Promise.resolve(true);
+    } catch (error) {
+      // Asegurar que siempre se rechaza con un Error
+      const errorObj = error instanceof Error ? error : new Error(String(error));
+      return Promise.reject(errorObj);
+    }
   }
 
   /**
@@ -238,7 +254,7 @@ export class EmailChannel extends NotificationChannelAbstract {
       }
 
       // Inicializar transporter
-      await this.initializeTransporter();
+      this.initializeTransporter();
 
       // Verificar conexión SMTP
       await this.transporter!.verify();
@@ -247,7 +263,7 @@ export class EmailChannel extends NotificationChannelAbstract {
       this.cacheAvailability(true);
       return true;
     } catch (error) {
-      this.logger.error('Email channel is not available', error.message);
+      this.logger.error('Email channel is not available', (error as Error).message);
       this.cacheAvailability(false);
       return false;
     }
@@ -267,7 +283,9 @@ export class EmailChannel extends NotificationChannelAbstract {
    * Obtener email remitente
    */
   private getFrom(options: INotificationOptions): string {
-    const from = options.data?.email?.from || this.getRequiredConfig<string>('SMTP_FROM');
+    const fromData = options.data?.email?.from;
+    const from =
+      typeof fromData === 'string' ? fromData : this.getRequiredConfig<string>('SMTP_FROM');
     const fromName = this.getConfig<string>('SMTP_FROM_NAME');
 
     return fromName ? `"${fromName}" <${from}>` : from;
@@ -277,7 +295,8 @@ export class EmailChannel extends NotificationChannelAbstract {
    * Obtener email de respuesta
    */
   private getReplyTo(options: INotificationOptions): string | undefined {
-    return options.data?.email?.replyTo;
+    const replyTo = options.data?.email?.replyTo;
+    return typeof replyTo === 'string' ? replyTo : undefined;
   }
 
   /**
@@ -285,7 +304,10 @@ export class EmailChannel extends NotificationChannelAbstract {
    */
   private getCc(options: INotificationOptions): string | undefined {
     const cc = options.data?.email?.cc;
-    return cc && cc.length > 0 ? cc.join(', ') : undefined;
+    if (Array.isArray(cc) && cc.length > 0) {
+      return cc.join(', ');
+    }
+    return undefined;
   }
 
   /**
@@ -293,42 +315,52 @@ export class EmailChannel extends NotificationChannelAbstract {
    */
   private getBcc(options: INotificationOptions): string | undefined {
     const bcc = options.data?.email?.bcc;
-    return bcc && bcc.length > 0 ? bcc.join(', ') : undefined;
+    if (Array.isArray(bcc) && bcc.length > 0) {
+      return bcc.join(', ');
+    }
+    return undefined;
   }
 
   /**
    * Obtener contenido de texto plano
    */
   private getText(options: INotificationOptions): string | undefined {
-    return options.data?.email?.text || options.message;
+    const text = options.data?.email?.text;
+    return typeof text === 'string' ? text : options.message;
   }
 
   /**
    * Obtener contenido HTML
    */
   private getHtml(options: INotificationOptions): string | undefined {
-    return options.data?.email?.html;
+    const html = options.data?.email?.html;
+    return typeof html === 'string' ? html : undefined;
   }
 
   /**
    * Obtener archivos adjuntos
    */
-  private getAttachments(options: INotificationOptions): any[] | undefined {
-    return options.data?.email?.attachments;
+  private getAttachments(options: INotificationOptions): IEmailAttachment[] | undefined {
+    const attachments = options.data?.email?.attachments;
+    return Array.isArray(attachments) ? attachments : undefined;
   }
 
   /**
    * Obtener headers personalizados
    */
   private getHeaders(options: INotificationOptions): Record<string, string> | undefined {
-    return options.data?.email?.headers;
+    const headers = options.data?.email?.headers;
+    if (headers && typeof headers === 'object' && !Array.isArray(headers)) {
+      return headers as Record<string, string>;
+    }
+    return undefined;
   }
 
   /**
    * Cerrar transporter
    * Útil para testing y cleanup
    */
-  async close(): Promise<void> {
+  close(): void {
     if (this.transporter) {
       this.transporter.close();
       this.transporter = null;

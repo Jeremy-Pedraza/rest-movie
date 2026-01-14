@@ -1,8 +1,8 @@
 import { Process, Processor } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bull';
-import { QUEUE_NAMES, JOB_NAMES, PROCESSOR_CONCURRENCY } from '../queue.constants';
 import { NotificationJobDataDto } from '../dto';
+import { JOB_NAMES, QUEUE_NAMES } from '../queue.constants';
 
 /**
  * @class NotificationProcessor

@@ -5,39 +5,33 @@
  * Crea y encola jobs de notificaciones para procesamiento asíncrono
  */
 
-import { Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
-import { Queue, JobOptions } from 'bull';
+import { Injectable, Logger } from '@nestjs/common';
+import { JobOptions, Queue } from 'bull';
 
 // DTOs
-import {
-  SendEmailDto,
-  SendSmsDto,
-  SendPushDto,
-  SendNotificationDto,
-} from '../dto';
+import { SendEmailDto, SendNotificationDto, SendPushDto, SendSmsDto } from '../dto';
 
 // Templates
 import {
-  IWelcomeEmailData,
+  INotificationEmailData,
   IResetPasswordEmailData,
   IVerifyEmailData,
-  INotificationEmailData,
+  IWelcomeEmailData,
 } from '../templates';
 
 // Processor types
 import {
-  NotificationJobType,
-  NotificationJobData,
-  IEmailJobData,
-  ISmsJobData,
-  IPushJobData,
-  IMultiChannelJobData,
   IBatchJobData,
-  IWelcomeEmailJobData,
-  IResetPasswordEmailJobData,
-  IVerifyEmailJobData,
+  IEmailJobData,
+  IMultiChannelJobData,
   INotificationEmailJobData,
+  IPushJobData,
+  IResetPasswordEmailJobData,
+  ISmsJobData,
+  IVerifyEmailJobData,
+  IWelcomeEmailJobData,
+  NotificationJobType,
 } from '../processors/notification.processor';
 
 /**
@@ -103,23 +97,16 @@ export class NotificationProducer {
    * @param options - Opciones del job
    * @returns ID del job
    */
-  async queueEmail(
-    dto: SendEmailDto,
-    options?: INotificationJobOptions,
-  ): Promise<string> {
+  async queueEmail(dto: SendEmailDto, options?: INotificationJobOptions): Promise<string> {
     const jobData: IEmailJobData = {
       type: NotificationJobType.SEND_EMAIL,
       data: dto,
     };
 
-    const job = await this.notificationQueue.add(
-      NotificationJobType.SEND_EMAIL,
-      jobData,
-      {
-        ...this.defaultJobOptions,
-        ...options,
-      },
-    );
+    const job = await this.notificationQueue.add(NotificationJobType.SEND_EMAIL, jobData, {
+      ...this.defaultJobOptions,
+      ...options,
+    });
 
     this.logger.log(`Email job queued with ID: ${job.id}`);
 
@@ -133,23 +120,16 @@ export class NotificationProducer {
    * @param options - Opciones del job
    * @returns ID del job
    */
-  async queueSms(
-    dto: SendSmsDto,
-    options?: INotificationJobOptions,
-  ): Promise<string> {
+  async queueSms(dto: SendSmsDto, options?: INotificationJobOptions): Promise<string> {
     const jobData: ISmsJobData = {
       type: NotificationJobType.SEND_SMS,
       data: dto,
     };
 
-    const job = await this.notificationQueue.add(
-      NotificationJobType.SEND_SMS,
-      jobData,
-      {
-        ...this.defaultJobOptions,
-        ...options,
-      },
-    );
+    const job = await this.notificationQueue.add(NotificationJobType.SEND_SMS, jobData, {
+      ...this.defaultJobOptions,
+      ...options,
+    });
 
     this.logger.log(`SMS job queued with ID: ${job.id}`);
 
@@ -163,23 +143,16 @@ export class NotificationProducer {
    * @param options - Opciones del job
    * @returns ID del job
    */
-  async queuePush(
-    dto: SendPushDto,
-    options?: INotificationJobOptions,
-  ): Promise<string> {
+  async queuePush(dto: SendPushDto, options?: INotificationJobOptions): Promise<string> {
     const jobData: IPushJobData = {
       type: NotificationJobType.SEND_PUSH,
       data: dto,
     };
 
-    const job = await this.notificationQueue.add(
-      NotificationJobType.SEND_PUSH,
-      jobData,
-      {
-        ...this.defaultJobOptions,
-        ...options,
-      },
-    );
+    const job = await this.notificationQueue.add(NotificationJobType.SEND_PUSH, jobData, {
+      ...this.defaultJobOptions,
+      ...options,
+    });
 
     this.logger.log(`Push job queued with ID: ${job.id}`);
 
@@ -202,14 +175,10 @@ export class NotificationProducer {
       data: dto,
     };
 
-    const job = await this.notificationQueue.add(
-      NotificationJobType.SEND_MULTI,
-      jobData,
-      {
-        ...this.defaultJobOptions,
-        ...options,
-      },
-    );
+    const job = await this.notificationQueue.add(NotificationJobType.SEND_MULTI, jobData, {
+      ...this.defaultJobOptions,
+      ...options,
+    });
 
     this.logger.log(`Multi-channel job queued with ID: ${job.id}`);
 
@@ -243,14 +212,10 @@ export class NotificationProducer {
     const totalItems =
       (data.emails?.length || 0) + (data.sms?.length || 0) + (data.push?.length || 0);
 
-    const job = await this.notificationQueue.add(
-      NotificationJobType.SEND_BATCH,
-      jobData,
-      {
-        ...this.defaultJobOptions,
-        ...options,
-      },
-    );
+    const job = await this.notificationQueue.add(NotificationJobType.SEND_BATCH, jobData, {
+      ...this.defaultJobOptions,
+      ...options,
+    });
 
     this.logger.log(`Batch job queued with ID: ${job.id}, items: ${totalItems}`);
 
@@ -282,15 +247,11 @@ export class NotificationProducer {
       },
     };
 
-    const job = await this.notificationQueue.add(
-      NotificationJobType.SEND_WELCOME_EMAIL,
-      jobData,
-      {
-        ...this.defaultJobOptions,
-        priority: 5, // Mayor prioridad para welcome emails
-        ...options,
-      },
-    );
+    const job = await this.notificationQueue.add(NotificationJobType.SEND_WELCOME_EMAIL, jobData, {
+      ...this.defaultJobOptions,
+      priority: 5, // Mayor prioridad para welcome emails
+      ...options,
+    });
 
     this.logger.log(`Welcome email job queued with ID: ${job.id}`);
 
@@ -354,15 +315,11 @@ export class NotificationProducer {
       },
     };
 
-    const job = await this.notificationQueue.add(
-      NotificationJobType.SEND_VERIFY_EMAIL,
-      jobData,
-      {
-        ...this.defaultJobOptions,
-        priority: 8, // Alta prioridad para verificación
-        ...options,
-      },
-    );
+    const job = await this.notificationQueue.add(NotificationJobType.SEND_VERIFY_EMAIL, jobData, {
+      ...this.defaultJobOptions,
+      priority: 8, // Alta prioridad para verificación
+      ...options,
+    });
 
     this.logger.log(`Verify email job queued with ID: ${job.id}`);
 

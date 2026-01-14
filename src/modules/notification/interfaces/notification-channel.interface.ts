@@ -3,10 +3,7 @@
  * @module modules/notification/interfaces
  */
 
-import {
-  NotificationChannel,
-  NotificationPriority,
-} from '../dto/send-notification.dto';
+import { NotificationChannel, NotificationPriority } from '../dto/send-notification.dto';
 
 /**
  * Estado de entrega de una notificación
@@ -84,7 +81,9 @@ export interface INotificationChannel {
    * @param options - Opciones de notificación
    * @returns Respuesta del envío
    */
-  send(options: INotificationOptions): Promise<INotificationResponse>;
+  send(
+    options: INotificationOptions,
+  ): Promise<import('./notification-response.interface').INotificationResponse>;
 
   /**
    * Verificar el estado de una notificación enviada

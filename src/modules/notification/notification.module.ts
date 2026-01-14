@@ -15,15 +15,15 @@
  * - Tracking y estadísticas
  */
 
+import { BullModule } from '@nestjs/bull';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { BullModule } from '@nestjs/bull';
 
 // Shared modules
 import { CommonModule } from '@shared/common';
 
 // Channels
-import { EmailChannel, SmsChannel, PushChannel } from './channels';
+import { EmailChannel, PushChannel, SmsChannel } from './channels';
 
 // Service
 import { NotificationService } from './notification.service';
@@ -61,7 +61,7 @@ import { NOTIFICATION_QUEUE_CONFIG } from './queues/notification.queue';
     NotificationService, // ✅ Registrado
     // Queue
     NotificationProcessor, // ✅ Registrado
-    NotificationProducer,  // ✅ Registrado
+    NotificationProducer, // ✅ Registrado
   ],
   exports: [
     // Canales (para uso directo si se necesita)
@@ -71,7 +71,7 @@ import { NOTIFICATION_QUEUE_CONFIG } from './queues/notification.queue';
     // Service (para uso en otros módulos)
     NotificationService, // ✅ Exportado
     // Producer (para encolar jobs desde otros módulos)
-    NotificationProducer,  // ✅ Exportado
+    NotificationProducer, // ✅ Exportado
   ],
 })
 export class NotificationModule {}

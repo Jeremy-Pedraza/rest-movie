@@ -359,6 +359,17 @@ export class HandleErrorService {
   }
 
   /**
+   * Alias de internal() para compatibilidad
+   * Lanza un InternalServerErrorException
+   */
+  internalServerError(
+    message: string = RESPONSE_MESSAGES.ERROR.INTERNAL_SERVER,
+    code: ErrorCode = ERROR_CODES.INTERNAL_SERVER_ERROR,
+  ): never {
+    return this.internal(message, code);
+  }
+
+  /**
    * Lanza un RequestTimeoutException
    */
   timeout(

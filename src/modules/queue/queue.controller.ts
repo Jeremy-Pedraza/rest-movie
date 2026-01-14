@@ -1,44 +1,28 @@
+import { ROLES } from '@constants/roles.constant';
+import { Roles } from '@decorators/roles.decorator';
+import { Body, Controller, Delete, Get, Logger, Param, Post, Query } from '@nestjs/common';
 import {
-  Controller,
-  Post,
-  Get,
-  Delete,
-  Body,
-  Param,
-  Query,
-  Logger,
-} from '@nestjs/common';
-import {
-  ApiTags,
   ApiOperation,
-  ApiResponse as ApiSwaggerResponse,
   ApiParam,
+  ApiResponse as ApiSwaggerResponse,
+  ApiTags,
 } from '@nestjs/swagger';
-import { QueueService } from './queue.service';
-import {
-  AddJobDto,
-  CleanJobsDto,
-  QueryJobDto,
-  EmailJobDataDto,
-  NotificationJobDataDto,
-  ReportJobDataDto,
-} from './dto';
 import { IApiResponse } from '@shared/common/interfaces';
+import { AddJobDto, CleanJobsDto, QueryJobDto } from './dto';
 import {
-  IJobResponse,
-  IQueueStats,
-  IJobDetailResponse,
+  IAllQueuesStatsResponse,
   ICleanJobsResponse,
+  IJobDetailResponse,
+  IJobResponse,
+  IJobsListResponse,
   IPauseQueueResponse,
   IQueueHealthResponse,
-  IAllQueuesStatsResponse,
-  IJobsListResponse,
-  IRetryJobResponse,
-  IRemoveJobResponse,
   IQueueMetrics,
+  IQueueStats,
+  IRemoveJobResponse,
+  IRetryJobResponse,
 } from './interfaces';
-import { Roles } from '@decorators/roles.decorator';
-import { ROLES } from '@constants/roles.constant';
+import { QueueService } from './queue.service';
 
 /**
  * @class QueueController
@@ -203,9 +187,7 @@ export class QueueController {
   @ApiParam({ name: 'queueName', description: 'Nombre de la cola', example: 'email-queue' })
   @ApiSwaggerResponse({ status: 200, description: 'Estadísticas obtenidas' })
   @ApiSwaggerResponse({ status: 404, description: 'Cola no encontrada' })
-  async getQueueStats(
-    @Param('queueName') queueName: string,
-  ): Promise<IApiResponse<IQueueStats>> {
+  async getQueueStats(@Param('queueName') queueName: string): Promise<IApiResponse<IQueueStats>> {
     const data = await this.queueService.getQueueStats(queueName);
     return {
       success: true,
@@ -223,9 +205,7 @@ export class QueueController {
   @ApiParam({ name: 'queueName', description: 'Nombre de la cola', example: 'email-queue' })
   @ApiSwaggerResponse({ status: 200, description: 'Métricas obtenidas' })
   @ApiSwaggerResponse({ status: 404, description: 'Cola no encontrada' })
-  async getMetrics(
-    @Param('queueName') queueName: string,
-  ): Promise<IApiResponse<IQueueMetrics>> {
+  async getMetrics(@Param('queueName') queueName: string): Promise<IApiResponse<IQueueMetrics>> {
     const data = await this.queueService.getMetrics(queueName);
     return {
       success: true,

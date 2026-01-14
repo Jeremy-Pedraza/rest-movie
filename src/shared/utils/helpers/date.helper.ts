@@ -657,8 +657,8 @@ export function getQuarter(date: Date | string | number): number {
  * @param date - Fecha a verificar
  * @returns true si es válida
  */
-export function isValidDate(date: any): boolean {
-  return dayjs(date).isValid();
+export function isValidDate(date: unknown): boolean {
+  return dayjs(date as string | number | Date).isValid();
 }
 
 /**

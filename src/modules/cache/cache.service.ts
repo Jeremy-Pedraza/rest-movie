@@ -27,14 +27,8 @@
 
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { RedisService } from '@shared/redis';
-import {
-  ICacheOptions,
-  ICacheStats,
-  ITagStats,
-  ICacheResult,
-  ICacheConfig,
-} from './interfaces';
-import { CacheStatsDto, TagStatsDto } from './dto';
+import { CacheStatsDto } from './dto';
+import { ICacheConfig, ICacheOptions, ICacheResult, ICacheStats } from './interfaces';
 
 /**
  * Prefijo para keys de tags
@@ -232,14 +226,14 @@ export class CacheService implements OnModuleInit {
    */
   async invalidateTag(tag: string): Promise<number> {
     const tagKey = `${TAG_PREFIX}${tag}`;
-    const keys = await this.redis.smembers(tagKey);
+    const keys = await this.redis.sMembers(tagKey);
 
     if (keys.length === 0) {
       return 0;
     }
 
     // Eliminar todas las keys
-    await Promise.all(keys.map((key) => this.redis.del(key)));
+    await Promise.all(keys.map((key: string) => this.redis.del(key)));
 
     // Eliminar el tag
     await this.redis.del(tagKey);
@@ -280,7 +274,7 @@ export class CacheService implements OnModuleInit {
    * Limpiar todo el cache
    */
   async flush(): Promise<void> {
-    await this.redis.flushdb();
+    await this.redis.flushDb();
     await this.initializeStats();
     this.logger.warn('Cache FLUSH: All keys deleted');
   }
@@ -303,7 +297,7 @@ export class CacheService implements OnModuleInit {
   private async associateTags(key: string, tags: string[], ttl: number): Promise<void> {
     for (const tag of tags) {
       const tagKey = `${TAG_PREFIX}${tag}`;
-      await this.redis.sadd(tagKey, key);
+      await this.redis.sAdd(tagKey, key);
       // El tag expira un poco después que la key
       await this.redis.expire(tagKey, ttl + 300);
     }
@@ -318,7 +312,7 @@ export class CacheService implements OnModuleInit {
     const tags: string[] = [];
 
     for (const tagKey of tagKeys) {
-      const isMember = await this.redis.sismember(tagKey, key);
+      const isMember = await this.redis.sIsMember(tagKey, key);
       if (isMember) {
         tags.push(tagKey.replace(TAG_PREFIX, ''));
       }
@@ -332,7 +326,7 @@ export class CacheService implements OnModuleInit {
    */
   async getTagKeys(tag: string): Promise<string[]> {
     const tagKey = `${TAG_PREFIX}${tag}`;
-    return await this.redis.smembers(tagKey);
+    return await this.redis.sMembers(tagKey);
   }
 
   // ============================================
@@ -421,14 +415,16 @@ export class CacheService implements OnModuleInit {
 
     // Contar keys actuales
     const allKeys = await this.redis.keys('*');
-    stats.totalKeys = allKeys.filter((k) => !k.startsWith(STATS_PREFIX) && !k.startsWith(TAG_PREFIX)).length;
+    stats.totalKeys = allKeys.filter(
+      (k) => !k.startsWith(STATS_PREFIX) && !k.startsWith(TAG_PREFIX),
+    ).length;
 
     // Contar keys por tag
     if (stats.byTag) {
       for (const tag of Object.keys(stats.byTag)) {
         const tagKeys = await this.getTagKeys(tag);
         stats.byTag[tag].keys = tagKeys.length;
-        
+
         // Calcular hit ratio del tag
         const tagTotal = stats.byTag[tag].hits + stats.byTag[tag].misses;
         (stats.byTag[tag] as any).hitRatio = tagTotal > 0 ? stats.byTag[tag].hits / tagTotal : 0;
@@ -442,7 +438,7 @@ export class CacheService implements OnModuleInit {
       if (match) {
         stats.memoryUsage = match[1].trim();
       }
-    } catch (error) {
+    } catch {
       // Ignorar si no está disponible
     }
 
@@ -464,7 +460,11 @@ export class CacheService implements OnModuleInit {
   /**
    * Precalentar cache con datos críticos
    */
-  async warmup<T>(key: string, callback: () => Promise<T>, options: ICacheOptions = {}): Promise<void> {
+  async warmup<T>(
+    key: string,
+    callback: () => Promise<T>,
+    options: ICacheOptions = {},
+  ): Promise<void> {
     this.logger.log(`Cache WARMUP: ${key}`);
     await this.set(key, await callback(), options.ttl, options.tags);
   }
@@ -472,9 +472,11 @@ export class CacheService implements OnModuleInit {
   /**
    * Warmup masivo de múltiples keys
    */
-  async warmupBatch(items: Array<{ key: string; callback: () => Promise<any>; options?: ICacheOptions }>): Promise<void> {
+  async warmupBatch(
+    items: Array<{ key: string; callback: () => Promise<any>; options?: ICacheOptions }>,
+  ): Promise<void> {
     this.logger.log(`Cache WARMUP BATCH: ${items.length} items`);
-    
+
     await Promise.all(
       items.map((item) => this.warmup(item.key, item.callback, item.options || {})),
     );

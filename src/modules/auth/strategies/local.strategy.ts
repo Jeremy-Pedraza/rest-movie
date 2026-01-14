@@ -28,14 +28,16 @@ export class LocalStrategy extends PassportStrategy(Strategy, 'local') {
    * Valida las credenciales del usuario
    * Este método es llamado automáticamente por Passport
    *
-   * @param email - Email del usuario
-   * @param password - Contraseña del usuario
+   * @param args - [email, password] requeridos por Passport pero no usados
    * @returns Usuario validado
    */
-  async validate(email: string, password: string): Promise<any> {
+  validate(...args: [string, string]): never {
     // En este caso, la validación completa está en AuthService.login()
     // Esta estrategia podría usarse con @UseGuards(LocalAuthGuard) en el endpoint de login
     // pero preferimos manejar la validación directamente en el service por flexibilidad
+
+    // Evitar warning de parámetro no usado
+    void args;
 
     throw new UnauthorizedException(
       'Local strategy not implemented - use AuthService.login() directly',

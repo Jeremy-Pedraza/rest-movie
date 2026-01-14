@@ -1,30 +1,24 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
-import { Queue, Job, JobCounts, JobStatus as BullJobStatus } from 'bull';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { SanitizerService } from '@shared/common/sanitizer.service';
 import { HandleErrorService } from '@shared/common/handle-error.service';
+import { SanitizerService } from '@shared/common/sanitizer.service';
+import { JobStatus as BullJobStatus, Job, JobCounts, JobStatusClean, Queue } from 'bull';
+import { AddJobDto, CleanJobsDto, JobStatus, QueryJobDto } from './dto';
 import {
-  QUEUE_NAMES,
-  JOB_NAMES,
-  DEFAULT_JOB_OPTIONS,
-  QUEUE_RATE_LIMITS,
-  CLEANUP_GRACE_PERIODS,
-} from './queue.constants';
-import {
-  IJobResponse,
-  IQueueStats,
-  IJobDetailResponse,
+  IAllQueuesStatsResponse,
   ICleanJobsResponse,
+  IJobDetailResponse,
+  IJobResponse,
+  IJobsListResponse,
   IPauseQueueResponse,
   IQueueHealthResponse,
-  IAllQueuesStatsResponse,
-  IJobsListResponse,
-  IRetryJobResponse,
-  IRemoveJobResponse,
   IQueueMetrics,
+  IQueueStats,
+  IRemoveJobResponse,
+  IRetryJobResponse,
 } from './interfaces';
-import { AddJobDto, CleanJobsDto, QueryJobDto, JobStatus } from './dto';
+import { DEFAULT_JOB_OPTIONS, QUEUE_NAMES } from './queue.constants';
 
 /**
  * @class QueueService
@@ -56,7 +50,7 @@ export class QueueService implements OnModuleInit {
    * Inicialización del módulo
    * Registra las colas en el Map para acceso rápido
    */
-  async onModuleInit(): Promise<void> {
+  onModuleInit(): void {
     this.queues.set(QUEUE_NAMES.EMAIL, this.emailQueue);
     this.queues.set(QUEUE_NAMES.NOTIFICATION, this.notificationQueue);
     this.queues.set(QUEUE_NAMES.REPORT, this.reportQueue);
@@ -252,10 +246,17 @@ export class QueueService implements OnModuleInit {
       const bullStatus = statusMap[query.status];
       jobs = await queue.getJobs([bullStatus as BullJobStatus], start, end);
       const counts = await queue.getJobCounts();
-      total = (counts as Record<string, number>)[bullStatus] || 0;
+      total = (counts as unknown as Record<string, number>)[bullStatus] || 0;
     } else {
       // Si no se especifica estado, obtener todos
-      const types: BullJobStatus[] = ['waiting', 'active', 'completed', 'failed', 'delayed', 'paused'];
+      const types: BullJobStatus[] = [
+        'waiting',
+        'active',
+        'completed',
+        'failed',
+        'delayed',
+        'paused',
+      ];
       jobs = await queue.getJobs(types, start, end);
       const counts = await queue.getJobCounts();
       total =
@@ -358,7 +359,9 @@ export class QueueService implements OnModuleInit {
 
     const state = await job.getState();
     if (state !== 'failed') {
-      this.handleError.badRequest(`Job ${jobId} no está en estado fallido (estado actual: ${state})`);
+      this.handleError.badRequest(
+        `Job ${jobId} no está en estado fallido (estado actual: ${state})`,
+      );
     }
 
     await job.retry();
@@ -388,7 +391,8 @@ export class QueueService implements OnModuleInit {
     const limit = dto.limit;
 
     // Bull clean method: clean(grace, status, limit)
-    const cleaned = await queue.clean(grace, status as any, limit);
+    // Cast seguro: el DTO ya valida que status sea un JobStatusClean válido
+    const cleaned = await queue.clean(grace, status as JobStatusClean, limit);
 
     this.logger.log(`🧹 Limpieza de ${queueName}: ${cleaned.length} jobs ${status} eliminados`);
 
@@ -474,7 +478,7 @@ export class QueueService implements OnModuleInit {
       // Verificar conexión a Redis haciendo ping
       await queue.client.ping();
       redisConnected = true;
-    } catch (error) {
+    } catch {
       redisConnected = false;
       isHealthy = false;
     }
@@ -522,8 +526,12 @@ export class QueueService implements OnModuleInit {
     const oneHourAgo = now - 3600000;
     const oneDayAgo = now - 86400000;
 
-    const jobsLastHour = completedJobs.filter((job) => job.finishedOn && job.finishedOn > oneHourAgo).length;
-    const jobsLastDay = completedJobs.filter((job) => job.finishedOn && job.finishedOn > oneDayAgo).length;
+    const jobsLastHour = completedJobs.filter(
+      (job) => job.finishedOn && job.finishedOn > oneHourAgo,
+    ).length;
+    const jobsLastDay = completedJobs.filter(
+      (job) => job.finishedOn && job.finishedOn > oneDayAgo,
+    ).length;
 
     // Calcular tiempos de procesamiento
     const processingTimes = completedJobs
@@ -531,7 +539,9 @@ export class QueueService implements OnModuleInit {
       .map((job) => job.finishedOn! - job.processedOn!);
 
     const averageProcessingTime =
-      processingTimes.length > 0 ? processingTimes.reduce((a, b) => a + b, 0) / processingTimes.length : 0;
+      processingTimes.length > 0
+        ? processingTimes.reduce((a, b) => a + b, 0) / processingTimes.length
+        : 0;
 
     const sortedTimes = [...processingTimes].sort((a, b) => a - b);
     const medianProcessingTime =
@@ -603,7 +613,7 @@ export class QueueService implements OnModuleInit {
    * @param data Datos a sanitizar
    * @returns Datos sanitizados
    */
-  private sanitizeJobData(data: any): any {
+  private sanitizeJobData(data: unknown): unknown {
     if (typeof data === 'string') {
       return this.sanitizer.sanitizeString(data);
     }
@@ -613,10 +623,10 @@ export class QueueService implements OnModuleInit {
     }
 
     if (typeof data === 'object' && data !== null) {
-      const sanitized: any = {};
+      const sanitized: Record<string, unknown> = {};
       for (const key in data) {
-        if (data.hasOwnProperty(key)) {
-          sanitized[key] = this.sanitizeJobData(data[key]);
+        if (Object.prototype.hasOwnProperty.call(data, key)) {
+          sanitized[key] = this.sanitizeJobData((data as Record<string, unknown>)[key]);
         }
       }
       return sanitized;

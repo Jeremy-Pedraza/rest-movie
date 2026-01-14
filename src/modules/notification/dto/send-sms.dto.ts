@@ -36,7 +36,7 @@ export class SendSmsDto {
   })
   @IsArray({ message: 'Los destinatarios deben ser un array' })
   @ArrayMinSize(1, { message: 'Debe haber al menos un destinatario' })
-  @IsPhoneNumber(null, {
+  @IsPhoneNumber(undefined, {
     each: true,
     message: 'Cada destinatario debe ser un número de teléfono válido (formato E.164)',
   })
@@ -72,7 +72,7 @@ export class SendSmsDto {
     example: '+573009876543',
   })
   @IsOptional()
-  @IsPhoneNumber(null, {
+  @IsPhoneNumber(undefined, {
     message: 'El número remitente debe ser un teléfono válido (formato E.164)',
   })
   from?: string;

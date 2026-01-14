@@ -12,40 +12,41 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 // Shared Services (OBLIGATORIOS)
-import { SanitizerService, HandleErrorService } from '@shared/common';
+import { ERROR_CODES } from '@constants/error-codes.constant';
+import { HandleErrorService, SanitizerService } from '@shared/common';
 
 // Local imports - Channels
-import { EmailChannel, SmsChannel, PushChannel } from './channels';
+import { EmailChannel, PushChannel, SmsChannel } from './channels';
 
 // Local imports - DTOs
 import {
-  SendNotificationDto,
-  SendEmailDto,
-  SendSmsDto,
-  SendPushDto,
   NotificationChannel,
+  SendEmailDto,
+  SendNotificationDto,
+  SendPushDto,
+  SendSmsDto,
 } from './dto';
 
 // Local imports - Interfaces
 import {
-  INotificationResponse,
   IEmailResponse,
-  ISmsResponse,
-  IPushResponse,
   IMultiChannelResponse,
   INotificationOptions,
+  INotificationResponse,
+  IPushResponse,
+  ISmsResponse,
 } from './interfaces';
 
 // Local imports - Templates
 import {
-  WelcomeEmailTemplate,
-  ResetPasswordEmailTemplate,
-  VerifyEmailTemplate,
-  NotificationEmailTemplate,
-  IWelcomeEmailData,
+  INotificationEmailData,
   IResetPasswordEmailData,
   IVerifyEmailData,
-  INotificationEmailData,
+  IWelcomeEmailData,
+  NotificationEmailTemplate,
+  ResetPasswordEmailTemplate,
+  VerifyEmailTemplate,
+  WelcomeEmailTemplate,
 } from './templates';
 
 /**
@@ -105,7 +106,7 @@ export class NotificationService {
             headers: dto.headers,
           },
         },
-        priority: dto.priority,
+        priority: dto.priority as any, // EmailPriority compatible con NotificationPriority
       };
 
       // Enviar
@@ -113,13 +114,13 @@ export class NotificationService {
 
       this.logger.log(`Email sent successfully to ${sanitizedTo.length} recipient(s)`);
 
-      return response as IEmailResponse;
+      return response;
     } catch (error) {
-      this.logger.error(`Failed to send email: ${error.message}`, error.stack);
-      this.handleError.internalServerError(
-        'Error al enviar email',
-        'EMAIL_SEND_ERROR',
+      this.logger.error(
+        `Failed to send email: ${(error as Error).message}`,
+        (error as Error).stack,
       );
+      this.handleError.internalServerError('Error al enviar email', ERROR_CODES.EMAIL_SEND_ERROR);
     }
   }
 
@@ -156,10 +157,10 @@ export class NotificationService {
 
       this.logger.log(`SMS sent successfully to ${dto.to.length} recipient(s)`);
 
-      return response as ISmsResponse;
+      return response;
     } catch (error) {
-      this.logger.error(`Failed to send SMS: ${error.message}`, error.stack);
-      this.handleError.internalServerError('Error al enviar SMS', 'SMS_SEND_ERROR');
+      this.logger.error(`Failed to send SMS: ${(error as Error).message}`, (error as Error).stack);
+      this.handleError.internalServerError('Error al enviar SMS', ERROR_CODES.SMS_SEND_ERROR);
     }
   }
 
@@ -199,7 +200,7 @@ export class NotificationService {
           },
           ...dto.data,
         },
-        priority: dto.priority,
+        priority: dto.priority as any, // PushPriority compatible con NotificationPriority
       };
 
       // Enviar
@@ -207,12 +208,15 @@ export class NotificationService {
 
       this.logger.log(`Push notification sent to ${dto.tokens.length} token(s)`);
 
-      return response as IPushResponse;
+      return response;
     } catch (error) {
-      this.logger.error(`Failed to send push notification: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to send push notification: ${(error as Error).message}`,
+        (error as Error).stack,
+      );
       this.handleError.internalServerError(
         'Error al enviar push notification',
-        'PUSH_SEND_ERROR',
+        ERROR_CODES.PUSH_SEND_ERROR,
       );
     }
   }
@@ -253,7 +257,8 @@ export class NotificationService {
               response = await this.sendPushMulti(dto);
               break;
             default:
-              this.logger.warn(`Unknown channel: ${channel}`);
+              // Exhaustiveness check - TypeScript infiere que channel es never aquí
+              this.logger.warn(`Unknown channel: ${channel as string}`);
               return;
           }
 
@@ -265,7 +270,8 @@ export class NotificationService {
             responses.failedChannels.push(channel);
           }
         } catch (error) {
-          this.logger.error(`Failed to send via ${channel}: ${error.message}`);
+          const errorMessage = (error as Error).message;
+          this.logger.error(`Failed to send via ${channel as string}: ${errorMessage}`);
           responses.failedChannels.push(channel);
         }
       });
@@ -281,10 +287,13 @@ export class NotificationService {
 
       return responses;
     } catch (error) {
-      this.logger.error(`Failed multi-channel send: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed multi-channel send: ${(error as Error).message}`,
+        (error as Error).stack,
+      );
       this.handleError.internalServerError(
         'Error al enviar notificación multi-canal',
-        'MULTI_CHANNEL_ERROR',
+        ERROR_CODES.MULTI_CHANNEL_ERROR,
       );
     }
   }
@@ -293,9 +302,7 @@ export class NotificationService {
    * Helper: Enviar email desde SendNotificationDto
    */
   private async sendEmailMulti(dto: SendNotificationDto): Promise<IEmailResponse> {
-    const emailRecipients = dto.recipients
-      .filter((r) => r.email)
-      .map((r) => r.email as string);
+    const emailRecipients = dto.recipients.filter((r) => r.email).map((r) => r.email!);
 
     if (emailRecipients.length === 0) {
       throw new Error('No email recipients found');
@@ -313,9 +320,7 @@ export class NotificationService {
    * Helper: Enviar SMS desde SendNotificationDto
    */
   private async sendSmsMulti(dto: SendNotificationDto): Promise<ISmsResponse> {
-    const phoneRecipients = dto.recipients
-      .filter((r) => r.phone)
-      .map((r) => r.phone as string);
+    const phoneRecipients = dto.recipients.filter((r) => r.phone).map((r) => r.phone!);
 
     if (phoneRecipients.length === 0) {
       throw new Error('No phone recipients found');
@@ -331,9 +336,7 @@ export class NotificationService {
    * Helper: Enviar push desde SendNotificationDto
    */
   private async sendPushMulti(dto: SendNotificationDto): Promise<IPushResponse> {
-    const pushTokens = dto.recipients
-      .filter((r) => r.pushToken)
-      .map((r) => r.pushToken as string);
+    const pushTokens = dto.recipients.filter((r) => r.pushToken).map((r) => r.pushToken!);
 
     if (pushTokens.length === 0) {
       throw new Error('No push tokens found');
@@ -376,10 +379,7 @@ export class NotificationService {
    * @param data - Datos del template
    * @returns Respuesta del envío
    */
-  async sendResetPasswordEmail(
-    to: string,
-    data: IResetPasswordEmailData,
-  ): Promise<IEmailResponse> {
+  async sendResetPasswordEmail(to: string, data: IResetPasswordEmailData): Promise<IEmailResponse> {
     const html = ResetPasswordEmailTemplate.generate(data);
     const text = ResetPasswordEmailTemplate.generateText(data);
 
@@ -417,10 +417,7 @@ export class NotificationService {
    * @param data - Datos del template
    * @returns Respuesta del envío
    */
-  async sendNotificationEmail(
-    to: string,
-    data: INotificationEmailData,
-  ): Promise<IEmailResponse> {
+  async sendNotificationEmail(to: string, data: INotificationEmailData): Promise<IEmailResponse> {
     const html = NotificationEmailTemplate.generate(data);
     const text = NotificationEmailTemplate.generateText(data);
 

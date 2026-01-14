@@ -1,12 +1,12 @@
-import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bull';
+import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { QueueController } from './queue.controller';
-import { QueueService } from './queue.service';
+import { CommonModule } from '@shared/common/common.module';
 import { EmailProcessor, NotificationProcessor, ReportProcessor } from './processors';
 import { EmailProducer, NotificationProducer, ReportProducer } from './producers';
 import { QUEUE_NAMES, QUEUE_RATE_LIMITS, STALLED_JOB_CONFIG } from './queue.constants';
-import { CommonModule } from '@shared/common/common.module';
+import { QueueController } from './queue.controller';
+import { QueueService } from './queue.service';
 
 /**
  * @module QueueModule
@@ -49,7 +49,8 @@ import { CommonModule } from '@shared/common/common.module';
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
         redis: {
-          host: configService.get('BULL_REDIS_HOST') || configService.get('REDIS_HOST') || 'localhost',
+          host:
+            configService.get('BULL_REDIS_HOST') || configService.get('REDIS_HOST') || 'localhost',
           port: configService.get('BULL_REDIS_PORT') || configService.get('REDIS_PORT') || 6379,
           password: configService.get('BULL_REDIS_PASSWORD') || configService.get('REDIS_PASSWORD'),
           db: configService.get('BULL_REDIS_DB') || 0,
@@ -69,7 +70,8 @@ import { CommonModule } from '@shared/common/common.module';
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
         redis: {
-          host: configService.get('BULL_REDIS_HOST') || configService.get('REDIS_HOST') || 'localhost',
+          host:
+            configService.get('BULL_REDIS_HOST') || configService.get('REDIS_HOST') || 'localhost',
           port: configService.get('BULL_REDIS_PORT') || configService.get('REDIS_PORT') || 6379,
           password: configService.get('BULL_REDIS_PASSWORD') || configService.get('REDIS_PASSWORD'),
           db: configService.get('BULL_REDIS_DB') || 0,
@@ -89,7 +91,8 @@ import { CommonModule } from '@shared/common/common.module';
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
         redis: {
-          host: configService.get('BULL_REDIS_HOST') || configService.get('REDIS_HOST') || 'localhost',
+          host:
+            configService.get('BULL_REDIS_HOST') || configService.get('REDIS_HOST') || 'localhost',
           port: configService.get('BULL_REDIS_PORT') || configService.get('REDIS_PORT') || 6379,
           password: configService.get('BULL_REDIS_PASSWORD') || configService.get('REDIS_PASSWORD'),
           db: configService.get('BULL_REDIS_DB') || 0,

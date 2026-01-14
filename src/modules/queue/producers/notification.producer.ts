@@ -1,15 +1,15 @@
-import { Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
-import { Queue, Job, JobStatus as BullJobStatus } from 'bull';
-import {
-  QUEUE_NAMES,
-  JOB_NAMES,
-  DEFAULT_JOB_OPTIONS,
-  JOB_PRIORITIES,
-  JOB_DELAYS,
-} from '../queue.constants';
-import { NotificationJobDataDto, JobOptionsDto } from '../dto';
+import { Injectable, Logger } from '@nestjs/common';
+import { JobStatus as BullJobStatus, Job, Queue } from 'bull';
+import { JobOptionsDto, NotificationJobDataDto } from '../dto';
 import { IJobResponse } from '../interfaces';
+import {
+  DEFAULT_JOB_OPTIONS,
+  JOB_DELAYS,
+  JOB_NAMES,
+  JOB_PRIORITIES,
+  QUEUE_NAMES,
+} from '../queue.constants';
 
 /**
  * @class NotificationProducer
@@ -25,9 +25,7 @@ import { IJobResponse } from '../interfaces';
 export class NotificationProducer {
   private readonly logger = new Logger(NotificationProducer.name);
 
-  constructor(
-    @InjectQueue(QUEUE_NAMES.NOTIFICATION) private readonly notificationQueue: Queue,
-  ) {}
+  constructor(@InjectQueue(QUEUE_NAMES.NOTIFICATION) private readonly notificationQueue: Queue) {}
 
   /**
    * Encolar notificación individual
@@ -149,9 +147,7 @@ export class NotificationProducer {
       jobOptions,
     );
 
-    this.logger.log(
-      `🔔 Lote de ${notifications.length} notificaciones encolado: ${job.id}`,
-    );
+    this.logger.log(`🔔 Lote de ${notifications.length} notificaciones encolado: ${job.id}`);
 
     return {
       jobId: job.id,
@@ -229,7 +225,9 @@ export class NotificationProducer {
    */
   async cleanCompleted(grace: number = 3600000) {
     const cleaned = await this.notificationQueue.clean(grace, 'completed');
-    this.logger.log(`🧹 ${cleaned.length} notificaciones completadas limpiadas (grace: ${grace}ms)`);
+    this.logger.log(
+      `🧹 ${cleaned.length} notificaciones completadas limpiadas (grace: ${grace}ms)`,
+    );
     return cleaned;
   }
 

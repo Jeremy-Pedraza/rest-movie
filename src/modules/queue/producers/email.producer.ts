@@ -1,15 +1,15 @@
-import { Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
-import { Queue, Job, JobStatus as BullJobStatus } from 'bull';
-import {
-  QUEUE_NAMES,
-  JOB_NAMES,
-  DEFAULT_JOB_OPTIONS,
-  JOB_PRIORITIES,
-  JOB_DELAYS,
-} from '../queue.constants';
+import { Injectable, Logger } from '@nestjs/common';
+import { JobStatus as BullJobStatus, Job, Queue } from 'bull';
 import { EmailJobDataDto, JobOptionsDto } from '../dto';
 import { IJobResponse } from '../interfaces';
+import {
+  DEFAULT_JOB_OPTIONS,
+  JOB_DELAYS,
+  JOB_NAMES,
+  JOB_PRIORITIES,
+  QUEUE_NAMES,
+} from '../queue.constants';
 
 /**
  * @class EmailProducer
@@ -33,10 +33,7 @@ export class EmailProducer {
    * @param options Opciones del job (opcional)
    * @returns IJobResponse
    */
-  async queueEmail(
-    data: EmailJobDataDto,
-    options?: Partial<JobOptionsDto>,
-  ): Promise<IJobResponse> {
+  async queueEmail(data: EmailJobDataDto, options?: Partial<JobOptionsDto>): Promise<IJobResponse> {
     const jobOptions = {
       ...DEFAULT_JOB_OPTIONS,
       ...options,
@@ -99,11 +96,7 @@ export class EmailProducer {
       ...options,
     };
 
-    const job = await this.emailQueue.add(
-      JOB_NAMES.EMAIL.SEND_BATCH,
-      { emails },
-      jobOptions,
-    );
+    const job = await this.emailQueue.add(JOB_NAMES.EMAIL.SEND_BATCH, { emails }, jobOptions);
 
     this.logger.log(
       `📧 Lote de ${emails.length} emails encolado: ${job.id} con prioridad ${jobOptions.priority}`,
@@ -144,9 +137,7 @@ export class EmailProducer {
       jobOptions,
     );
 
-    this.logger.log(
-      `📧 Email con template '${templateName}' encolado: ${job.id} para ${data.to}`,
-    );
+    this.logger.log(`📧 Email con template '${templateName}' encolado: ${job.id} para ${data.to}`);
 
     return {
       jobId: job.id,

@@ -189,19 +189,23 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
    */
   async set(key: string, value: string | number, options?: SetOptions): Promise<boolean> {
     try {
-      const args: (string | number)[] = [key, value.toString()];
+      let result: string | null;
+      const valueStr = value.toString();
 
-      if (options?.ttl) {
-        args.push('EX', options.ttl);
-      }
-
-      if (options?.nx) {
-        args.push('NX');
+      if (options?.ttl && options?.nx) {
+        result = await this.client.set(key, valueStr, 'EX', options.ttl, 'NX');
+      } else if (options?.ttl && options?.xx) {
+        result = await this.client.set(key, valueStr, 'EX', options.ttl, 'XX');
+      } else if (options?.ttl) {
+        result = await this.client.set(key, valueStr, 'EX', options.ttl);
+      } else if (options?.nx) {
+        result = await this.client.set(key, valueStr, 'NX');
       } else if (options?.xx) {
-        args.push('XX');
+        result = await this.client.set(key, valueStr, 'XX');
+      } else {
+        result = await this.client.set(key, valueStr);
       }
 
-      const result = await this.client.set(...(args as [string, string, ...any[]]));
       return result === 'OK';
     } catch (error) {
       this.logger.error(`Redis SET error for key ${key}: ${error.message}`);

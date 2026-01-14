@@ -1,8 +1,8 @@
 import { Process, Processor } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bull';
-import { QUEUE_NAMES, JOB_NAMES, PROCESSOR_CONCURRENCY } from '../queue.constants';
 import { EmailJobDataDto } from '../dto';
+import { JOB_NAMES, QUEUE_NAMES } from '../queue.constants';
 
 /**
  * @class EmailProcessor
@@ -84,7 +84,9 @@ export class EmailProcessor {
       let processed = 0;
 
       for (const emailData of job.data.emails) {
-        this.logger.debug(`📧 [${job.id}] Enviando email ${processed + 1}/${totalEmails} a ${emailData.to}`);
+        this.logger.debug(
+          `📧 [${job.id}] Enviando email ${processed + 1}/${totalEmails} a ${emailData.to}`,
+        );
 
         // Simular envío individual (1 segundo por email)
         await this.delay(1000);
@@ -100,7 +102,9 @@ export class EmailProcessor {
         await job.progress(progress);
       }
 
-      this.logger.log(`✅ [${job.id}] Lote completado: ${processed}/${totalEmails} emails enviados`);
+      this.logger.log(
+        `✅ [${job.id}] Lote completado: ${processed}/${totalEmails} emails enviados`,
+      );
 
       return {
         totalEmails,
@@ -110,7 +114,10 @@ export class EmailProcessor {
         completedAt: new Date().toISOString(),
       };
     } catch (error) {
-      this.logger.error(`❌ [${job.id}] Error al enviar lote de emails: ${error.message}`, error.stack);
+      this.logger.error(
+        `❌ [${job.id}] Error al enviar lote de emails: ${error.message}`,
+        error.stack,
+      );
       throw error;
     }
   }
@@ -162,7 +169,10 @@ export class EmailProcessor {
 
       return result;
     } catch (error) {
-      this.logger.error(`❌ [${job.id}] Error al enviar email con template: ${error.message}`, error.stack);
+      this.logger.error(
+        `❌ [${job.id}] Error al enviar email con template: ${error.message}`,
+        error.stack,
+      );
       throw error;
     }
   }

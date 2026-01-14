@@ -17,31 +17,25 @@ import { ConfigModule } from '@nestjs/config';
 
 // Módulos requeridos para los jobs
 import { AuthModule } from '@modules/auth';
+import { CacheModule } from '@modules/cache';
 import { LoggerModule } from '@modules/logger';
 import { UserModule } from '@modules/user';
-import { CacheModule } from '@modules/cache';
 
 // Controller y Service
 import { TasksController } from './tasks.controller';
 import { TasksService } from './tasks.service';
 
 // Jobs
-import {
-  CleanupJob,
-  BackupJob,
-  SessionCleanupJob,
-  LogCleanupJob,
-  CacheWarmupJob,
-} from './jobs';
+import { BackupJob, CacheWarmupJob, CleanupJob, LogCleanupJob, SessionCleanupJob } from './jobs';
 
 @Module({
   imports: [
     ConfigModule,
     // Módulos necesarios para los jobs
-    AuthModule,      // Para SessionCleanupJob y CacheWarmupJob
-    LoggerModule,    // Para LogCleanupJob
-    UserModule,      // Para CacheWarmupJob
-    CacheModule,     // Para CacheWarmupJob
+    AuthModule, // Para SessionCleanupJob y CacheWarmupJob
+    LoggerModule, // Para LogCleanupJob
+    UserModule, // Para CacheWarmupJob
+    CacheModule, // Para CacheWarmupJob
   ],
   controllers: [TasksController],
   providers: [

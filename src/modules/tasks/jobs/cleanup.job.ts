@@ -10,17 +10,12 @@
  */
 
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
+import { Cron } from '@nestjs/schedule';
 import { DataSource, EntityMetadata } from 'typeorm';
 
-import {
-  JOB_NAMES,
-  DEFAULT_JOB_CONFIG,
-  CRON_EXPRESSIONS,
-  getEnvKey,
-} from '../tasks.constants';
 import { IJobExecutionResult } from '../interfaces';
+import { CRON_EXPRESSIONS, DEFAULT_JOB_CONFIG, getEnvKey, JOB_NAMES } from '../tasks.constants';
 
 @Injectable()
 export class CleanupJob {
@@ -218,8 +213,7 @@ export class CleanupJob {
             `[${this.jobName}] ${tableName}: eliminados ${deleted}/${counted} registros`,
           );
         } catch (entityError) {
-          const errorMsg =
-            entityError instanceof Error ? entityError.message : 'Error desconocido';
+          const errorMsg = entityError instanceof Error ? entityError.message : 'Error desconocido';
           errors.push(`${entityName}: ${errorMsg}`);
           this.logger.error(`[${this.jobName}] Error limpiando ${tableName}: ${errorMsg}`);
           results[tableName] = { counted: 0, deleted: 0 };

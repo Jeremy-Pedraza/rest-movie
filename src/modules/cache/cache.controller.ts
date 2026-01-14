@@ -21,28 +21,28 @@
  */
 
 import {
-  Controller,
-  Get,
-  Post,
-  Delete,
-  Param,
-  Query,
   Body,
+  Controller,
+  Delete,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
+  Post,
+  Query,
 } from '@nestjs/common';
 import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
   ApiBearerAuth,
+  ApiBody,
+  ApiOperation,
   ApiParam,
   ApiQuery,
-  ApiBody,
+  ApiResponse,
+  ApiTags,
 } from '@nestjs/swagger';
 
-import { Roles } from '@decorators/roles.decorator';
 import { ROLES } from '@constants/roles.constant';
+import { Roles } from '@decorators/roles.decorator';
 import { IApiResponse } from '@shared/common';
 
 import { CacheService } from './cache.service';
@@ -133,7 +133,9 @@ export class CacheController {
     status: 200,
     description: 'Cache invalidado',
   })
-  async invalidateTag(@Param('tag') tag: string): Promise<IApiResponse<{ keysInvalidated: number }>> {
+  async invalidateTag(
+    @Param('tag') tag: string,
+  ): Promise<IApiResponse<{ keysInvalidated: number }>> {
     const keysInvalidated = await this.cacheService.invalidateTag(tag);
     return {
       success: true,

@@ -15,19 +15,19 @@
 
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 // Shared modules
-import { CommonModule } from '@shared/common';
-import { UserModule } from '@modules/user';
 import { QueueModule } from '@modules/queue';
+import { UserModule } from '@modules/user';
+import { CommonModule } from '@shared/common';
 
 // Local imports
 import { AuthController } from './auth.controller';
-import { AuthService } from './auth.service';
 import { AuthRepository } from './auth.repository';
+import { AuthService } from './auth.service';
 import { SessionEntity } from './entities';
 import { JwtStrategy, LocalStrategy } from './strategies';
 
@@ -45,14 +45,22 @@ import { JwtStrategy, LocalStrategy } from './strategies';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('jwt.secret'),
-        signOptions: {
-          expiresIn: configService.get<string>('jwt.expiresIn'),
-          issuer: configService.get<string>('jwt.issuer'),
-          audience: configService.get<string>('jwt.audience'),
-        },
-      }),
+      useFactory: (configService: ConfigService): JwtModuleOptions => {
+        const secret =
+          configService.get<string>('jwt.secret') || 'default-secret-change-in-production';
+        const expiresIn = configService.get<string>('jwt.expiresIn') || '1h';
+        const issuer = configService.get<string>('jwt.issuer');
+        const audience = configService.get<string>('jwt.audience');
+
+        return {
+          secret,
+          signOptions: {
+            expiresIn: expiresIn as any, // TypeScript strict mode workaround
+            issuer,
+            audience,
+          },
+        };
+      },
     }),
 
     // Shared modules

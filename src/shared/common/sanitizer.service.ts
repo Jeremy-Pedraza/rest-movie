@@ -45,6 +45,17 @@ export class SanitizerService {
   }
 
   /**
+   * Alias de sanitizeString para compatibilidad
+   * Sanitiza un texto removiendo/escapando caracteres peligrosos
+   *
+   * @param input - Texto a sanitizar
+   * @returns Texto sanitizado
+   */
+  sanitizeText(input: string | null | undefined): string {
+    return this.sanitizeString(input);
+  }
+
+  /**
    * Remueve todas las etiquetas HTML de un string
    *
    * @param input - String con posible HTML

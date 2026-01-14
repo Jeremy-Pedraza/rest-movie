@@ -12,29 +12,23 @@
  */
 
 import {
-  Controller,
-  Post,
-  Get,
-  Delete,
   Body,
-  Param,
-  Req,
-  ParseUUIDPipe,
+  Controller,
+  Delete,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Req,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiParam,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiParam, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 
 // Decoradores
-import { Public } from '@decorators/public.decorator';
 import { CurrentUser } from '@decorators/current-user.decorator';
+import { Public } from '@decorators/public.decorator';
 
 // Shared interfaces
 import { IApiResponse } from '@shared/common';
@@ -42,19 +36,19 @@ import { IApiResponse } from '@shared/common';
 // Local imports
 import { AuthService } from './auth.service';
 import {
-  LoginDto,
-  RegisterDto,
-  RefreshTokenDto,
   ChangePasswordDto,
   ForgotPasswordDto,
+  LoginDto,
+  RefreshTokenDto,
+  RegisterDto,
   ResetPasswordDto,
 } from './dto';
 import {
   IAuthResponse,
-  IRefreshTokenResponse,
+  IForgotPasswordResponse,
   ILogoutResponse,
   IPasswordChangeResponse,
-  IForgotPasswordResponse,
+  IRefreshTokenResponse,
   IResetPasswordResponse,
   ISessionInfo,
 } from './interfaces';
@@ -75,10 +69,7 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Login exitoso' })
   @ApiResponse({ status: 401, description: 'Credenciales inválidas' })
   @ApiResponse({ status: 429, description: 'Rate limit excedido' })
-  async login(
-    @Body() dto: LoginDto,
-    @Req() req: Request,
-  ): Promise<IApiResponse<IAuthResponse>> {
+  async login(@Body() dto: LoginDto, @Req() req: Request): Promise<IApiResponse<IAuthResponse>> {
     const ipAddress = req.ip || req.socket.remoteAddress || 'unknown';
     const userAgent = req.headers['user-agent'];
 
@@ -303,7 +294,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Obtener información del usuario autenticado' })
   @ApiResponse({ status: 200, description: 'Usuario obtenido' })
   @ApiResponse({ status: 401, description: 'No autorizado' })
-  async getMe(@CurrentUser() user: any): Promise<IApiResponse<any>> {
+  getMe(@CurrentUser() user: any): IApiResponse<any> {
     return {
       success: true,
       message: 'Usuario autenticado',

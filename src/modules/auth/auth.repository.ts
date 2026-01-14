@@ -299,10 +299,7 @@ export class AuthRepository {
 
     const [total, active, expired, revoked] = await Promise.all([
       // Total de sesiones no eliminadas
-      this.repo
-        .createQueryBuilder('session')
-        .where('session.deletedAt IS NULL')
-        .getCount(),
+      this.repo.createQueryBuilder('session').where('session.deletedAt IS NULL').getCount(),
 
       // Sesiones activas
       this.repo

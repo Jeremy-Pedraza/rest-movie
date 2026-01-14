@@ -10,7 +10,7 @@
  * - send-batch: Enviar batch de notificaciones
  */
 
-import { Processor, Process } from '@nestjs/bull';
+import { Process, Processor } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bull';
 
@@ -18,27 +18,17 @@ import { Job } from 'bull';
 import { NotificationService } from '../notification.service';
 
 // DTOs
-import {
-  SendEmailDto,
-  SendSmsDto,
-  SendPushDto,
-  SendNotificationDto,
-} from '../dto';
+import { SendEmailDto, SendNotificationDto, SendPushDto, SendSmsDto } from '../dto';
 
 // Interfaces
-import {
-  IEmailResponse,
-  ISmsResponse,
-  IPushResponse,
-  IMultiChannelResponse,
-} from '../interfaces';
+import { IEmailResponse, IMultiChannelResponse, IPushResponse, ISmsResponse } from '../interfaces';
 
 // Templates
 import {
-  IWelcomeEmailData,
+  INotificationEmailData,
   IResetPasswordEmailData,
   IVerifyEmailData,
-  INotificationEmailData,
+  IWelcomeEmailData,
 } from '../templates';
 
 /**
@@ -164,6 +154,14 @@ export class NotificationProcessor {
 
   constructor(private readonly notificationService: NotificationService) {}
 
+  /**
+   * Type predicate para filtrar valores null
+   * Se declara sin contexto de `this` para poder ser usado como callback
+   */
+  private isNotNull<T>(this: void, value: T | null): value is T {
+    return value !== null;
+  }
+
   // ============================================
   // PROCESADORES DE JOBS INDIVIDUALES
   // ============================================
@@ -229,9 +227,7 @@ export class NotificationProcessor {
    * Procesar job de envío multi-canal
    */
   @Process(NotificationJobType.SEND_MULTI)
-  async processMultiChannel(
-    job: Job<IMultiChannelJobData>,
-  ): Promise<IMultiChannelResponse> {
+  async processMultiChannel(job: Job<IMultiChannelJobData>): Promise<IMultiChannelResponse> {
     this.logger.log(`Processing multi-channel job ${job.id}`);
 
     try {
@@ -243,10 +239,7 @@ export class NotificationProcessor {
 
       return result;
     } catch (error) {
-      this.logger.error(
-        `Multi-channel job ${job.id} failed: ${error.message}`,
-        error.stack,
-      );
+      this.logger.error(`Multi-channel job ${job.id} failed: ${error.message}`, error.stack);
       throw error;
     }
   }
@@ -281,7 +274,7 @@ export class NotificationProcessor {
         );
 
         const emailResults = await Promise.all(emailPromises);
-        results.emails = emailResults.filter((r) => r !== null) as IEmailResponse[];
+        results.emails = emailResults.filter(this.isNotNull);
       }
 
       // Procesar SMS
@@ -296,7 +289,7 @@ export class NotificationProcessor {
         );
 
         const smsResults = await Promise.all(smsPromises);
-        results.sms = smsResults.filter((r) => r !== null) as ISmsResponse[];
+        results.sms = smsResults.filter(this.isNotNull);
       }
 
       // Procesar push
@@ -311,7 +304,7 @@ export class NotificationProcessor {
         );
 
         const pushResults = await Promise.all(pushPromises);
-        results.push = pushResults.filter((r) => r !== null) as IPushResponse[];
+        results.push = pushResults.filter(this.isNotNull);
       }
 
       this.logger.log(
@@ -333,9 +326,7 @@ export class NotificationProcessor {
    * Procesar job de email de bienvenida
    */
   @Process(NotificationJobType.SEND_WELCOME_EMAIL)
-  async processWelcomeEmail(
-    job: Job<IWelcomeEmailJobData>,
-  ): Promise<IEmailResponse> {
+  async processWelcomeEmail(job: Job<IWelcomeEmailJobData>): Promise<IEmailResponse> {
     this.logger.log(`Processing welcome email job ${job.id}`);
 
     try {
@@ -348,10 +339,7 @@ export class NotificationProcessor {
 
       return result;
     } catch (error) {
-      this.logger.error(
-        `Welcome email job ${job.id} failed: ${error.message}`,
-        error.stack,
-      );
+      this.logger.error(`Welcome email job ${job.id} failed: ${error.message}`, error.stack);
       throw error;
     }
   }
@@ -360,9 +348,7 @@ export class NotificationProcessor {
    * Procesar job de email de reset de contraseña
    */
   @Process(NotificationJobType.SEND_RESET_PASSWORD_EMAIL)
-  async processResetPasswordEmail(
-    job: Job<IResetPasswordEmailJobData>,
-  ): Promise<IEmailResponse> {
+  async processResetPasswordEmail(job: Job<IResetPasswordEmailJobData>): Promise<IEmailResponse> {
     this.logger.log(`Processing reset password email job ${job.id}`);
 
     try {
@@ -375,10 +361,7 @@ export class NotificationProcessor {
 
       return result;
     } catch (error) {
-      this.logger.error(
-        `Reset password email job ${job.id} failed: ${error.message}`,
-        error.stack,
-      );
+      this.logger.error(`Reset password email job ${job.id} failed: ${error.message}`, error.stack);
       throw error;
     }
   }
@@ -400,10 +383,7 @@ export class NotificationProcessor {
 
       return result;
     } catch (error) {
-      this.logger.error(
-        `Verify email job ${job.id} failed: ${error.message}`,
-        error.stack,
-      );
+      this.logger.error(`Verify email job ${job.id} failed: ${error.message}`, error.stack);
       throw error;
     }
   }
@@ -412,9 +392,7 @@ export class NotificationProcessor {
    * Procesar job de email de notificación genérica
    */
   @Process(NotificationJobType.SEND_NOTIFICATION_EMAIL)
-  async processNotificationEmail(
-    job: Job<INotificationEmailJobData>,
-  ): Promise<IEmailResponse> {
+  async processNotificationEmail(job: Job<INotificationEmailJobData>): Promise<IEmailResponse> {
     this.logger.log(`Processing notification email job ${job.id}`);
 
     try {
@@ -427,10 +405,7 @@ export class NotificationProcessor {
 
       return result;
     } catch (error) {
-      this.logger.error(
-        `Notification email job ${job.id} failed: ${error.message}`,
-        error.stack,
-      );
+      this.logger.error(`Notification email job ${job.id} failed: ${error.message}`, error.stack);
       throw error;
     }
   }

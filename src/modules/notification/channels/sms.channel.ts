@@ -14,13 +14,8 @@
 
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-  INotificationOptions,
-  INotificationResponse,
-  ISmsResponse,
-  NotificationStatus,
-} from '../interfaces';
 import { NotificationChannel } from '../dto/send-notification.dto';
+import { INotificationOptions, ISmsResponse, NotificationStatus } from '../interfaces';
 import { NotificationChannelAbstract } from './notification-channel.abstract';
 
 /**
@@ -85,7 +80,10 @@ export class SmsChannel extends NotificationChannelAbstract {
 
       this.logger.log('Twilio client initialized successfully');
     } catch (error) {
-      this.logger.error('Failed to initialize Twilio client. Using stub mode.', error.stack);
+      this.logger.error(
+        'Failed to initialize Twilio client. Using stub mode.',
+        (error as Error).stack,
+      );
       this.stubMode = true;
     }
   }
@@ -129,13 +127,26 @@ export class SmsChannel extends NotificationChannelAbstract {
     const message = options.message;
 
     // Enviar a múltiples destinatarios
-    const results = await Promise.allSettled(
+    const results: Array<
+      PromiseSettledResult<{
+        sid: string;
+        numSegments?: number;
+        price?: string;
+        status?: string;
+      }>
+    > = await Promise.allSettled(
       recipients.map(async (to) => {
-        return await this.twilioClient.messages.create({
+        const result = await this.twilioClient.messages.create({
           body: message,
           from,
           to,
         });
+        return {
+          sid: String(result.sid || ''),
+          numSegments: result.numSegments,
+          price: result.price ? String(result.price) : undefined,
+          status: result.status ? String(result.status) : undefined,
+        };
       }),
     );
 
@@ -156,9 +167,9 @@ export class SmsChannel extends NotificationChannelAbstract {
         }
       } else {
         failed.push(recipients[index]);
-        this.logger.error(
-          `Failed to send SMS to ${recipients[index]}: ${result.reason.message}`,
-        );
+        const errorMessage =
+          result.reason instanceof Error ? result.reason.message : String(result.reason);
+        this.logger.error(`Failed to send SMS to ${recipients[index]}: ${errorMessage}`);
       }
     });
 
@@ -227,33 +238,40 @@ export class SmsChannel extends NotificationChannelAbstract {
    * @returns true si son válidas
    * @throws Error si son inválidas
    */
-  async validate(options: INotificationOptions): Promise<boolean> {
-    // Validar destinatarios
-    this.validateRecipients(options.recipient);
+  validate(options: INotificationOptions): Promise<boolean> {
+    try {
+      // Validar destinatarios
+      this.validateRecipients(options.recipient);
 
-    // Validar formato E.164 (básico)
-    const e164Regex = /^\+[1-9]\d{1,14}$/;
-    const recipients = this.normalizeRecipients(options.recipient);
+      // Validar formato E.164 (básico)
+      const e164Regex = /^\+[1-9]\d{1,14}$/;
+      const recipients = this.normalizeRecipients(options.recipient);
 
-    for (const phone of recipients) {
-      if (!e164Regex.test(phone)) {
-        throw new Error(
-          `Invalid phone number format: ${phone}. Must be in E.164 format (e.g., +573001234567)`,
-        );
+      for (const phone of recipients) {
+        if (!e164Regex.test(phone)) {
+          return Promise.reject(
+            new Error(
+              `Invalid phone number format: ${phone}. Must be in E.164 format (e.g., +573001234567)`,
+            ),
+          );
+        }
       }
-    }
 
-    // Validar mensaje
-    if (!options.message || options.message.trim() === '') {
-      throw new Error('SMS message is required');
-    }
+      // Validar mensaje
+      if (!options.message || options.message.trim() === '') {
+        return Promise.reject(new Error('SMS message is required'));
+      }
 
-    // Validar longitud (máximo 1600 caracteres = 10 SMS concatenados)
-    if (options.message.length > 1600) {
-      throw new Error('SMS message exceeds maximum length of 1600 characters');
-    }
+      // Validar longitud (máximo 1600 caracteres = 10 SMS concatenados)
+      if (options.message.length > 1600) {
+        return Promise.reject(new Error('SMS message exceeds maximum length of 1600 characters'));
+      }
 
-    return true;
+      return Promise.resolve(true);
+    } catch (error) {
+      const errorObj = error instanceof Error ? error : new Error(String(error));
+      return Promise.reject(errorObj);
+    }
   }
 
   /**
@@ -294,7 +312,7 @@ export class SmsChannel extends NotificationChannelAbstract {
 
       return available;
     } catch (error) {
-      this.logger.error('SMS channel is not available', error.message);
+      this.logger.error('SMS channel is not available', (error as Error).message);
       return false;
     }
   }
@@ -303,10 +321,10 @@ export class SmsChannel extends NotificationChannelAbstract {
    * Obtener número remitente
    */
   private getFrom(options: INotificationOptions): string {
-    return (
-      options.data?.sms?.from ||
-      this.getRequiredConfig<string>('TWILIO_PHONE_NUMBER')
-    );
+    const fromData = options.data?.sms?.from;
+    return typeof fromData === 'string'
+      ? fromData
+      : this.getRequiredConfig<string>('TWILIO_PHONE_NUMBER');
   }
 
   /**
@@ -332,9 +350,10 @@ export class SmsChannel extends NotificationChannelAbstract {
         undelivered: NotificationStatus.FAILED,
       };
 
-      return statusMap[message.status] || NotificationStatus.SENT;
+      const messageStatus = message.status ? String(message.status) : 'sent';
+      return statusMap[messageStatus] || NotificationStatus.SENT;
     } catch (error) {
-      this.logger.error(`Failed to get SMS status for ${messageId}`, error.message);
+      this.logger.error(`Failed to get SMS status for ${messageId}`, (error as Error).message);
       return NotificationStatus.SENT;
     }
   }

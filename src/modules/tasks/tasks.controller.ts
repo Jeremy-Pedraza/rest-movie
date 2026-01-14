@@ -9,28 +9,13 @@
  * - @Roles(ADMIN) en todos los endpoints (excepto los marcados)
  */
 
-import {
-  Controller,
-  Get,
-  Post,
-  Param,
-  Query,
-  Body,
-  HttpCode,
-  HttpStatus,
-} from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiParam,
-} from '@nestjs/swagger';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 // Decoradores globales
-import { Roles } from '@decorators/roles.decorator';
-import { CurrentUser } from '@decorators/current-user.decorator';
 import { Cacheable } from '@decorators/cacheable.decorator';
+import { CurrentUser } from '@decorators/current-user.decorator';
+import { Roles } from '@decorators/roles.decorator';
 
 // Constants
 import { ROLES } from '@constants/roles.constant';
@@ -39,17 +24,17 @@ import { ROLES } from '@constants/roles.constant';
 import { IApiResponse } from '@shared/common';
 
 // Local imports
-import { TasksService } from './tasks.service';
 import { QueryTaskDto, QueryTaskHistoryDto, RunTaskDto } from './dto';
 import {
-  ITaskListResponse,
-  ITaskDetailResponse,
-  IRunTaskResponse,
-  IToggleTaskResponse,
-  ITasksStatsResponse,
   INextRunsResponse,
+  IRunTaskResponse,
+  ITaskDetailResponse,
   ITaskHistoryResponse,
+  ITaskListResponse,
+  ITasksStatsResponse,
+  IToggleTaskResponse,
 } from './interfaces';
+import { TasksService } from './tasks.service';
 
 @ApiTags('Tasks')
 @ApiBearerAuth()
@@ -67,8 +52,8 @@ export class TasksController {
   @ApiResponse({ status: 200, description: 'Lista de tareas' })
   @ApiResponse({ status: 401, description: 'No autorizado' })
   @ApiResponse({ status: 403, description: 'Sin permisos' })
-  async listTasks(@Query() query: QueryTaskDto): Promise<IApiResponse<ITaskListResponse>> {
-    const data = await this.tasksService.listTasks(query);
+  listTasks(@Query() query: QueryTaskDto): IApiResponse<ITaskListResponse> {
+    const data = this.tasksService.listTasks(query);
     return {
       success: true,
       message: 'Tareas obtenidas exitosamente',
@@ -81,8 +66,8 @@ export class TasksController {
   @Roles(ROLES.ADMIN)
   @ApiOperation({ summary: 'Estadísticas globales de tareas' })
   @ApiResponse({ status: 200, description: 'Estadísticas de tareas' })
-  async getStats(): Promise<IApiResponse<ITasksStatsResponse>> {
-    const data = await this.tasksService.getStats();
+  getStats(): IApiResponse<ITasksStatsResponse> {
+    const data = this.tasksService.getStats();
     return {
       success: true,
       message: 'Estadísticas obtenidas',
@@ -94,8 +79,8 @@ export class TasksController {
   @Roles(ROLES.ADMIN, ROLES.MANAGER)
   @ApiOperation({ summary: 'Próximas ejecuciones programadas' })
   @ApiResponse({ status: 200, description: 'Próximas ejecuciones' })
-  async getNextRuns(): Promise<IApiResponse<INextRunsResponse>> {
-    const data = await this.tasksService.getNextRuns();
+  getNextRuns(): IApiResponse<INextRunsResponse> {
+    const data = this.tasksService.getNextRuns();
     return {
       success: true,
       message: 'Próximas ejecuciones obtenidas',
@@ -113,8 +98,8 @@ export class TasksController {
   @ApiParam({ name: 'name', description: 'Nombre de la tarea', example: 'cleanup' })
   @ApiResponse({ status: 200, description: 'Detalle de la tarea' })
   @ApiResponse({ status: 404, description: 'Tarea no encontrada' })
-  async getTask(@Param('name') name: string): Promise<IApiResponse<ITaskDetailResponse>> {
-    const data = await this.tasksService.getTask(name);
+  getTask(@Param('name') name: string): IApiResponse<ITaskDetailResponse> {
+    const data = this.tasksService.getTask(name);
     return {
       success: true,
       message: `Tarea '${name}' encontrada`,
@@ -128,11 +113,11 @@ export class TasksController {
   @ApiParam({ name: 'name', description: 'Nombre de la tarea', example: 'cleanup' })
   @ApiResponse({ status: 200, description: 'Historial de ejecuciones' })
   @ApiResponse({ status: 404, description: 'Tarea no encontrada' })
-  async getTaskHistory(
+  getTaskHistory(
     @Param('name') name: string,
     @Query() query: QueryTaskHistoryDto,
-  ): Promise<IApiResponse<ITaskHistoryResponse>> {
-    const data = await this.tasksService.getTaskHistory(name, query);
+  ): IApiResponse<ITaskHistoryResponse> {
+    const data = this.tasksService.getTaskHistory(name, query);
     return {
       success: true,
       message: `Historial de '${name}' obtenido`,
@@ -178,11 +163,11 @@ export class TasksController {
   @ApiParam({ name: 'name', description: 'Nombre de la tarea', example: 'cleanup' })
   @ApiResponse({ status: 200, description: 'Tarea habilitada' })
   @ApiResponse({ status: 404, description: 'Tarea no encontrada' })
-  async enableTask(
+  enableTask(
     @Param('name') name: string,
     @Body('reason') reason?: string,
-  ): Promise<IApiResponse<IToggleTaskResponse>> {
-    const data = await this.tasksService.enableTask(name, reason);
+  ): IApiResponse<IToggleTaskResponse> {
+    const data = this.tasksService.enableTask(name, reason);
     return {
       success: true,
       message: data.message,
@@ -197,11 +182,11 @@ export class TasksController {
   @ApiParam({ name: 'name', description: 'Nombre de la tarea', example: 'cleanup' })
   @ApiResponse({ status: 200, description: 'Tarea deshabilitada' })
   @ApiResponse({ status: 404, description: 'Tarea no encontrada' })
-  async disableTask(
+  disableTask(
     @Param('name') name: string,
     @Body('reason') reason?: string,
-  ): Promise<IApiResponse<IToggleTaskResponse>> {
-    const data = await this.tasksService.disableTask(name, reason);
+  ): IApiResponse<IToggleTaskResponse> {
+    const data = this.tasksService.disableTask(name, reason);
     return {
       success: true,
       message: data.message,

@@ -6,17 +6,17 @@
  */
 
 import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-  DeleteDateColumn,
-  ManyToOne,
-  JoinColumn,
-  Index,
   BeforeInsert,
   BeforeUpdate,
+  Column,
+  CreateDateColumn,
+  DeleteDateColumn,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 
 import { UserEntity } from '@modules/user';
@@ -133,12 +133,7 @@ export class SessionEntity {
    * Verifica si la sesión es válida
    */
   isValid(): boolean {
-    return (
-      this.isActive &&
-      !this.isRevoked &&
-      !this.isExpired() &&
-      !this.deletedAt
-    );
+    return this.isActive && !this.isRevoked && !this.isExpired() && !this.deletedAt;
   }
 
   /**

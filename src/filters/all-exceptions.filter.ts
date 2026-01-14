@@ -71,7 +71,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>();
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
-    let message = RESPONSE_MESSAGES.ERROR.INTERNAL_SERVER;
+    let message: string = RESPONSE_MESSAGES.ERROR.INTERNAL_SERVER;
     let error = 'Internal Server Error';
     let errorCode: ErrorCode = ERROR_CODES.INTERNAL_SERVER_ERROR;
 

@@ -19,7 +19,6 @@
 import { PipeTransform, Injectable, BadRequestException, ArgumentMetadata } from '@nestjs/common';
 
 import { ERROR_CODES } from '@constants/error-codes.constant';
-import { RESPONSE_MESSAGES } from '@constants/response-messages.constant';
 
 @Injectable()
 export class ParseIntPipe implements PipeTransform<string, number> {

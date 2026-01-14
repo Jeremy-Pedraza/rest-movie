@@ -353,7 +353,7 @@ export function validatePassword(
   }
 
   // Validar caracteres especiales
-  const hasSpecialChars = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>/?]/.test(password);
+  const hasSpecialChars = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password);
   if (requireSpecialChars && !hasSpecialChars) {
     errors.push('Debe contener al menos un carácter especial (!@#$%^&*...)');
   } else if (hasSpecialChars) {
@@ -574,7 +574,7 @@ export function isAdult(birthDate: Date | string, minAge: number = 18): boolean 
  * @param value - Valor a verificar
  * @returns true si es null o undefined
  */
-export function isNullOrUndefined(value: any): value is null | undefined {
+export function isNullOrUndefined(value: unknown): value is null | undefined {
   return value === null || value === undefined;
 }
 
@@ -583,7 +583,7 @@ export function isNullOrUndefined(value: any): value is null | undefined {
  * @param value - Valor a verificar
  * @returns true si es objeto
  */
-export function isObject(value: any): value is Record<string, any> {
+export function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
@@ -592,7 +592,7 @@ export function isObject(value: any): value is Record<string, any> {
  * @param value - Valor a verificar
  * @returns true si es array
  */
-export function isArray(value: any): value is any[] {
+export function isArray(value: unknown): value is unknown[] {
   return Array.isArray(value);
 }
 
@@ -601,7 +601,7 @@ export function isArray(value: any): value is any[] {
  * @param value - Valor a verificar
  * @returns true si es número finito
  */
-export function isFiniteNumber(value: any): value is number {
+export function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && isFinite(value);
 }
 
@@ -610,7 +610,7 @@ export function isFiniteNumber(value: any): value is number {
  * @param value - Valor a verificar
  * @returns true si es entero
  */
-export function isInteger(value: any): value is number {
+export function isInteger(value: unknown): value is number {
   return Number.isInteger(value);
 }
 
@@ -655,7 +655,7 @@ export function isNotEmpty(value: string | null | undefined): boolean {
  * @param arr - Array a verificar
  * @returns true si está vacío
  */
-export function isEmptyArray(arr: any[] | null | undefined): boolean {
+export function isEmptyArray(arr: unknown[] | null | undefined): boolean {
   return !arr || arr.length === 0;
 }
 
@@ -664,7 +664,7 @@ export function isEmptyArray(arr: any[] | null | undefined): boolean {
  * @param obj - Objeto a verificar
  * @returns true si está vacío
  */
-export function isEmptyObject(obj: Record<string, any> | null | undefined): boolean {
+export function isEmptyObject(obj: Record<string, unknown> | null | undefined): boolean {
   return !obj || Object.keys(obj).length === 0;
 }
 
@@ -723,8 +723,8 @@ export interface ValidationResult {
  * @returns Resultado de validación
  */
 export function validate(
-  data: Record<string, any>,
-  schema: Record<string, (value: any) => string | null>,
+  data: Record<string, unknown>,
+  schema: Record<string, (value: unknown) => string | null>,
 ): ValidationResult {
   const errors: string[] = [];
 
@@ -747,7 +747,7 @@ export function validate(
  * @returns Función validadora
  */
 export function required(message: string = 'Este campo es requerido') {
-  return (value: any): string | null => {
+  return (value: unknown): string | null => {
     if (isNullOrUndefined(value) || (typeof value === 'string' && isEmpty(value))) {
       return message;
     }
@@ -761,9 +761,9 @@ export function required(message: string = 'Este campo es requerido') {
  * @returns Función validadora
  */
 export function emailValidator(message: string = 'Email inválido') {
-  return (value: any): string | null => {
+  return (value: unknown): string | null => {
     if (!value) return null; // Permitir vacío (usar required() si es obligatorio)
-    return isEmail(value) ? null : message;
+    return isEmail(value as string) ? null : message;
   };
 }
 
@@ -774,7 +774,7 @@ export function emailValidator(message: string = 'Email inválido') {
  * @returns Función validadora
  */
 export function minLength(min: number, message?: string) {
-  return (value: any): string | null => {
+  return (value: unknown): string | null => {
     if (!value) return null;
     if (typeof value !== 'string' || value.length < min) {
       return message || `Debe tener al menos ${min} caracteres`;
@@ -790,7 +790,7 @@ export function minLength(min: number, message?: string) {
  * @returns Función validadora
  */
 export function maxLength(max: number, message?: string) {
-  return (value: any): string | null => {
+  return (value: unknown): string | null => {
     if (!value) return null;
     if (typeof value !== 'string' || value.length > max) {
       return message || `No debe exceder ${max} caracteres`;
@@ -804,8 +804,8 @@ export function maxLength(max: number, message?: string) {
  * @param validators - Validadores a combinar
  * @returns Función validadora combinada
  */
-export function compose(...validators: Array<(value: any) => string | null>) {
-  return (value: any): string | null => {
+export function compose(...validators: Array<(value: unknown) => string | null>) {
+  return (value: unknown): string | null => {
     for (const validator of validators) {
       const error = validator(value);
       if (error) return error;

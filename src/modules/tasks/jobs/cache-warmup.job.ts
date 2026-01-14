@@ -10,19 +10,14 @@
  */
 
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
+import { Cron } from '@nestjs/schedule';
 
+import { AuthRepository } from '@modules/auth/auth.repository';
 import { CacheService } from '@modules/cache';
 import { UserRepository } from '@modules/user/user.repository';
-import { AuthRepository } from '@modules/auth/auth.repository';
-import {
-  JOB_NAMES,
-  DEFAULT_JOB_CONFIG,
-  CRON_EXPRESSIONS,
-  getEnvKey,
-} from '../tasks.constants';
 import { IJobExecutionResult } from '../interfaces';
+import { CRON_EXPRESSIONS, DEFAULT_JOB_CONFIG, getEnvKey, JOB_NAMES } from '../tasks.constants';
 
 interface WarmupResult {
   key: string;

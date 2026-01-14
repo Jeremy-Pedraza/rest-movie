@@ -1,8 +1,8 @@
 import { Process, Processor } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bull';
-import { QUEUE_NAMES, JOB_NAMES, PROCESSOR_CONCURRENCY } from '../queue.constants';
 import { ReportJobDataDto } from '../dto';
+import { JOB_NAMES, QUEUE_NAMES } from '../queue.constants';
 
 /**
  * @class ReportProcessor
@@ -204,7 +204,7 @@ export class ReportProcessor {
    */
   private calculateNextRun(frequency: string): string {
     const now = new Date();
-    let nextRun = new Date(now);
+    const nextRun = new Date(now);
 
     switch (frequency.toLowerCase()) {
       case 'daily':

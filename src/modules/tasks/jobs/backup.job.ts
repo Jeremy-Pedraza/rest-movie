@@ -9,26 +9,20 @@
  */
 
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
-import { DataSource } from 'typeorm';
+import { Cron } from '@nestjs/schedule';
 import * as fs from 'fs';
 import * as path from 'path';
+import { DataSource } from 'typeorm';
 
+import { IJobExecutionResult } from '../interfaces';
 import {
-  JOB_NAMES,
-  DEFAULT_JOB_CONFIG,
   CRON_EXPRESSIONS,
+  DEFAULT_JOB_CONFIG,
+  JOB_NAMES,
   TASKS_CONFIG,
   getEnvKey,
 } from '../tasks.constants';
-import { IJobExecutionResult } from '../interfaces';
-
-interface BackupConfig {
-  tables: string[];
-  outputDir?: string;
-  keepBackups?: number;
-}
 
 @Injectable()
 export class BackupJob {
@@ -117,7 +111,7 @@ export class BackupJob {
   /**
    * Limpia backups antiguos manteniendo solo los últimos N
    */
-  private async cleanOldBackups(dir: string, tableName: string, keep: number): Promise<number> {
+  private cleanOldBackups(dir: string, tableName: string, keep: number): number {
     const pattern = new RegExp(`^${tableName}_.*\\.json$`);
     const files = fs
       .readdirSync(dir)
@@ -137,7 +131,7 @@ export class BackupJob {
           fs.unlinkSync(file.path);
           deletedCount++;
           this.logger.debug(`[${this.jobName}] Backup antiguo eliminado: ${file.name}`);
-        } catch (err) {
+        } catch {
           this.logger.warn(`[${this.jobName}] No se pudo eliminar backup: ${file.name}`);
         }
       }
@@ -222,9 +216,7 @@ export class BackupJob {
       for (const tableName of tables) {
         try {
           // Encontrar la entidad correspondiente
-          const metadata = this.dataSource.entityMetadatas.find(
-            (m) => m.tableName === tableName,
-          );
+          const metadata = this.dataSource.entityMetadatas.find((m) => m.tableName === tableName);
 
           if (!metadata) {
             errors.push(`Tabla '${tableName}' no encontrada`);
@@ -269,7 +261,7 @@ export class BackupJob {
           totalSize += stats.size;
 
           // Limpiar backups antiguos
-          const oldDeleted = await this.cleanOldBackups(outputDir, tableName, keepBackups);
+          const oldDeleted = this.cleanOldBackups(outputDir, tableName, keepBackups);
 
           results[tableName] = {
             records: recordCount,

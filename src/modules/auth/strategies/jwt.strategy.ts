@@ -18,7 +18,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('jwt.secret'),
+      secretOrKey: configService.get<string>('jwt.secret') || 'default-secret-change-in-production',
       issuer: configService.get<string>('jwt.issuer'),
       audience: configService.get<string>('jwt.audience'),
     });
@@ -31,7 +31,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
    * @param payload - Payload decodificado del JWT
    * @returns Usuario autenticado para agregar al request
    */
-  async validate(payload: IJwtPayload): Promise<IAuthUser> {
+  validate(payload: IJwtPayload): IAuthUser {
     // Verificar que el payload tenga los campos requeridos
     if (!payload.sub || !payload.email) {
       throw new UnauthorizedException('Token inválido - payload incompleto');

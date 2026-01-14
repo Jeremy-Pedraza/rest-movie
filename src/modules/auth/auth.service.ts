@@ -18,30 +18,30 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 
-import { SanitizerService, HandleErrorService } from '@shared/common';
-import { UserService } from '@modules/user';
-import { EmailProducer } from '@modules/queue';
 import { ROLES } from '@constants/roles.constant';
+import { EmailProducer } from '@modules/queue';
+import { UserService } from '@modules/user';
+import { HandleErrorService, SanitizerService } from '@shared/common';
 
 import { AuthRepository } from './auth.repository';
-import { SessionEntity } from './entities';
 import {
-  LoginDto,
-  RegisterDto,
-  RefreshTokenDto,
   ChangePasswordDto,
   ForgotPasswordDto,
+  LoginDto,
+  RefreshTokenDto,
+  RegisterDto,
   ResetPasswordDto,
 } from './dto';
+import { SessionEntity } from './entities';
 import {
   IAuthResponse,
-  IRefreshTokenResponse,
+  IForgotPasswordResponse,
+  IJwtPayload,
   ILogoutResponse,
   IPasswordChangeResponse,
-  IForgotPasswordResponse,
+  IRefreshTokenResponse,
   IResetPasswordResponse,
   ISessionInfo,
-  IJwtPayload,
 } from './interfaces';
 
 @Injectable()
@@ -92,16 +92,14 @@ export class AuthService {
     await this.userService.updateLastLogin(user.id);
 
     // 7. Generar tokens
-    const tokens = await this.generateTokens(user.id, user.email, user.roles);
+    const tokens = await this.generateTokens(
+      user.id,
+      user.email,
+      user.roles.map((r) => r.name),
+    );
 
     // 8. Crear sesión
-    await this.createSession(
-      user.id,
-      tokens.refreshToken,
-      tokens.expiresIn,
-      ipAddress,
-      userAgent,
-    );
+    await this.createSession(user.id, tokens.refreshToken, tokens.expiresIn, ipAddress, userAgent);
 
     // 9. Retornar respuesta (sin password)
     const userResponse = await this.userService.findById(user.id);
@@ -120,11 +118,7 @@ export class AuthService {
   /**
    * Registro de nuevo usuario
    */
-  async register(
-    dto: RegisterDto,
-    ipAddress: string,
-    userAgent?: string,
-  ): Promise<IAuthResponse> {
+  async register(dto: RegisterDto, ipAddress: string, userAgent?: string): Promise<IAuthResponse> {
     // 1. Sanitizar inputs
     const sanitizedDto = {
       email: this.sanitizer.sanitizeEmail(dto.email),
@@ -141,22 +135,17 @@ export class AuthService {
     }
 
     // 3. Crear usuario con rol USER por defecto
+    // Nota: El UserService asignará el rol USER por defecto si no se especifica roleIds
     const user = await this.userService.create({
       ...sanitizedDto,
-      roles: [ROLES.USER],
+      // roleIds se manejará internamente en UserService si no se proporciona
     });
 
     // 4. Generar tokens
     const tokens = await this.generateTokens(user.id, user.email, [ROLES.USER]);
 
     // 5. Crear sesión
-    await this.createSession(
-      user.id,
-      tokens.refreshToken,
-      tokens.expiresIn,
-      ipAddress,
-      userAgent,
-    );
+    await this.createSession(user.id, tokens.refreshToken, tokens.expiresIn, ipAddress, userAgent);
 
     // 6. Encolar email de bienvenida (asíncrono, no bloquea el registro)
     const activationUrl = `${this.configService.get<string>('APP_URL')}/auth/verify-email?token=${tokens.accessToken}`;
@@ -193,11 +182,7 @@ export class AuthService {
   /**
    * Refresh token con rotación
    */
-  async refreshToken(
-    dto: RefreshTokenDto,
-    ipAddress: string,
-    userAgent?: string,
-  ): Promise<IRefreshTokenResponse> {
+  async refreshToken(dto: RefreshTokenDto): Promise<IRefreshTokenResponse> {
     // 1. Buscar sesión por refresh token
     const session = await this.authRepository.findByRefreshToken(dto.refreshToken);
 
@@ -214,10 +199,7 @@ export class AuthService {
     // 3. Verificar token reuse (seguridad)
     if (session.isRevoked) {
       // Token fue reusado - revocar toda la familia de tokens
-      await this.authRepository.revokeAllByUserId(
-        session.userId,
-        'Token reuse detected',
-      );
+      await this.authRepository.revokeAllByUserId(session.userId, 'Token reuse detected');
       this.handleError.unauthorized('Token comprometido detectado', 'AUTH_1003');
     }
 
@@ -231,7 +213,11 @@ export class AuthService {
     this.validateUserStatus(user);
 
     // 5. Generar nuevos tokens (rotación)
-    const newTokens = await this.generateTokens(user.id, user.email, user.roles);
+    const newTokens = await this.generateTokens(
+      user.id,
+      user.email,
+      user.roles.map((r) => r.name),
+    );
 
     // 6. Actualizar sesión con nuevo refresh token
     await this.authRepository.updateRefreshToken(
@@ -254,10 +240,7 @@ export class AuthService {
    * Logout - revocar sesión actual
    */
   async logout(refreshToken: string): Promise<ILogoutResponse> {
-    const revoked = await this.authRepository.revokeByRefreshToken(
-      refreshToken,
-      'User logout',
-    );
+    const revoked = await this.authRepository.revokeByRefreshToken(refreshToken, 'User logout');
 
     if (!revoked) {
       this.handleError.notFound('Sesión', refreshToken);
@@ -275,10 +258,7 @@ export class AuthService {
    * Logout de todas las sesiones del usuario
    */
   async logoutAll(userId: string): Promise<ILogoutResponse> {
-    const revokedCount = await this.authRepository.revokeAllByUserId(
-      userId,
-      'Logout all sessions',
-    );
+    const revokedCount = await this.authRepository.revokeAllByUserId(userId, 'Logout all sessions');
 
     this.logger.log(`All sessions logged out for user: ${userId} (${revokedCount} sessions)`);
 
@@ -295,10 +275,7 @@ export class AuthService {
   /**
    * Cambiar contraseña (usuario autenticado)
    */
-  async changePassword(
-    userId: string,
-    dto: ChangePasswordDto,
-  ): Promise<IPasswordChangeResponse> {
+  async changePassword(userId: string, dto: ChangePasswordDto): Promise<IPasswordChangeResponse> {
     // 1. Obtener usuario con password
     const user = await this.userService.findByIdWithPassword(userId);
     if (!user) {
@@ -395,7 +372,7 @@ export class AuthService {
       payload = this.jwtService.verify(dto.token, {
         secret: this.configService.get<string>('jwt.resetSecret'),
       });
-    } catch (error) {
+    } catch {
       this.handleError.unauthorized('Token de reset inválido o expirado', 'AUTH_1003');
     }
 

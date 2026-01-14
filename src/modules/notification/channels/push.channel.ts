@@ -15,13 +15,8 @@
 
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-  INotificationOptions,
-  INotificationResponse,
-  IPushResponse,
-  NotificationStatus,
-} from '../interfaces';
 import { NotificationChannel } from '../dto/send-notification.dto';
+import { INotificationOptions, IPushResponse, NotificationStatus } from '../interfaces';
 import { NotificationChannelAbstract } from './notification-channel.abstract';
 
 /**
@@ -95,7 +90,10 @@ export class PushChannel extends NotificationChannelAbstract {
 
       this.logger.log('Firebase Admin SDK initialized successfully');
     } catch (error) {
-      this.logger.error('Failed to initialize Firebase Admin SDK. Using stub mode.', error.stack);
+      this.logger.error(
+        'Failed to initialize Firebase Admin SDK. Using stub mode.',
+        (error as Error).stack,
+      );
       this.stubMode = true;
     }
   }
@@ -178,14 +176,15 @@ export class PushChannel extends NotificationChannelAbstract {
           invalidTokens.push(token);
         }
 
+        const errorMessage = error?.message ? String(error.message) : 'Unknown error';
         results.push({
           token,
           success: false,
-          error: error?.message || 'Unknown error',
+          error: errorMessage,
         });
 
         this.logger.error(
-          `Failed to send push to token ${token.substring(0, 10)}...: ${error?.message}`,
+          `Failed to send push to token ${token.substring(0, 10)}...: ${errorMessage}`,
         );
       }
     });
@@ -193,14 +192,18 @@ export class PushChannel extends NotificationChannelAbstract {
     const success = successfulTokens.length > 0;
     const status = success ? NotificationStatus.SENT : NotificationStatus.FAILED;
 
+    // Tipar correctamente messageId
+    const firstMessageId = response.responses[0]?.messageId;
+    const messageId = firstMessageId ? String(firstMessageId) : 'batch';
+
     if (success) {
-      this.logSendSuccess(response.responses[0]?.messageId || 'batch', successfulTokens);
+      this.logSendSuccess(messageId, successfulTokens);
     }
 
     return {
       success,
-      messageId: response.responses[0]?.messageId,
-      pushId: response.responses[0]?.messageId,
+      messageId,
+      pushId: messageId,
       channel: this.name,
       status,
       recipient: tokens,
@@ -348,31 +351,40 @@ export class PushChannel extends NotificationChannelAbstract {
    * @returns true si son válidas
    * @throws Error si son inválidas
    */
-  async validate(options: INotificationOptions): Promise<boolean> {
-    // Validar tokens
-    this.validateRecipients(options.recipient);
+  validate(options: INotificationOptions): Promise<boolean> {
+    try {
+      // Validar tokens
+      this.validateRecipients(options.recipient);
 
-    // Validar título
-    if (!options.subject || options.subject.trim() === '') {
-      throw new Error('Push notification title is required');
+      // Validar título
+      if (!options.subject || options.subject.trim() === '') {
+        return Promise.reject(new Error('Push notification title is required'));
+      }
+
+      // Validar body
+      if (!options.message || options.message.trim() === '') {
+        return Promise.reject(new Error('Push notification body is required'));
+      }
+
+      // Validar longitud de título (máximo 100 caracteres)
+      if (options.subject.length > 100) {
+        return Promise.reject(
+          new Error('Push notification title exceeds maximum length of 100 characters'),
+        );
+      }
+
+      // Validar longitud de body (máximo 500 caracteres)
+      if (options.message.length > 500) {
+        return Promise.reject(
+          new Error('Push notification body exceeds maximum length of 500 characters'),
+        );
+      }
+
+      return Promise.resolve(true);
+    } catch (error) {
+      const errorObj = error instanceof Error ? error : new Error(String(error));
+      return Promise.reject(errorObj);
     }
-
-    // Validar body
-    if (!options.message || options.message.trim() === '') {
-      throw new Error('Push notification body is required');
-    }
-
-    // Validar longitud de título (máximo 100 caracteres)
-    if (options.subject.length > 100) {
-      throw new Error('Push notification title exceeds maximum length of 100 characters');
-    }
-
-    // Validar longitud de body (máximo 500 caracteres)
-    if (options.message.length > 500) {
-      throw new Error('Push notification body exceeds maximum length of 500 characters');
-    }
-
-    return true;
   }
 
   /**
@@ -413,7 +425,7 @@ export class PushChannel extends NotificationChannelAbstract {
 
       return available;
     } catch (error) {
-      this.logger.error('Push channel is not available', error.message);
+      this.logger.error('Push channel is not available', (error as Error).message);
       return false;
     }
   }

@@ -9,43 +9,36 @@
  */
 
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob } from 'cron';
-import { ConfigService } from '@nestjs/config';
 
 import { HandleErrorService } from '@shared/common';
 
+import { QueryTaskDto, QueryTaskHistoryDto, RunTaskDto } from './dto';
 import {
+  IJobExecutionHistory,
+  IJobExecutionResult,
+  INextRunsResponse,
+  IRunTaskResponse,
+  ITaskDetailResponse,
+  ITaskHistoryResponse,
+  ITaskInfo,
+  ITaskListResponse,
+  ITasksStatsResponse,
+  IToggleTaskResponse,
+} from './interfaces';
+import {
+  DEFAULT_JOB_CONFIG,
   JOB_NAMES,
   JOB_STATUS,
-  DEFAULT_JOB_CONFIG,
-  TASKS_CONFIG,
   JobName,
   JobStatus,
-  getEnvKey,
+  TASKS_CONFIG,
 } from './tasks.constants';
-import {
-  ITaskInfo,
-  ITaskDetailResponse,
-  ITaskListResponse,
-  IRunTaskResponse,
-  IToggleTaskResponse,
-  ITasksStatsResponse,
-  INextRunsResponse,
-  ITaskHistoryResponse,
-  IJobExecutionResult,
-  IJobExecutionHistory,
-} from './interfaces';
-import { QueryTaskDto, QueryTaskHistoryDto, RunTaskDto } from './dto';
 
 // Jobs
-import {
-  CleanupJob,
-  BackupJob,
-  SessionCleanupJob,
-  LogCleanupJob,
-  CacheWarmupJob,
-} from './jobs';
+import { BackupJob, CacheWarmupJob, CleanupJob, LogCleanupJob, SessionCleanupJob } from './jobs';
 
 /**
  * Registro interno de ejecuciones
@@ -63,6 +56,18 @@ interface ExecutionRecord {
   errorMessage?: string;
 }
 
+/**
+ * Interfaz para instancias de jobs
+ */
+interface IJobInstance {
+  execute(dryRun?: boolean, params?: Record<string, unknown>): Promise<IJobExecutionResult>;
+  getStatus(): {
+    isRunning: boolean;
+    isEnabled: boolean;
+    config?: Record<string, unknown>;
+  };
+}
+
 @Injectable()
 export class TasksService implements OnModuleInit {
   private readonly logger = new Logger(TasksService.name);
@@ -76,7 +81,7 @@ export class TasksService implements OnModuleInit {
   /**
    * Mapa de jobs registrados para acceso directo
    */
-  private readonly jobInstances: Map<string, any> = new Map();
+  private readonly jobInstances: Map<string, IJobInstance> = new Map();
 
   constructor(
     private readonly schedulerRegistry: SchedulerRegistry,
@@ -97,7 +102,7 @@ export class TasksService implements OnModuleInit {
     this.jobInstances.set(JOB_NAMES.CACHE_WARMUP, this.cacheWarmupJob);
   }
 
-  async onModuleInit() {
+  onModuleInit(): void {
     this.logger.log('TasksService initialized');
     this.logger.log(`Registered jobs: ${Array.from(this.jobInstances.keys()).join(', ')}`);
 
@@ -114,12 +119,12 @@ export class TasksService implements OnModuleInit {
   /**
    * Lista todas las tareas programadas con filtros opcionales
    */
-  async listTasks(query: QueryTaskDto): Promise<ITaskListResponse> {
+  listTasks(query: QueryTaskDto): ITaskListResponse {
     const allJobs = this.getAllJobNames();
     let tasks: ITaskInfo[] = [];
 
     for (const jobName of allJobs) {
-      const taskInfo = await this.getTaskInfo(jobName);
+      const taskInfo = this.getTaskInfo(jobName);
       tasks.push(taskInfo);
     }
 
@@ -174,10 +179,10 @@ export class TasksService implements OnModuleInit {
   /**
    * Obtiene información detallada de una tarea
    */
-  async getTask(name: string): Promise<ITaskDetailResponse> {
+  getTask(name: string): ITaskDetailResponse {
     this.validateJobExists(name);
 
-    const taskInfo = await this.getTaskInfo(name);
+    const taskInfo = this.getTaskInfo(name);
     const history = this.getJobHistory(name);
     const stats = this.calculateJobStats(name);
 
@@ -221,7 +226,9 @@ export class TasksService implements OnModuleInit {
     const executionId = this.generateExecutionId();
     const startedAt = new Date();
 
-    this.logger.log(`[${name}] Ejecución manual iniciada (ID: ${executionId}, dryRun: ${dto.dryRun})`);
+    this.logger.log(
+      `[${name}] Ejecución manual iniciada (ID: ${executionId}, dryRun: ${dto.dryRun})`,
+    );
 
     // Ejecutar el job
     const result = await jobInstance.execute(dto.dryRun, dto.params);
@@ -258,7 +265,7 @@ export class TasksService implements OnModuleInit {
   /**
    * Habilita una tarea
    */
-  async enableTask(name: string, reason?: string): Promise<IToggleTaskResponse> {
+  enableTask(name: string, reason?: string): IToggleTaskResponse {
     this.validateJobExists(name);
 
     const cronJob = this.getCronJob(name);
@@ -285,14 +292,14 @@ export class TasksService implements OnModuleInit {
   /**
    * Deshabilita una tarea
    */
-  async disableTask(name: string, reason?: string): Promise<IToggleTaskResponse> {
+  disableTask(name: string, reason?: string): IToggleTaskResponse {
     this.validateJobExists(name);
 
     const cronJob = this.getCronJob(name);
     if (!cronJob) {
       this.logger.warn(`[${name}] No se encontró CronJob en registry para deshabilitar`);
     } else {
-      cronJob.stop();
+      void cronJob.stop();
     }
 
     this.logger.log(`[${name}] Tarea deshabilitada${reason ? ` (razón: ${reason})` : ''}`);
@@ -313,7 +320,7 @@ export class TasksService implements OnModuleInit {
   /**
    * Obtiene el historial de ejecuciones de una tarea
    */
-  async getTaskHistory(name: string, query: QueryTaskHistoryDto): Promise<ITaskHistoryResponse> {
+  getTaskHistory(name: string, query: QueryTaskHistoryDto): ITaskHistoryResponse {
     this.validateJobExists(name);
 
     let history = this.getJobHistory(name);
@@ -364,7 +371,7 @@ export class TasksService implements OnModuleInit {
   /**
    * Obtiene estadísticas globales de todas las tareas
    */
-  async getStats(): Promise<ITasksStatsResponse> {
+  getStats(): ITasksStatsResponse {
     const byTask: ITasksStatsResponse['byTask'] = {};
     let totalExecutions = 0;
     let totalSuccessful = 0;
@@ -424,7 +431,7 @@ export class TasksService implements OnModuleInit {
   /**
    * Obtiene las próximas ejecuciones programadas
    */
-  async getNextRuns(): Promise<INextRunsResponse> {
+  getNextRuns(): INextRunsResponse {
     const nextRuns: INextRunsResponse['nextRuns'] = [];
     const now = new Date();
 
@@ -490,7 +497,7 @@ export class TasksService implements OnModuleInit {
   /**
    * Obtiene información de una tarea
    */
-  private async getTaskInfo(name: string): Promise<ITaskInfo> {
+  private getTaskInfo(name: string): ITaskInfo {
     const jobInstance = this.jobInstances.get(name);
     const status = jobInstance?.getStatus() || { isRunning: false, isEnabled: false };
     const config = DEFAULT_JOB_CONFIG[name as JobName];
@@ -516,7 +523,12 @@ export class TasksService implements OnModuleInit {
       enabled: status.isEnabled,
       nextRun: cronJob && this.isCronJobRunning(cronJob) ? cronJob.nextDate().toJSDate() : null,
       lastRun: lastExec?.startedAt || null,
-      lastRunStatus: lastExec?.status === 'completed' ? 'success' : lastExec?.status === 'failed' ? 'failed' : null,
+      lastRunStatus:
+        lastExec?.status === 'completed'
+          ? 'success'
+          : lastExec?.status === 'failed'
+            ? 'failed'
+            : null,
     };
   }
 
@@ -525,12 +537,13 @@ export class TasksService implements OnModuleInit {
    */
   private getJobConfig(name: string): ITaskDetailResponse['config'] {
     const jobInstance = this.jobInstances.get(name);
-    const status = jobInstance?.getStatus() || {};
+    const status = jobInstance?.getStatus();
+    const config = (status?.config as Record<string, unknown>) || {};
     return {
       timeout: TASKS_CONFIG.MAX_EXECUTION_TIME,
       maxRetries: TASKS_CONFIG.MAX_RETRIES,
       retryDelay: TASKS_CONFIG.RETRY_DELAY,
-      ...status.config,
+      ...config,
     };
   }
 
@@ -555,7 +568,8 @@ export class TasksService implements OnModuleInit {
       successfulExecutions: successful.length,
       failedExecutions: failed.length,
       successRate: history.length > 0 ? (successful.length / history.length) * 100 : 0,
-      averageDuration: durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length : 0,
+      averageDuration:
+        durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length : 0,
       maxDuration: durations.length > 0 ? Math.max(...durations) : 0,
       minDuration: durations.length > 0 ? Math.min(...durations) : 0,
     };
@@ -617,7 +631,8 @@ export class TasksService implements OnModuleInit {
   private isCronJobRunning(cronJob: CronJob): boolean {
     // En cron v3.x, 'running' es un getter que existe pero TypeScript no lo reconoce
     // Usamos type assertion para acceder de forma segura
-    return (cronJob as unknown as { running: boolean }).running ?? false;
+    const running = (cronJob as unknown as { running: boolean }).running;
+    return running ?? false;
   }
 
   /**

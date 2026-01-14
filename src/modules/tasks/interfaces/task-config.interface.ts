@@ -5,8 +5,6 @@
  * Define las estructuras de configuración para jobs programados
  */
 
-import { JobName, JobStatus, CronExpression } from '../tasks.constants';
-
 // ============================================
 // CONFIGURACIÓN DE JOBS
 // ============================================
@@ -16,9 +14,9 @@ import { JobName, JobStatus, CronExpression } from '../tasks.constants';
  */
 export interface IJobConfig {
   /** Nombre único del job */
-  name: JobName | string;
+  name: string;
   /** Expresión cron para programación */
-  cron: CronExpression | string;
+  cron: string;
   /** Si el job está habilitado */
   enabled: boolean;
   /** Descripción del job */

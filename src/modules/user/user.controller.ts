@@ -30,7 +30,6 @@ import { IUserResponse, IUserProfileResponse } from './interfaces';
 import { IPaginatedResponse, IApiResponse } from '@shared/common';
 import { Roles } from '@decorators/roles.decorator';
 import { CurrentUser } from '@decorators/current-user.decorator';
-import { Cacheable } from '@decorators/cacheable.decorator';
 import { ROLES } from '@constants/roles.constant';
 
 @ApiTags('Users')
@@ -81,10 +80,9 @@ export class UserController {
 
   /**
    * Obtiene estadísticas de usuarios
-   * Cache: 60 segundos
+   * Cache implementado en Service: 5min TTL, tags: ['user-stats', 'users']
    */
   @Get('stats')
-  @Cacheable(60)
   @Roles(ROLES.ADMIN)
   @ApiOperation({ summary: 'Obtener estadísticas de usuarios' })
   @ApiResponse({ status: 200, description: 'Estadísticas de usuarios' })

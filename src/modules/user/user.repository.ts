@@ -429,6 +429,28 @@ export class UserRepository extends BaseRepository<UserEntity> {
   }
 
   /**
+   * Busca un usuario por ID incluyendo company, roles y permisos completos
+   * ⚠️ Solo para uso interno de autenticación (JwtStrategy)
+   * 
+   * Este método carga toda la información necesaria para construir UserSessionDto:
+   * - Datos del usuario
+   * - Company (tenant) con schema
+   * - Roles con permisos
+   * 
+   * @param id - ID del usuario
+   * @returns Usuario con company, roles y permisos o null
+   */
+  async findByIdWithCompanyAndRoles(id: string): Promise<UserEntity | null> {
+    return this.createStaticQueryBuilder('user')
+      .leftJoinAndSelect('user.company', 'company')
+      .leftJoinAndSelect('user.roles', 'roles')
+      .leftJoinAndSelect('roles.permissions', 'permissions')
+      .where('user.id = :id', { id })
+      .andWhere('user.deletedAt IS NULL')
+      .getOne();
+  }
+
+  /**
    * Resetea los intentos fallidos de login
    * @param id - ID del usuario
    */

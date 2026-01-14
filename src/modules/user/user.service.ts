@@ -491,6 +491,17 @@ export class UserService {
   }
 
   /**
+   * Busca un usuario por ID incluyendo company, roles y permisos completos
+   * ⚠️ Solo para uso interno de autenticación (JwtStrategy)
+   * 
+   * @param id - ID del usuario
+   * @returns Usuario con company, roles y permisos o null
+   */
+  async findByIdWithCompanyAndRoles(id: string): Promise<UserEntity | null> {
+    return await this.userRepository.findByIdWithCompanyAndRoles(id);
+  }
+
+  /**
    * Verifica si un email existe
    * @param email - Email a verificar
    * @returns true si existe

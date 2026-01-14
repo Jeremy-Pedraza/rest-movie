@@ -1,0 +1,25 @@
+{
+  "allowedDomains": [
+    "localhost",
+    "127.0.0.1",
+    "http://localhost:3000",
+    "http://localhost:4200",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:4200",
+    "restaurant-demo.miapp.com",
+    "cafe-demo.miapp.com",
+    "tienda-demo.miapp.com"
+  ],
+  "allowedSchemas": [
+    "public",
+    "restaurant_valle_schema",
+    "cafe_bogota_schema",
+    "tienda_cali_schema"
+  ],
+  "config": {
+    "maxSchemaLength": 63,
+    "allowDynamicSchemas": false,
+    "logUnauthorizedAttempts": true,
+    "allowLocalhost": true
+  }
+}

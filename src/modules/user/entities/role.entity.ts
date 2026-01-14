@@ -19,7 +19,7 @@ import {
 import { UserEntity } from './user.entity';
 import { PermissionEntity } from './permission.entity';
 
-@Entity('roles')
+@Entity({ name: 'roles', schema: 'public' })
 @Index(['name'], { unique: true })
 export class RoleEntity {
   @PrimaryGeneratedColumn('uuid')

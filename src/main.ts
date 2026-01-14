@@ -9,7 +9,7 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { setupSwagger } from '@config/swagger';
 import { winstonConfig } from '@config/winston';
-import { helmetConfig } from '@config/security';
+import { helmetConfig, getCorsOptionsWithSecurity, SecurityConfigService } from '@config/security';
 
 async function bootstrap() {
   // Create app with Winston logger
@@ -18,6 +18,7 @@ async function bootstrap() {
   });
 
   const configService = app.get(ConfigService);
+  const securityConfig = app.get(SecurityConfigService); // ✅ NUEVO
   const logger = new Logger('Bootstrap');
 
   // Get config values
@@ -38,14 +39,13 @@ async function bootstrap() {
   // Security
   app.use(helmet(helmetConfig));
 
-  // CORS
-  const corsOrigin = configService.get<string>('CORS_ORIGIN');
-  app.enableCors({
-    origin: corsOrigin ? corsOrigin.split(',').map((o) => o.trim()) : true,
-    credentials: configService.get<string>('CORS_CREDENTIALS') === 'true',
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
-  });
+  // ✅ CORS con SecurityConfigService (sistema de whitelist multi-tenant)
+  const corsOptions = getCorsOptionsWithSecurity(securityConfig, configService);
+  app.enableCors(corsOptions);
+
+  logger.log(
+    `✅ CORS configurado con ${securityConfig.getAllowedDomains().length} dominios permitidos`,
+  );
 
   // Compression
   app.use(compression());
@@ -83,6 +83,7 @@ async function bootstrap() {
 
   logger.log(`🚀 Application is running on: http://${host}:${port}/${apiPrefix}`);
   logger.log(`🌍 Environment: ${nodeEnv}`);
+  logger.log(`🔒 Security: ${securityConfig.getAllowedSchemas().length} schemas permitidos`);
 }
 
 bootstrap().catch((error) => {

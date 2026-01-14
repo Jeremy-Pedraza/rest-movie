@@ -13,7 +13,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
-import { Transporter } from 'nodemailer';
 import SMTPTransport from 'nodemailer/lib/smtp-transport';
 import { NotificationChannel } from '../dto/send-notification.dto';
 import { IEmailResponse, INotificationOptions, NotificationStatus } from '../interfaces';
@@ -52,7 +51,8 @@ export class EmailChannel extends NotificationChannelAbstract {
   /**
    * Transporter de Nodemailer
    */
-  private transporter: Transporter | null = null;
+  // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
+  private transporter: nodemailer.Transporter<SMTPTransport.SentMessageInfo> | null = null;
 
   /**
    * Cache del estado de disponibilidad
@@ -163,7 +163,6 @@ export class EmailChannel extends NotificationChannelAbstract {
         accepted: info.accepted as string[],
         rejected: info.rejected as string[],
         smtpResponse: info.response,
-        messageSize: info.messageSize,
         metadata: {
           envelope: info.envelope,
         },

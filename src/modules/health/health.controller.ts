@@ -17,11 +17,13 @@ import {
 import * as os from 'os';
 
 import { Public } from '@decorators/public.decorator';
+import { SkipTenant } from '@decorators/skip-tenant.decorator';
 import { DatabaseHealthIndicator } from './indicators/database.indicator';
 import { RedisHealthIndicator } from './indicators/redis.indicator';
 
 @ApiTags('Health')
 @Controller('health')
+@SkipTenant() // Health checks no requieren contexto de tenant
 export class HealthController {
   private readonly logger = new Logger(HealthController.name);
 

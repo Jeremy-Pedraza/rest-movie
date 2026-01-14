@@ -32,7 +32,7 @@ export enum LogContext {
   EXTERNAL = 'external',
 }
 
-@Entity('logs')
+@Entity({ name: 'logs', schema: 'public' })
 @Index(['level', 'createdAt'])
 @Index(['context', 'createdAt'])
 @Index(['userId', 'createdAt'])

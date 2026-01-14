@@ -3,27 +3,54 @@
 /**
  * @fileoverview Repository para usuarios
  * @module modules/user
+ *
+ * ⚠️ REGLAS:
+ * - Extiende BaseRepository para infraestructura multi-tenant
+ * - Usa createStaticQueryBuilder() para queries en schema public
+ * - SIEMPRE usar parámetros con :param syntax (previene SQL injection)
+ * - NO usar query() con SQL raw
+ * - NO tiene lógica de negocio
+ *
+ * 📋 ENTIDADES: users, roles, permissions (schema public)
+ * - Todas las entidades de usuario están en schema public
+ * - Por tanto, usa createStaticQueryBuilder() sin withSchema()
  */
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
+
+import { BaseRepository } from '@shared/database/base.repository';
+import { SchemaContext } from '@shared/database/schema.context';
 
 import { UserEntity, UserStatus } from './entities/user.entity';
 import { RoleEntity } from './entities/role.entity';
 import { CreateUserDto, UpdateUserDto, QueryUserDto } from './dto';
 import { IPaginatedResponse } from '@shared/common';
 
+/**
+ * UserRepository - Repository para gestión de usuarios
+ *
+ * Extiende BaseRepository para tener infraestructura multi-tenant lista,
+ * pero usa createStaticQueryBuilder() porque users/roles/permissions están en schema public.
+ *
+ * @example
+ * ```typescript
+ * // Buscar usuario (usa createStaticQueryBuilder para public)
+ * const user = await this.userRepository.findById('user-id');
+ * ```
+ */
 @Injectable()
-export class UserRepository {
-  private readonly logger = new Logger(UserRepository.name);
-
+export class UserRepository extends BaseRepository<UserEntity> {
   constructor(
     @InjectRepository(UserEntity)
-    private readonly userRepo: Repository<UserEntity>,
+    repository: Repository<UserEntity>,
     @InjectRepository(RoleEntity)
     private readonly roleRepo: Repository<RoleEntity>,
-  ) {}
+    schemaContext: SchemaContext,
+  ) {
+    super(repository, schemaContext);
+  }
 
   // ============================================
   // CRUD OPERATIONS
@@ -38,7 +65,7 @@ export class UserRepository {
     const { roleIds, ...userData } = dto;
 
     // Crear usuario
-    const user = this.userRepo.create(userData);
+    const user = this.repository.create(userData);
 
     // Asignar roles si se especificaron
     if (roleIds && roleIds.length > 0) {
@@ -51,7 +78,7 @@ export class UserRepository {
       }
     }
 
-    return this.userRepo.save(user);
+    return this.repository.save(user);
   }
 
   /**
@@ -60,8 +87,7 @@ export class UserRepository {
    * @returns Usuario encontrado o null
    */
   async findById(id: string): Promise<UserEntity | null> {
-    return this.userRepo
-      .createQueryBuilder('user')
+    return this.createStaticQueryBuilder('user')
       .leftJoinAndSelect('user.roles', 'roles')
       .leftJoinAndSelect('roles.permissions', 'permissions')
       .where('user.id = :id', { id })
@@ -75,8 +101,7 @@ export class UserRepository {
    * @returns Usuario encontrado o null
    */
   async findByEmail(email: string, includePassword = false): Promise<UserEntity | null> {
-    const qb = this.userRepo
-      .createQueryBuilder('user')
+    const qb = this.createStaticQueryBuilder('user')
       .leftJoinAndSelect('user.roles', 'roles')
       .leftJoinAndSelect('roles.permissions', 'permissions')
       .where('LOWER(user.email) = LOWER(:email)', { email });
@@ -107,7 +132,7 @@ export class UserRepository {
       sortOrder = 'DESC',
     } = query;
 
-    const qb = this.userRepo.createQueryBuilder('user').leftJoinAndSelect('user.roles', 'roles');
+    const qb = this.createStaticQueryBuilder('user').leftJoinAndSelect('user.roles', 'roles');
 
     // Filtro de búsqueda
     if (search) {
@@ -199,7 +224,7 @@ export class UserRepository {
       }
     }
 
-    return this.userRepo.save(user);
+    return this.repository.save(user);
   }
 
   /**
@@ -208,7 +233,7 @@ export class UserRepository {
    * @returns true si se eliminó
    */
   async softDelete(id: string): Promise<boolean> {
-    const result = await this.userRepo.softDelete(id);
+    const result = await this.repository.softDelete(id);
     return (result.affected ?? 0) > 0;
   }
 
@@ -218,7 +243,7 @@ export class UserRepository {
    * @returns true si se restauró
    */
   async restore(id: string): Promise<boolean> {
-    const result = await this.userRepo.restore(id);
+    const result = await this.repository.restore(id);
     return (result.affected ?? 0) > 0;
   }
 
@@ -228,7 +253,7 @@ export class UserRepository {
    * @returns true si se eliminó
    */
   async hardDelete(id: string): Promise<boolean> {
-    const result = await this.userRepo.delete(id);
+    const result = await this.repository.delete(id);
     return (result.affected ?? 0) > 0;
   }
 
@@ -243,9 +268,9 @@ export class UserRepository {
    * @returns true si existe
    */
   async emailExists(email: string, excludeUserId?: string): Promise<boolean> {
-    const qb = this.userRepo
-      .createQueryBuilder('user')
-      .where('LOWER(user.email) = LOWER(:email)', { email });
+    const qb = this.createStaticQueryBuilder('user').where('LOWER(user.email) = LOWER(:email)', {
+      email,
+    });
 
     if (excludeUserId) {
       qb.andWhere('user.id != :excludeUserId', { excludeUserId });
@@ -262,7 +287,7 @@ export class UserRepository {
    * @returns true si se actualizó
    */
   async updatePassword(id: string, hashedPassword: string): Promise<boolean> {
-    const result = await this.userRepo.update(id, {
+    const result = await this.repository.update(id, {
       password: hashedPassword,
       passwordResetToken: null,
       passwordResetExpires: null,
@@ -277,7 +302,7 @@ export class UserRepository {
    * @returns true si se actualizó
    */
   async updateStatus(id: string, status: UserStatus): Promise<boolean> {
-    const result = await this.userRepo.update(id, { status });
+    const result = await this.repository.update(id, { status });
     return (result.affected ?? 0) > 0;
   }
 
@@ -287,7 +312,7 @@ export class UserRepository {
    * @param ip - IP del cliente
    */
   async registerLogin(id: string, ip?: string): Promise<void> {
-    await this.userRepo.update(id, {
+    await this.repository.update(id, {
       lastLoginAt: new Date(),
       lastLoginIp: ip || null,
       failedLoginAttempts: 0,
@@ -300,11 +325,11 @@ export class UserRepository {
    * @param id - ID del usuario
    */
   async registerFailedLogin(id: string): Promise<void> {
-    const user = await this.userRepo.findOneBy({ id });
+    const user = await this.repository.findOneBy({ id });
     if (!user) return;
 
     user.registerFailedLogin();
-    await this.userRepo.save(user);
+    await this.repository.save(user);
   }
 
   /**
@@ -313,7 +338,7 @@ export class UserRepository {
    * @returns true si se verificó
    */
   async verifyEmail(id: string): Promise<boolean> {
-    const result = await this.userRepo.update(id, {
+    const result = await this.repository.update(id, {
       emailVerified: true,
       emailVerifiedAt: new Date(),
       emailVerificationToken: null,
@@ -327,7 +352,7 @@ export class UserRepository {
    * @returns Total de usuarios
    */
   async count(): Promise<number> {
-    return this.userRepo.count();
+    return this.repository.count();
   }
 
   /**
@@ -335,8 +360,7 @@ export class UserRepository {
    * @returns Conteo por estado
    */
   async countByStatus(): Promise<Record<UserStatus, number>> {
-    const results = await this.userRepo
-      .createQueryBuilder('user')
+    const results = await this.createStaticQueryBuilder('user')
       .select('user.status', 'status')
       .addSelect('COUNT(*)', 'count')
       .groupBy('user.status')
@@ -364,12 +388,10 @@ export class UserRepository {
     const [total, byStatus, verified, unverified] = await Promise.all([
       this.count(),
       this.countByStatus(),
-      this.userRepo
-        .createQueryBuilder('user')
+      this.createStaticQueryBuilder('user')
         .where('user.emailVerified = :verified', { verified: true })
         .getCount(),
-      this.userRepo
-        .createQueryBuilder('user')
+      this.createStaticQueryBuilder('user')
         .where('user.emailVerified = :verified', { verified: false })
         .getCount(),
     ]);
@@ -387,8 +409,7 @@ export class UserRepository {
    * @returns Usuario con password o null
    */
   async findByIdWithPassword(id: string): Promise<UserEntity | null> {
-    return this.userRepo
-      .createQueryBuilder('user')
+    return this.createStaticQueryBuilder('user')
       .addSelect('user.password')
       .where('user.id = :id', { id })
       .getOne();
@@ -400,8 +421,7 @@ export class UserRepository {
    * @returns Usuario con roles o null
    */
   async findByIdWithRoles(id: string): Promise<UserEntity | null> {
-    return this.userRepo
-      .createQueryBuilder('user')
+    return this.createStaticQueryBuilder('user')
       .leftJoinAndSelect('user.roles', 'roles')
       .leftJoinAndSelect('roles.permissions', 'permissions')
       .where('user.id = :id', { id })
@@ -413,7 +433,7 @@ export class UserRepository {
    * @param id - ID del usuario
    */
   async resetFailedAttempts(id: string): Promise<void> {
-    await this.userRepo.update(id, {
+    await this.repository.update(id, {
       failedLoginAttempts: 0,
       lockedUntil: null,
     });
@@ -426,7 +446,7 @@ export class UserRepository {
    * @param expiresAt - Fecha de expiración
    */
   async savePasswordResetToken(id: string, token: string, expiresAt: Date): Promise<void> {
-    await this.userRepo.update(id, {
+    await this.repository.update(id, {
       passwordResetToken: token,
       passwordResetExpires: expiresAt,
     });
@@ -437,7 +457,7 @@ export class UserRepository {
    * @param id - ID del usuario
    */
   async invalidatePasswordResetToken(id: string): Promise<void> {
-    await this.userRepo.update(id, {
+    await this.repository.update(id, {
       passwordResetToken: null,
       passwordResetExpires: null,
     });

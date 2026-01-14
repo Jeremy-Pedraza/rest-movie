@@ -21,6 +21,7 @@ import { dataSourceOptions } from '@config/database/data-source';
 // Seeds
 import { seedPermissions } from './permission.seed';
 import { seedRoles } from './role.seed';
+import { seedCompanies } from './company.seed';
 import { seedUsers } from './user.seed';
 
 async function seed() {
@@ -41,8 +42,16 @@ async function seed() {
     console.log('✅ Database connected successfully');
 
     // Ejecutar seeds en orden
+    // 1. Permissions (independientes)
     await seedPermissions(dataSource);
+    
+    // 2. Roles (dependen de permissions)
     await seedRoles(dataSource);
+    
+    // 3. Companies (independientes)
+    await seedCompanies(dataSource);
+    
+    // 4. Users (dependen de roles y companies)
     await seedUsers(dataSource);
 
     // Resumen
@@ -51,7 +60,6 @@ async function seed() {
     console.log('║              ✅ SEEDING COMPLETED                    ║');
     console.log('╚══════════════════════════════════════════════════════╝');
     console.log(`⏱  Duration: ${duration}s`);
-
   } catch (error) {
     console.error('\n❌ Error during seeding:');
     console.error(error);
@@ -63,4 +71,7 @@ async function seed() {
 }
 
 // Ejecutar si se llama directamente
-seed();
+seed().catch((error) => {
+  console.error('Fatal error:', error);
+  process.exit(1);
+});

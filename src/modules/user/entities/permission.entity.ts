@@ -17,7 +17,7 @@ import {
 
 import { RoleEntity } from './role.entity';
 
-@Entity('permissions')
+@Entity({ name: 'permissions', schema: 'public' })
 @Index(['name'], { unique: true })
 @Index(['module', 'action'])
 export class PermissionEntity {

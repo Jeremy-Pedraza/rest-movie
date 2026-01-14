@@ -29,6 +29,7 @@ import { Request } from 'express';
 // Decoradores
 import { CurrentUser } from '@decorators/current-user.decorator';
 import { Public } from '@decorators/public.decorator';
+import { SkipTenant } from '@decorators/skip-tenant.decorator';
 
 // Shared interfaces
 import { IApiResponse } from '@shared/common';
@@ -63,6 +64,7 @@ export class AuthController {
   // ============================================
 
   @Public()
+  @SkipTenant() // Login no requiere tenant (el usuario puede no tener company aún)
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login de usuario' })
@@ -83,6 +85,7 @@ export class AuthController {
   }
 
   @Public()
+  @SkipTenant() // Registro no requiere tenant (el usuario aún no existe)
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Registro de nuevo usuario' })
@@ -107,19 +110,14 @@ export class AuthController {
   }
 
   @Public()
+  @SkipTenant() // Refresh token no requiere tenant
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Refresh access token' })
   @ApiResponse({ status: 200, description: 'Token renovado exitosamente' })
   @ApiResponse({ status: 401, description: 'Refresh token inválido' })
-  async refreshToken(
-    @Body() dto: RefreshTokenDto,
-    @Req() req: Request,
-  ): Promise<IApiResponse<IRefreshTokenResponse>> {
-    const ipAddress = req.ip || req.socket.remoteAddress || 'unknown';
-    const userAgent = req.headers['user-agent'];
-
-    const data = await this.authService.refreshToken(dto, ipAddress, userAgent);
+  async refreshToken(@Body() dto: RefreshTokenDto): Promise<IApiResponse<IRefreshTokenResponse>> {
+    const data = await this.authService.refreshToken(dto);
 
     return {
       success: true,
@@ -189,6 +187,7 @@ export class AuthController {
   }
 
   @Public()
+  @SkipTenant() // Forgot password no requiere tenant
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Solicitar reset de contraseña' })
@@ -207,6 +206,7 @@ export class AuthController {
   }
 
   @Public()
+  @SkipTenant() // Reset password no requiere tenant
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Resetear contraseña con token' })

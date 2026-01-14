@@ -4,8 +4,11 @@
  * @fileoverview Filtro global para todas las excepciones
  * @module filters
  *
- * Captura TODAS las excepciones y las formatea consistentemente.
- * Integra ERROR_CODES para códigos de error estándar.
+ * Captura TODAS las excepciones excepto BadRequestException (manejada por ValidationExceptionFilter).
+ * Integra ERROR_CODES para códigos de error estándar y maneja 10+ códigos PostgreSQL.
+ *
+ * IMPORTANTE: Este filter se ejecuta DESPUÉS de ValidationExceptionFilter
+ * para capturar todo lo que no sea error de validación.
  */
 
 import {
@@ -34,6 +37,8 @@ interface PostgresError {
   code?: string;
   detail?: string;
   constraint?: string;
+  table?: string;
+  column?: string;
 }
 
 /**
@@ -44,11 +49,12 @@ interface ErrorResponse {
   statusCode: number;
   message: string;
   error: string;
-  code?: ErrorCode;
+  code: ErrorCode;
   timestamp: string;
   path: string;
   method: string;
   requestId?: string;
+  details?: string;
 }
 
 @Catch()
@@ -74,8 +80,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
     let message: string = RESPONSE_MESSAGES.ERROR.INTERNAL_SERVER;
     let error = 'Internal Server Error';
     let errorCode: ErrorCode = ERROR_CODES.INTERNAL_SERVER_ERROR;
+    let details: string | undefined = undefined;
 
-    // HttpException
+    // HttpException (401, 403, 404, 409, etc.)
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const exceptionResponse = exception.getResponse();
@@ -86,25 +93,37 @@ export class AllExceptionsFilter implements ExceptionFilter {
         const resp = exceptionResponse as Record<string, unknown>;
         message = (resp.message as string) || exception.message;
         error = (resp.error as string) || HttpStatus[status];
-        // Usar el code si viene en la respuesta
+
+        // Usar el code si viene en la respuesta (HandleErrorService lo provee)
         if (resp.code && typeof resp.code === 'string') {
           errorCode = resp.code as ErrorCode;
         } else {
           errorCode = this.getErrorCodeFromStatus(status);
         }
+
+        // Capturar detalles si existen (manejo seguro de tipos)
+        if (resp.details !== undefined && resp.details !== null) {
+          details = this.safeStringify(resp.details);
+        }
       }
     }
-    // TypeORM QueryFailedError
+    // TypeORM QueryFailedError (errores de PostgreSQL)
     else if (exception instanceof QueryFailedError) {
-      const dbError = this.handleDatabaseError(exception);
+      const dbError = this.handleDatabaseError(exception as QueryFailedError);
       status = dbError.status;
       message = dbError.message;
       error = dbError.error;
       errorCode = dbError.code;
+      details = dbError.details;
     }
-    // Error genérico
+    // Error genérico de JavaScript
     else if (exception instanceof Error) {
-      message = exception.message;
+      message = exception.message || RESPONSE_MESSAGES.ERROR.INTERNAL_SERVER;
+      errorCode = ERROR_CODES.INTERNAL_SERVER_ERROR;
+    }
+    // Excepción desconocida
+    else {
+      message = RESPONSE_MESSAGES.ERROR.INTERNAL_SERVER;
       errorCode = ERROR_CODES.INTERNAL_SERVER_ERROR;
     }
 
@@ -118,6 +137,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       path: request.url,
       method: request.method,
       requestId: request.requestId || undefined,
+      details: details || undefined,
     };
 
     // Log en consola (siempre para errores)
@@ -145,6 +165,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         metadata: {
           error,
           exceptionName: exception instanceof Error ? exception.name : 'Unknown',
+          details,
         },
       });
     }
@@ -153,49 +174,208 @@ export class AllExceptionsFilter implements ExceptionFilter {
   }
 
   /**
-   * Maneja errores de base de datos
+   * Convierte de forma segura cualquier valor a string
+   * Evita el problema de [object Object] con objetos/arrays
+   */
+  private safeStringify(value: unknown): string {
+    if (typeof value === 'string') {
+      return value;
+    }
+
+    if (typeof value === 'number' || typeof value === 'boolean') {
+      return String(value);
+    }
+
+    if (typeof value === 'object' && value !== null) {
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return '[Complex Object]';
+      }
+    }
+
+    return String(value);
+  }
+
+  /**
+   * Maneja errores de base de datos PostgreSQL
+   * Cubre 10+ códigos de error más comunes
    */
   private handleDatabaseError(exception: QueryFailedError): {
     status: number;
     message: string;
     error: string;
     code: ErrorCode;
+    details?: string;
   } {
     const pgError = exception as unknown as PostgresError;
+    const pgCode = pgError.code;
 
-    switch (pgError.code) {
-      case '23505': // Unique violation
-        return {
-          status: HttpStatus.CONFLICT,
-          message: 'El registro ya existe',
-          error: 'Conflict',
-          code: ERROR_CODES.DATABASE_DUPLICATE_KEY,
-        };
+    // Categoría 23xxx: Violaciones de integridad
+    if (pgCode?.startsWith('23')) {
+      switch (pgCode) {
+        case '23505': // Unique violation
+          return {
+            status: HttpStatus.CONFLICT,
+            message: pgError.detail || 'El registro ya existe',
+            error: 'Conflict',
+            code: ERROR_CODES.DATABASE_DUPLICATE_KEY,
+            details: pgError.constraint,
+          };
 
-      case '23503': // Foreign key violation
-        return {
-          status: HttpStatus.BAD_REQUEST,
-          message: 'Referencia a registro inexistente',
-          error: 'Bad Request',
-          code: ERROR_CODES.DATABASE_ERROR,
-        };
+        case '23503': // Foreign key violation
+          return {
+            status: HttpStatus.BAD_REQUEST,
+            message: 'Referencia a registro inexistente',
+            error: 'Bad Request',
+            code: ERROR_CODES.DATABASE_ERROR,
+            details: pgError.detail,
+          };
 
-      case '23502': // Not null violation
-        return {
-          status: HttpStatus.BAD_REQUEST,
-          message: RESPONSE_MESSAGES.VALIDATION.REQUIRED_FIELD,
-          error: 'Bad Request',
-          code: ERROR_CODES.VALIDATION_REQUIRED_FIELD,
-        };
+        case '23502': // Not null violation
+          return {
+            status: HttpStatus.BAD_REQUEST,
+            message: `Campo '${pgError.column || 'requerido'}' no puede ser nulo`,
+            error: 'Bad Request',
+            code: ERROR_CODES.VALIDATION_REQUIRED_FIELD,
+            details: pgError.column,
+          };
 
-      default:
-        return {
-          status: HttpStatus.INTERNAL_SERVER_ERROR,
-          message: RESPONSE_MESSAGES.ERROR.DATABASE_ERROR,
-          error: 'Database Error',
-          code: ERROR_CODES.DATABASE_ERROR,
-        };
+        case '23514': // Check constraint violation
+          return {
+            status: HttpStatus.BAD_REQUEST,
+            message: 'Restricción de validación violada',
+            error: 'Bad Request',
+            code: ERROR_CODES.VALIDATION_ERROR,
+            details: pgError.constraint,
+          };
+
+        default:
+          return {
+            status: HttpStatus.BAD_REQUEST,
+            message: 'Error de integridad de datos',
+            error: 'Bad Request',
+            code: ERROR_CODES.DATABASE_ERROR,
+          };
+      }
     }
+
+    // Categoría 22xxx: Violaciones de datos
+    if (pgCode?.startsWith('22')) {
+      switch (pgCode) {
+        case '22001': // String data right truncation
+          return {
+            status: HttpStatus.BAD_REQUEST,
+            message: 'Texto excede longitud máxima permitida',
+            error: 'Bad Request',
+            code: ERROR_CODES.VALIDATION_ERROR,
+          };
+
+        case '22003': // Numeric value out of range
+          return {
+            status: HttpStatus.BAD_REQUEST,
+            message: 'Valor numérico fuera de rango',
+            error: 'Bad Request',
+            code: ERROR_CODES.VALIDATION_ERROR,
+          };
+
+        case '22P02': // Invalid text representation (ej: UUID inválido, formato fecha)
+          return {
+            status: HttpStatus.BAD_REQUEST,
+            message: 'Formato de dato inválido',
+            error: 'Bad Request',
+            code: ERROR_CODES.VALIDATION_INVALID_FORMAT,
+            details: pgError.detail,
+          };
+
+        case '22007': // Invalid datetime format
+          return {
+            status: HttpStatus.BAD_REQUEST,
+            message: 'Formato de fecha/hora inválido',
+            error: 'Bad Request',
+            code: ERROR_CODES.VALIDATION_INVALID_FORMAT,
+          };
+
+        default:
+          return {
+            status: HttpStatus.BAD_REQUEST,
+            message: 'Formato de dato inválido',
+            error: 'Bad Request',
+            code: ERROR_CODES.VALIDATION_ERROR,
+          };
+      }
+    }
+
+    // Categoría 40xxx: Problemas de transacciones
+    if (pgCode?.startsWith('40')) {
+      switch (pgCode) {
+        case '40001': // Serialization failure (deadlock)
+          return {
+            status: HttpStatus.CONFLICT,
+            message: 'Conflicto de concurrencia detectado. Por favor, reintente la operación',
+            error: 'Conflict',
+            code: ERROR_CODES.DATABASE_TRANSACTION_ERROR,
+          };
+
+        case '40P01': // Deadlock detected
+          return {
+            status: HttpStatus.CONFLICT,
+            message: 'Deadlock detectado. Por favor, reintente la operación',
+            error: 'Conflict',
+            code: ERROR_CODES.DATABASE_TRANSACTION_ERROR,
+          };
+
+        default:
+          return {
+            status: HttpStatus.CONFLICT,
+            message: 'Error de transacción. Por favor, reintente',
+            error: 'Conflict',
+            code: ERROR_CODES.DATABASE_TRANSACTION_ERROR,
+          };
+      }
+    }
+
+    // Categoría 08xxx: Errores de conexión
+    if (pgCode?.startsWith('08')) {
+      return {
+        status: HttpStatus.SERVICE_UNAVAILABLE,
+        message: 'Error de conexión a base de datos. Servicio temporalmente no disponible',
+        error: 'Service Unavailable',
+        code: ERROR_CODES.DATABASE_CONNECTION_ERROR,
+        details: pgCode,
+      };
+    }
+
+    // Categoría 42xxx: Errores de sintaxis SQL / Objetos no encontrados
+    if (pgCode?.startsWith('42')) {
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: RESPONSE_MESSAGES.ERROR.DATABASE_ERROR,
+        error: 'Internal Server Error',
+        code: ERROR_CODES.DATABASE_QUERY_ERROR,
+        details: `SQL Error: ${pgCode}`,
+      };
+    }
+
+    // Categoría 53xxx: Recursos insuficientes
+    if (pgCode?.startsWith('53')) {
+      return {
+        status: HttpStatus.SERVICE_UNAVAILABLE,
+        message: 'Recursos insuficientes en base de datos',
+        error: 'Service Unavailable',
+        code: ERROR_CODES.SERVICE_UNAVAILABLE,
+        details: pgCode,
+      };
+    }
+
+    // Error de base de datos genérico
+    return {
+      status: HttpStatus.INTERNAL_SERVER_ERROR,
+      message: RESPONSE_MESSAGES.ERROR.DATABASE_ERROR,
+      error: 'Database Error',
+      code: ERROR_CODES.DATABASE_ERROR,
+      details: pgCode,
+    };
   }
 
   /**
@@ -217,6 +397,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
         return ERROR_CODES.RESOURCE_CONFLICT;
       case 429:
         return ERROR_CODES.RATE_LIMIT_EXCEEDED;
+      case 503:
+        return ERROR_CODES.SERVICE_UNAVAILABLE;
       default:
         return status >= 500 ? ERROR_CODES.INTERNAL_SERVER_ERROR : ERROR_CODES.VALIDATION_ERROR;
     }

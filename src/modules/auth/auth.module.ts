@@ -48,14 +48,14 @@ import { JwtStrategy, LocalStrategy } from './strategies';
       useFactory: (configService: ConfigService): JwtModuleOptions => {
         const secret =
           configService.get<string>('jwt.secret') || 'default-secret-change-in-production';
-        const expiresIn = configService.get<string>('jwt.expiresIn') || '1h';
+        const expiresIn = Number(configService.get<string>('jwt.expiresInString') || '15m');
         const issuer = configService.get<string>('jwt.issuer');
         const audience = configService.get<string>('jwt.audience');
 
         return {
           secret,
           signOptions: {
-            expiresIn: expiresIn as any, // TypeScript strict mode workaround
+            expiresIn: expiresIn, // ✅ FIX: Type assertion explícito
             issuer,
             audience,
           },

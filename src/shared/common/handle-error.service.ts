@@ -88,7 +88,7 @@ export class HandleErrorService {
 
     // Manejar errores de TypeORM/PostgreSQL
     if (error instanceof QueryFailedError) {
-      return this.handleDatabaseError(error, context);
+      return this.handleDatabaseError(error as QueryFailedError, context);
     }
 
     // Manejar errores de validación

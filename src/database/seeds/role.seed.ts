@@ -25,8 +25,8 @@ export async function seedRoles(dataSource: DataSource): Promise<void> {
     });
 
     if (permissions.length !== roleDef.permissions.length) {
-      const foundNames = permissions.map(p => p.name);
-      const missing = roleDef.permissions.filter(p => !foundNames.includes(p));
+      const foundNames = permissions.map((p) => p.name);
+      const missing = roleDef.permissions.filter((p) => !foundNames.includes(p));
       console.warn(`  ⚠ Role ${roleDef.name}: Missing permissions: ${missing.join(', ')}`);
     }
 
@@ -38,8 +38,8 @@ export async function seedRoles(dataSource: DataSource): Promise<void> {
 
     if (role) {
       // Actualizar permisos si cambiaron
-      const currentPermNames = role.permissions.map(p => p.name).sort();
-      const newPermNames = permissions.map(p => p.name).sort();
+      const currentPermNames = role.permissions.map((p) => p.name).sort();
+      const newPermNames = permissions.map((p) => p.name).sort();
 
       if (JSON.stringify(currentPermNames) !== JSON.stringify(newPermNames)) {
         role.permissions = permissions;

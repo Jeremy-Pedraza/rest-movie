@@ -1,5 +1,16 @@
 // src/filters/validation-exception.filter.ts
 
+/**
+ * @fileoverview Filtro especializado para errores de validación
+ * @module filters
+ *
+ * Captura BadRequestException (principalmente de class-validator)
+ * y agrupa los errores por campo para mejor UX en el frontend.
+ *
+ * IMPORTANTE: Este filter se ejecuta ANTES de AllExceptionsFilter
+ * para proporcionar un formato especial a errores de validación.
+ */
+
 import {
   ExceptionFilter,
   Catch,
@@ -7,8 +18,13 @@ import {
   BadRequestException,
   HttpStatus,
   Logger,
+  Inject,
+  Optional,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+
+import { LoggerService, LogContext } from '@modules/logger';
+import { ERROR_CODES, ErrorCode } from '@constants/error-codes.constant';
 
 /**
  * Estructura de respuesta de BadRequestException
@@ -17,11 +33,34 @@ interface ValidationExceptionResponse {
   message: string | string[];
   error?: string;
   statusCode?: number;
+  code?: ErrorCode;
+}
+
+/**
+ * Respuesta de error de validación
+ */
+interface ValidationErrorResponse {
+  success: false;
+  statusCode: number;
+  message: string;
+  error: string;
+  code: ErrorCode;
+  timestamp: string;
+  path: string;
+  method: string;
+  requestId?: string;
+  errors?: Record<string, string[]>;
 }
 
 @Catch(BadRequestException)
 export class ValidationExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(ValidationExceptionFilter.name);
+
+  constructor(
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
+  ) {}
 
   catch(exception: BadRequestException, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
@@ -31,53 +70,94 @@ export class ValidationExceptionFilter implements ExceptionFilter {
     const exceptionResponse = exception.getResponse() as ValidationExceptionResponse;
 
     // Formatear errores de validación
-    let validationErrors: Record<string, string[]> | null = null;
+    let validationErrors: Record<string, string[]> | undefined = undefined;
     let message = 'Error de validación';
+    let errorCode: ErrorCode = ERROR_CODES.VALIDATION_ERROR;
 
+    // Verificar si tiene ERROR_CODE específico
+    if (exceptionResponse.code) {
+      errorCode = exceptionResponse.code;
+    }
+
+    // Si message es un array, son errores de class-validator
     if (Array.isArray(exceptionResponse.message)) {
       validationErrors = this.formatValidationErrors(exceptionResponse.message);
       message = 'Los datos proporcionados no son válidos';
-    } else if (typeof exceptionResponse.message === 'string') {
+    }
+    // Si es string, es un error genérico
+    else if (typeof exceptionResponse.message === 'string') {
       message = exceptionResponse.message;
     }
 
-    const errorResponse = {
+    const errorResponse: ValidationErrorResponse = {
       success: false,
       statusCode: status,
       message,
-      error: 'Validation Error',
-      errors: validationErrors,
+      error: 'Bad Request',
+      code: errorCode,
       timestamp: new Date().toISOString(),
       path: request.url,
       method: request.method,
       requestId: request.requestId || undefined,
+      errors: validationErrors,
     };
 
-    // Log del error
-    this.logger.warn(`${request.method} ${request.url} - Validation Error`, {
-      errors: validationErrors,
-    });
+    // Log en consola
+    this.logger.warn(
+      `${request.method} ${request.url} - ${status} - ${message} [${errorCode}]`,
+      validationErrors ? JSON.stringify(validationErrors, null, 2) : undefined,
+    );
+
+    // Log en base de datos (solo warnings)
+    if (this.loggerService) {
+      const userId = request.user?.id;
+
+      void this.loggerService.warn(message, {
+        context: LogContext.HTTP,
+        errorCode,
+        requestId: request.requestId,
+        userId,
+        ip: request.ip,
+        userAgent: request.get('user-agent'),
+        method: request.method,
+        url: request.url,
+        statusCode: status,
+        metadata: {
+          errors: validationErrors,
+        },
+      });
+    }
 
     response.status(status).json(errorResponse);
   }
 
   /**
    * Formatea los errores de validación de class-validator
-   * @param errors - Array de mensajes de error
+   * Agrupa errores por campo para mejor UX en frontend
+   *
+   * @param errors - Array de mensajes de error de class-validator
    * @returns Objeto con errores agrupados por campo
+   *
+   * @example
+   * Input: ["email must be an email", "email should not be empty", "password is too short"]
+   * Output: {
+   *   email: ["email must be an email", "email should not be empty"],
+   *   password: ["password is too short"]
+   * }
    */
   private formatValidationErrors(errors: string[]): Record<string, string[]> {
     const formattedErrors: Record<string, string[]> = {};
 
     errors.forEach((error) => {
-      // Intentar extraer el nombre del campo del mensaje
-      // Formato típico: "field must be ..." o "field should be ..."
-      const match = error.match(/^(\w+)\s/);
+      // Extraer el nombre del campo del mensaje
+      // Formato típico: "field must be ...", "field should be ...", "field is ..."
+      const match = error.match(/^(\w+)\s+(must|should|is|cannot|has)/i);
       const field = match ? match[1] : 'general';
 
       if (!formattedErrors[field]) {
         formattedErrors[field] = [];
       }
+
       formattedErrors[field].push(error);
     });
 

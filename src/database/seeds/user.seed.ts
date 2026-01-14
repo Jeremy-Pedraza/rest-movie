@@ -38,8 +38,8 @@ export async function seedUsers(dataSource: DataSource): Promise<void> {
     });
 
     if (roles.length !== userDef.roles.length) {
-      const foundNames = roles.map(r => r.name);
-      const missing = userDef.roles.filter(r => !foundNames.includes(r));
+      const foundNames = roles.map((r) => r.name);
+      const missing = userDef.roles.filter((r) => !foundNames.includes(r));
       console.warn(`  ⚠ User ${userDef.email}: Missing roles: ${missing.join(', ')}`);
     }
 

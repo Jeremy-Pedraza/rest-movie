@@ -3,11 +3,25 @@
 /**
  * @fileoverview Repository para logs
  * @module modules/logger
+ *
+ * ⚠️ REGLAS:
+ * - Extiende BaseRepository para infraestructura multi-tenant
+ * - Usa createStaticQueryBuilder() para queries en schema public
+ * - SIEMPRE usar parámetros con :param syntax (previene SQL injection)
+ * - NO usar query() con SQL raw
+ * - NO tiene lógica de negocio
+ *
+ * 📋 ENTIDAD: logs (schema public)
+ * - Los logs están en schema public (compartidos entre tenants)
+ * - Por tanto, usa createStaticQueryBuilder() sin withSchema()
  */
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+
+import { BaseRepository } from '@shared/database/base.repository';
+import { SchemaContext } from '@shared/database/schema.context';
 
 import { LogEntity, LogLevel } from './entities/log.entity';
 import { CreateLogDto, QueryLogDto, LogStatsQueryDto } from './dto';
@@ -21,14 +35,27 @@ interface CountResult {
   count: string;
 }
 
+/**
+ * LoggerRepository - Repository para gestión de logs
+ *
+ * Extiende BaseRepository para tener infraestructura multi-tenant lista,
+ * pero usa createStaticQueryBuilder() porque logs está en schema public.
+ *
+ * @example
+ * ```typescript
+ * // Buscar log (usa createStaticQueryBuilder para public)
+ * const log = await this.loggerRepository.findById('log-id');
+ * ```
+ */
 @Injectable()
-export class LoggerRepository {
-  private readonly logger = new Logger(LoggerRepository.name);
-
+export class LoggerRepository extends BaseRepository<LogEntity> {
   constructor(
     @InjectRepository(LogEntity)
-    private readonly repository: Repository<LogEntity>,
-  ) {}
+    repository: Repository<LogEntity>,
+    schemaContext: SchemaContext,
+  ) {
+    super(repository, schemaContext);
+  }
 
   // ============================================
   // CRUD OPERATIONS
@@ -60,7 +87,7 @@ export class LoggerRepository {
    * @returns Log encontrado o null
    */
   async findById(id: string): Promise<LogEntity | null> {
-    return this.repository.createQueryBuilder('log').where('log.id = :id', { id }).getOne();
+    return this.createStaticQueryBuilder('log').where('log.id = :id', { id }).getOne();
   }
 
   /**
@@ -87,7 +114,7 @@ export class LoggerRepository {
       sortOrder = 'DESC',
     } = query;
 
-    const qb = this.repository.createQueryBuilder('log');
+    const qb = this.createStaticQueryBuilder('log');
 
     // Aplicar filtros
     if (level) {
@@ -166,8 +193,7 @@ export class LoggerRepository {
    * @returns Logs de la petición
    */
   async findByRequestId(requestId: string): Promise<LogEntity[]> {
-    return this.repository
-      .createQueryBuilder('log')
+    return this.createStaticQueryBuilder('log')
       .where('log.requestId = :requestId', { requestId })
       .orderBy('log.createdAt', 'ASC')
       .getMany();
@@ -180,8 +206,7 @@ export class LoggerRepository {
    * @returns Logs del usuario
    */
   async findByUserId(userId: string, limit: number = 100): Promise<LogEntity[]> {
-    return this.repository
-      .createQueryBuilder('log')
+    return this.createStaticQueryBuilder('log')
       .where('log.userId = :userId', { userId })
       .orderBy('log.createdAt', 'DESC')
       .take(limit)
@@ -198,8 +223,7 @@ export class LoggerRepository {
     const since = new Date();
     since.setHours(since.getHours() - hours);
 
-    return this.repository
-      .createQueryBuilder('log')
+    return this.createStaticQueryBuilder('log')
       .where('log.level = :level', { level: LogLevel.ERROR })
       .andWhere('log.createdAt >= :since', { since })
       .orderBy('log.createdAt', 'DESC')
@@ -219,7 +243,7 @@ export class LoggerRepository {
   async getStats(query: LogStatsQueryDto): Promise<Record<string, unknown>[]> {
     const { fromDate, toDate, groupBy = 'level' } = query;
 
-    const qb = this.repository.createQueryBuilder('log');
+    const qb = this.createStaticQueryBuilder('log');
 
     // Filtros de fecha
     if (fromDate) {
@@ -265,8 +289,7 @@ export class LoggerRepository {
    * @returns Conteo por nivel
    */
   async getCountByLevel(): Promise<Record<LogLevel, number>> {
-    const results = await this.repository
-      .createQueryBuilder('log')
+    const results = await this.createStaticQueryBuilder('log')
       .select('log.level', 'level')
       .addSelect('COUNT(*)', 'count')
       .groupBy('log.level')
@@ -290,8 +313,7 @@ export class LoggerRepository {
     const since = new Date();
     since.setHours(since.getHours() - hours);
 
-    const result = await this.repository
-      .createQueryBuilder('log')
+    const result = await this.createStaticQueryBuilder('log')
       .select('AVG(log.responseTime)', 'avg')
       .where('log.responseTime IS NOT NULL')
       .andWhere('log.createdAt >= :since', { since })
@@ -313,6 +335,7 @@ export class LoggerRepository {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
 
+    // Para operaciones DELETE bulk, usar this.repository.createQueryBuilder() directamente
     const result = await this.repository
       .createQueryBuilder()
       .delete()
@@ -335,6 +358,7 @@ export class LoggerRepository {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - olderThanDays);
 
+    // Para operaciones DELETE bulk, usar this.repository.createQueryBuilder() directamente
     const result = await this.repository
       .createQueryBuilder()
       .delete()

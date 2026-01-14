@@ -5,24 +5,51 @@
  * @module modules/auth
  *
  * ⚠️ REGLAS:
- * - SIEMPRE usar createQueryBuilder (previene SQL injection)
- * - Parámetros con :param syntax
- * - NO usar repo.query() con SQL raw
+ * - Extiende BaseRepository para infraestructura multi-tenant
+ * - Usa createStaticQueryBuilder() para queries en schema public
+ * - CONSISTENCIA: Todos los queries (SELECT/UPDATE/DELETE) usan alias
+ * - SIEMPRE usar parámetros con :param syntax (previene SQL injection)
+ * - NO usar query() con SQL raw
  * - NO tiene lógica de negocio
+ *
+ * 📋 ENTIDAD: sessions (schema public)
+ * - Las sesiones están en schema public (compartidas entre tenants)
+ * - Por tanto, usa createStaticQueryBuilder() sin withSchema()
  */
 
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
+import { BaseRepository } from '@shared/database/base.repository';
+import { SchemaContext } from '@shared/database/schema.context';
+
 import { SessionEntity } from './entities';
 
+/**
+ * AuthRepository - Repository para gestión de sesiones
+ *
+ * Extiende BaseRepository para tener infraestructura multi-tenant lista,
+ * pero usa createStaticQueryBuilder() porque sessions está en schema public.
+ *
+ * PATRÓN CONSISTENTE: Todos los queries usan alias 'session'
+ *
+ * @example
+ * ```typescript
+ * // Todos los queries usan alias para consistencia
+ * const session = await this.authRepository.findById('session-id');
+ * await this.authRepository.updateRefreshToken('id', 'token', date);
+ * ```
+ */
 @Injectable()
-export class AuthRepository {
+export class AuthRepository extends BaseRepository<SessionEntity> {
   constructor(
     @InjectRepository(SessionEntity)
-    private readonly repo: Repository<SessionEntity>,
-  ) {}
+    repository: Repository<SessionEntity>,
+    schemaContext: SchemaContext,
+  ) {
+    super(repository, schemaContext);
+  }
 
   // ============================================
   // CREATE
@@ -32,8 +59,8 @@ export class AuthRepository {
    * Crear nueva sesión
    */
   async createSession(data: Partial<SessionEntity>): Promise<SessionEntity> {
-    const session = this.repo.create(data);
-    return await this.repo.save(session);
+    const session = this.repository.create(data);
+    return await this.repository.save(session);
   }
 
   // ============================================
@@ -44,8 +71,7 @@ export class AuthRepository {
    * Buscar sesión por ID
    */
   async findById(id: string): Promise<SessionEntity | null> {
-    return await this.repo
-      .createQueryBuilder('session')
+    return await this.createStaticQueryBuilder('session')
       .leftJoinAndSelect('session.user', 'user')
       .where('session.id = :id', { id })
       .andWhere('session.deletedAt IS NULL')
@@ -56,8 +82,7 @@ export class AuthRepository {
    * Buscar sesión por refresh token
    */
   async findByRefreshToken(refreshToken: string): Promise<SessionEntity | null> {
-    return await this.repo
-      .createQueryBuilder('session')
+    return await this.createStaticQueryBuilder('session')
       .leftJoinAndSelect('session.user', 'user')
       .where('session.refreshToken = :refreshToken', { refreshToken })
       .andWhere('session.deletedAt IS NULL')
@@ -68,8 +93,7 @@ export class AuthRepository {
    * Buscar sesiones activas de un usuario
    */
   async findActiveByUserId(userId: string): Promise<SessionEntity[]> {
-    return await this.repo
-      .createQueryBuilder('session')
+    return await this.createStaticQueryBuilder('session')
       .where('session.userId = :userId', { userId })
       .andWhere('session.deletedAt IS NULL')
       .andWhere('session.isActive = :isActive', { isActive: true })
@@ -83,8 +107,7 @@ export class AuthRepository {
    * Buscar todas las sesiones de un usuario (incluyendo inactivas)
    */
   async findAllByUserId(userId: string): Promise<SessionEntity[]> {
-    return await this.repo
-      .createQueryBuilder('session')
+    return await this.createStaticQueryBuilder('session')
       .where('session.userId = :userId', { userId })
       .andWhere('session.deletedAt IS NULL')
       .orderBy('session.lastActivityAt', 'DESC')
@@ -95,8 +118,7 @@ export class AuthRepository {
    * Verificar si existe sesión válida para refresh token
    */
   async existsValidSession(refreshToken: string): Promise<boolean> {
-    const count = await this.repo
-      .createQueryBuilder('session')
+    const count = await this.createStaticQueryBuilder('session')
       .where('session.refreshToken = :refreshToken', { refreshToken })
       .andWhere('session.deletedAt IS NULL')
       .andWhere('session.isActive = :isActive', { isActive: true })
@@ -113,22 +135,23 @@ export class AuthRepository {
 
   /**
    * Actualizar refresh token (rotación)
+   * CONSISTENCIA: Usa alias 'session' como los SELECT
    */
   async updateRefreshToken(
     sessionId: string,
     newRefreshToken: string,
     expiresAt: Date,
   ): Promise<boolean> {
-    const result = await this.repo
-      .createQueryBuilder()
-      .update(SessionEntity)
+    const result = await this.repository
+      .createQueryBuilder('session')
+      .update()
       .set({
         refreshToken: newRefreshToken,
         expiresAt,
         lastActivityAt: new Date(),
       })
-      .where('id = :sessionId', { sessionId })
-      .andWhere('deletedAt IS NULL')
+      .where('session.id = :sessionId', { sessionId })
+      .andWhere('session.deletedAt IS NULL')
       .execute();
 
     return (result.affected ?? 0) > 0;
@@ -136,14 +159,15 @@ export class AuthRepository {
 
   /**
    * Actualizar última actividad
+   * CONSISTENCIA: Usa alias 'session' como los SELECT
    */
   async updateLastActivity(sessionId: string): Promise<boolean> {
-    const result = await this.repo
-      .createQueryBuilder()
-      .update(SessionEntity)
+    const result = await this.repository
+      .createQueryBuilder('session')
+      .update()
       .set({ lastActivityAt: new Date() })
-      .where('id = :sessionId', { sessionId })
-      .andWhere('deletedAt IS NULL')
+      .where('session.id = :sessionId', { sessionId })
+      .andWhere('session.deletedAt IS NULL')
       .execute();
 
     return (result.affected ?? 0) > 0;
@@ -155,19 +179,20 @@ export class AuthRepository {
 
   /**
    * Revocar sesión específica
+   * CONSISTENCIA: Usa alias 'session' como los SELECT
    */
   async revokeSession(sessionId: string, reason?: string): Promise<boolean> {
-    const result = await this.repo
-      .createQueryBuilder()
-      .update(SessionEntity)
+    const result = await this.repository
+      .createQueryBuilder('session')
+      .update()
       .set({
         isRevoked: true,
         revokedAt: new Date(),
         revokedReason: reason || 'Revoked by user',
         isActive: false,
       })
-      .where('id = :sessionId', { sessionId })
-      .andWhere('deletedAt IS NULL')
+      .where('session.id = :sessionId', { sessionId })
+      .andWhere('session.deletedAt IS NULL')
       .execute();
 
     return (result.affected ?? 0) > 0;
@@ -175,19 +200,20 @@ export class AuthRepository {
 
   /**
    * Revocar sesión por refresh token
+   * CONSISTENCIA: Usa alias 'session' como los SELECT
    */
   async revokeByRefreshToken(refreshToken: string, reason?: string): Promise<boolean> {
-    const result = await this.repo
-      .createQueryBuilder()
-      .update(SessionEntity)
+    const result = await this.repository
+      .createQueryBuilder('session')
+      .update()
       .set({
         isRevoked: true,
         revokedAt: new Date(),
         revokedReason: reason || 'Token revoked',
         isActive: false,
       })
-      .where('refreshToken = :refreshToken', { refreshToken })
-      .andWhere('deletedAt IS NULL')
+      .where('session.refreshToken = :refreshToken', { refreshToken })
+      .andWhere('session.deletedAt IS NULL')
       .execute();
 
     return (result.affected ?? 0) > 0;
@@ -195,20 +221,21 @@ export class AuthRepository {
 
   /**
    * Revocar todas las sesiones de un usuario
+   * CONSISTENCIA: Usa alias 'session' como los SELECT
    */
   async revokeAllByUserId(userId: string, reason?: string): Promise<number> {
-    const result = await this.repo
-      .createQueryBuilder()
-      .update(SessionEntity)
+    const result = await this.repository
+      .createQueryBuilder('session')
+      .update()
       .set({
         isRevoked: true,
         revokedAt: new Date(),
         revokedReason: reason || 'All sessions revoked',
         isActive: false,
       })
-      .where('userId = :userId', { userId })
-      .andWhere('deletedAt IS NULL')
-      .andWhere('isRevoked = :isRevoked', { isRevoked: false })
+      .where('session.userId = :userId', { userId })
+      .andWhere('session.deletedAt IS NULL')
+      .andWhere('session.isRevoked = :isRevoked', { isRevoked: false })
       .execute();
 
     return result.affected ?? 0;
@@ -216,25 +243,26 @@ export class AuthRepository {
 
   /**
    * Revocar todas las sesiones excepto la actual
+   * CONSISTENCIA: Usa alias 'session' como los SELECT
    */
   async revokeOtherSessions(
     userId: string,
     currentSessionId: string,
     reason?: string,
   ): Promise<number> {
-    const result = await this.repo
-      .createQueryBuilder()
-      .update(SessionEntity)
+    const result = await this.repository
+      .createQueryBuilder('session')
+      .update()
       .set({
         isRevoked: true,
         revokedAt: new Date(),
         revokedReason: reason || 'Other sessions revoked',
         isActive: false,
       })
-      .where('userId = :userId', { userId })
-      .andWhere('id != :currentSessionId', { currentSessionId })
-      .andWhere('deletedAt IS NULL')
-      .andWhere('isRevoked = :isRevoked', { isRevoked: false })
+      .where('session.userId = :userId', { userId })
+      .andWhere('session.id != :currentSessionId', { currentSessionId })
+      .andWhere('session.deletedAt IS NULL')
+      .andWhere('session.isRevoked = :isRevoked', { isRevoked: false })
       .execute();
 
     return result.affected ?? 0;
@@ -242,12 +270,13 @@ export class AuthRepository {
 
   /**
    * Soft delete de sesión
+   * CONSISTENCIA: Usa alias 'session' como los SELECT
    */
   async softDelete(sessionId: string): Promise<boolean> {
-    const result = await this.repo
-      .createQueryBuilder()
+    const result = await this.repository
+      .createQueryBuilder('session')
       .softDelete()
-      .where('id = :sessionId', { sessionId })
+      .where('session.id = :sessionId', { sessionId })
       .execute();
 
     return (result.affected ?? 0) > 0;
@@ -259,14 +288,14 @@ export class AuthRepository {
 
   /**
    * Eliminar sesiones expiradas
+   * CONSISTENCIA: Usa alias 'session' como los SELECT
    */
   async deleteExpiredSessions(): Promise<number> {
-    const result = await this.repo
-      .createQueryBuilder()
+    const result = await this.repository
+      .createQueryBuilder('session')
       .delete()
-      .from(SessionEntity)
-      .where('expiresAt < :now', { now: new Date() })
-      .orWhere('deletedAt IS NOT NULL')
+      .where('session.expiresAt < :now', { now: new Date() })
+      .orWhere('session.deletedAt IS NOT NULL')
       .execute();
 
     return result.affected ?? 0;
@@ -276,8 +305,7 @@ export class AuthRepository {
    * Contar sesiones activas por usuario
    */
   async countActiveByUserId(userId: string): Promise<number> {
-    return await this.repo
-      .createQueryBuilder('session')
+    return await this.createStaticQueryBuilder('session')
       .where('session.userId = :userId', { userId })
       .andWhere('session.deletedAt IS NULL')
       .andWhere('session.isActive = :isActive', { isActive: true })
@@ -299,11 +327,10 @@ export class AuthRepository {
 
     const [total, active, expired, revoked] = await Promise.all([
       // Total de sesiones no eliminadas
-      this.repo.createQueryBuilder('session').where('session.deletedAt IS NULL').getCount(),
+      this.createStaticQueryBuilder('session').where('session.deletedAt IS NULL').getCount(),
 
       // Sesiones activas
-      this.repo
-        .createQueryBuilder('session')
+      this.createStaticQueryBuilder('session')
         .where('session.deletedAt IS NULL')
         .andWhere('session.isActive = :isActive', { isActive: true })
         .andWhere('session.isRevoked = :isRevoked', { isRevoked: false })
@@ -311,15 +338,13 @@ export class AuthRepository {
         .getCount(),
 
       // Sesiones expiradas
-      this.repo
-        .createQueryBuilder('session')
+      this.createStaticQueryBuilder('session')
         .where('session.deletedAt IS NULL')
         .andWhere('session.expiresAt <= :now', { now })
         .getCount(),
 
       // Sesiones revocadas
-      this.repo
-        .createQueryBuilder('session')
+      this.createStaticQueryBuilder('session')
         .where('session.deletedAt IS NULL')
         .andWhere('session.isRevoked = :isRevoked', { isRevoked: true })
         .getCount(),

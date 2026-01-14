@@ -16,11 +16,14 @@ import {
   BeforeInsert,
   BeforeUpdate,
   ManyToMany,
+  ManyToOne,
   JoinTable,
+  JoinColumn,
 } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 
 import { RoleEntity } from './role.entity';
+import { CompanyEntity } from '@modules/company/entities';
 
 /**
  * Estados del usuario
@@ -33,7 +36,7 @@ export enum UserStatus {
   BLOCKED = 'blocked',
 }
 
-@Entity('users')
+@Entity({ name: 'users', schema: 'public' })
 @Index(['email'], { unique: true })
 @Index(['status', 'createdAt'])
 @Index(['deletedAt'])
@@ -166,6 +169,31 @@ export class UserEntity {
   })
   roles: RoleEntity[];
 
+  // ============================================
+  // MULTI-TENANT: RELACIÓN CON COMPANY
+  // ============================================
+
+  /**
+   * ID de la empresa (tenant) a la que pertenece el usuario
+   *
+   * @nullable Si es null, el usuario pertenece al schema public
+   */
+  @Column({ type: 'uuid', nullable: true })
+  companyId: string | null;
+
+  /**
+   * Empresa (tenant) a la que pertenece el usuario
+   *
+   * Esta relación determina el schema en el que se ejecutarán las queries
+   * del usuario. Si es null, usa schema public.
+   *
+   * @example
+   * user.company.schema // 'restaurant_valle_schema'
+   */
+  @ManyToOne(() => CompanyEntity, (company) => company.users, { nullable: true })
+  @JoinColumn({ name: 'companyId' })
+  company: CompanyEntity | null;
+
   /**
    * Fecha de creación
    */
@@ -224,7 +252,7 @@ export class UserEntity {
    * Lista de nombres de roles
    */
   get roleNames(): string[] {
-    return this.roles?.map((role) => role.name) || [];
+    return this.roles?.map((role) => role.name) ?? [];
   }
 
   /**

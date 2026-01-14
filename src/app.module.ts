@@ -31,21 +31,28 @@ import { TasksModule } from '@modules/tasks';
 
 // Global Interceptors & Filters
 import { LoggingInterceptor } from '@interceptors/logging.interceptor';
+import { TenantInterceptor } from '@interceptors/tenant.interceptor';
 import { TimeoutInterceptor } from '@interceptors/timeout.interceptor';
+import { ValidationExceptionFilter } from '@filters/validation-exception.filter';
 import { AllExceptionsFilter } from '@filters/all-exceptions.filter';
 
 // Global Guards
 import { JwtAuthGuard } from '@guards/jwt-auth.guard';
+import { TenantGuard } from '@guards/tenant.guard';
 import { RolesGuard } from '@guards/roles.guard';
 
 // Middlewares
-import { RequestIdMiddleware, LoggerMiddleware } from '@middleware/index';
+import {
+  RequestIdMiddleware,
+  LoggerMiddleware,
+  DomainValidationMiddleware,
+} from '@middleware/index';
 
 // Configurations
 import appConfig from '@config/app.config';
 import { databaseConfig, typeOrmAsyncConfig } from '@config/database';
 import { redisConfig, redisCacheAsyncConfig } from '@config/redis';
-import { jwtConfig, throttlerConfig } from '@config/security';
+import { jwtConfig, throttlerConfig, SecurityConfigModule } from '@config/security';
 import { bullConfig } from '@config/bull';
 
 @Module({
@@ -107,6 +114,9 @@ import { bullConfig } from '@config/bull';
       }),
     }),
 
+    // ✅ Security Config Module (Global - debe estar antes de shared modules)
+    SecurityConfigModule,
+
     // Shared Modules (Global)
     CommonModule,
     DatabaseModule,
@@ -127,38 +137,102 @@ import { bullConfig } from '@config/bull';
   providers: [
     AppService,
 
-    // Global Exception Filter (orden importa: filters primero)
+    // ============================================
+    // GLOBAL EXCEPTION FILTERS (ORDEN CRÍTICO)
+    // ============================================
+    // El orden de ejecución es FIFO (First In, First Out)
+    // Los filters más específicos deben ir primero
+    //
+    // Orden de ejecución:
+    // 1. ValidationExceptionFilter → Captura BadRequestException (errores de validación)
+    //    - Agrupa errores por campo para mejor UX en frontend
+    //    - Retorna formato especial con campo "errors"
+    //
+    // 2. AllExceptionsFilter → Captura TODO lo demás (catchall)
+    //    - HttpException (401, 403, 404, 409, etc.)
+    //    - QueryFailedError (errores de PostgreSQL)
+    //    - Error genérico de JavaScript
+    //    - Maneja 10+ códigos de PostgreSQL
+
+    // 1. Validation Exception Filter (Específico - BadRequestException)
+    {
+      provide: APP_FILTER,
+      useClass: ValidationExceptionFilter,
+    },
+
+    // 2. All Exceptions Filter (Catchall - Todo lo demás)
     {
       provide: APP_FILTER,
       useClass: AllExceptionsFilter,
     },
 
-    // Global Logging Interceptor
+    // ============================================
+    // GLOBAL INTERCEPTORS (ORDEN IMPORTA)
+    // ============================================
+    // El orden de ejecución de interceptors es:
+    // 1. LoggingInterceptor  → Log entrada del request
+    // 2. TenantInterceptor   → Inyecta SchemaContext para multi-tenant
+    // 3. TimeoutInterceptor  → Timeout de 30s
+
+    // 1. Global Logging Interceptor
+    // Registra entrada/salida de requests
     {
       provide: APP_INTERCEPTOR,
       useClass: LoggingInterceptor,
     },
 
-    // Global Timeout Interceptor (30s default, configurable via APP_REQUEST_TIMEOUT)
+    // 2. Global Tenant Interceptor (Multi-Tenant)
+    // Inyecta request.tenant en SchemaContext (AsyncLocalStorage)
+    // Hace que el schema esté disponible en toda la app sin pasar parámetros
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: TenantInterceptor,
+    },
+
+    // 3. Global Timeout Interceptor
+    // Timeout de 30s (configurable via APP_REQUEST_TIMEOUT)
     {
       provide: APP_INTERCEPTOR,
       useClass: TimeoutInterceptor,
     },
 
-    // Global Throttler Guard
+    // ============================================
+    // GLOBAL GUARDS (ORDEN IMPORTA)
+    // ============================================
+    // El orden de ejecución de guards es crítico para el funcionamiento correcto
+    // del sistema de autenticación, multi-tenant y autorización.
+    //
+    // Orden de ejecución:
+    // 1. ThrottlerGuard    → Rate limiting (protección DDoS)
+    // 2. JwtAuthGuard      → Autenticación (valida JWT, establece request.user)
+    // 3. TenantGuard       → Multi-tenant (extrae tenant, establece request.tenant)
+    // 4. RolesGuard        → Autorización (valida roles del usuario)
+
+    // 1. Global Throttler Guard (Rate Limiting)
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
     },
 
-    // Global JWT Auth Guard (autenticación)
+    // 2. Global JWT Auth Guard (Autenticación)
+    // Valida el token JWT y establece request.user
     // Usar @Public() para rutas sin autenticación
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
     },
 
-    // Global Roles Guard (autorización)
+    // 3. Global Tenant Guard (Multi-Tenant)
+    // Extrae información del tenant desde el usuario autenticado
+    // Establece request.tenant con { schema, companyId, userId }
+    // Usar @SkipTenant() para rutas que no requieren tenant
+    {
+      provide: APP_GUARD,
+      useClass: TenantGuard,
+    },
+
+    // 4. Global Roles Guard (Autorización)
+    // Valida que el usuario tenga los roles requeridos
     // Usar @Roles() para restringir por rol
     {
       provide: APP_GUARD,
@@ -172,6 +246,8 @@ export class AppModule implements NestModule {
    * Orden: RequestId -> Logger (Logger necesita requestId)
    */
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(RequestIdMiddleware, LoggerMiddleware).forRoutes('*'); // Aplicar a todas las rutas
+    consumer
+      .apply(RequestIdMiddleware, LoggerMiddleware, DomainValidationMiddleware)
+      .forRoutes('*'); // Aplicar a todas las rutas
   }
 }

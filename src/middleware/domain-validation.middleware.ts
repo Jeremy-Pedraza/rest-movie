@@ -1,50 +1,79 @@
-import { Injectable, NestMiddleware, ForbiddenException } from '@nestjs/common';
-import { Request, Response, NextFunction } from 'express';
-import { ConfigService } from '@nestjs/config';
+// src/middleware/domain-validation.middleware.ts
 
 /**
- * Middleware para validar dominios permitidos
- * Útil para restringir acceso a dominios específicos
+ * @fileoverview Middleware para validar dominios permitidos
+ * @module middleware
+ *
+ * Integrado con SecurityConfigService para:
+ * - Validar dominios desde security-whitelist.json
+ * - Log de intentos no autorizados
+ * - Bloquear requests desde dominios no permitidos
+ *
+ * Características:
+ * - Fuente única: security-whitelist.json (NO usa .env)
+ * - Búsqueda O(1) con Set
+ * - Hot-reload disponible (sin reiniciar servidor)
+ * - Logging automático de rechazos
+ */
+
+import { Injectable, NestMiddleware, ForbiddenException, Logger } from '@nestjs/common';
+import { Request, Response, NextFunction } from 'express';
+import { SecurityConfigService } from '@config/security';
+
+/**
+ * Middleware para validar que el origen del request esté en la whitelist
+ *
+ * Casos de uso:
+ * - Requests desde navegador: Valida header 'Origin'
+ * - Requests desde servidor: Valida header 'Referer'
+ * - Requests directos (Postman, cURL): Se permiten (sin origin)
+ *
+ * Orden de ejecución:
+ * 1. RequestIdMiddleware (genera UUID)
+ * 2. LoggerMiddleware (log de entrada)
+ * 3. DomainValidationMiddleware (valida dominio) ← ESTE
+ *
+ * @example
+ * // En app.module.ts:
+ * configure(consumer: MiddlewareConsumer) {
+ *   consumer
+ *     .apply(RequestIdMiddleware, LoggerMiddleware, DomainValidationMiddleware)
+ *     .forRoutes('*');
+ * }
  */
 @Injectable()
 export class DomainValidationMiddleware implements NestMiddleware {
-  private allowedDomains: string[];
+  private readonly logger = new Logger(DomainValidationMiddleware.name);
 
-  constructor(private readonly configService: ConfigService) {
-    const corsOrigin = this.configService.get<string>('CORS_ORIGIN') || '*';
-    this.allowedDomains = corsOrigin === '*' ? ['*'] : corsOrigin.split(',').map((d) => d.trim());
-  }
+  constructor(private readonly securityConfig: SecurityConfigService) {}
 
   use(req: Request, res: Response, next: NextFunction) {
-    // Si se permite cualquier dominio, continuar
-    if (this.allowedDomains.includes('*')) {
+    // Obtener origin del request
+    const origin = req.headers.origin || req.headers.referer || '';
+
+    // Si no hay origin (Postman, cURL, requests directos), permitir
+    if (!origin) {
       return next();
     }
 
-    const origin = req.headers.origin || req.headers.referer || '';
-
-    // Extraer dominio del origin
-    let domain = '';
-    try {
-      if (origin) {
-        const url = new URL(origin);
-        domain = url.origin;
-      }
-    } catch {
-      domain = '';
-    }
-
-    // Verificar si el dominio está permitido
-    const isAllowed =
-      !origin || // Sin origin (requests directos, Postman, etc.)
-      this.allowedDomains.some((allowed) => {
-        return domain === allowed || domain.endsWith(allowed.replace('https://', '.'));
-      });
+    // Validar con SecurityConfigService (lee de security-whitelist.json)
+    const isAllowed = this.securityConfig.isDomainAllowed(origin);
 
     if (!isAllowed) {
-      throw new ForbiddenException(`Dominio no permitido: ${domain}`);
+      this.logger.warn(`🚫 Request bloqueado desde dominio no permitido: ${origin}`);
+      this.logger.warn(`📍 Path: ${req.method} ${req.path}`);
+      this.logger.warn(`🌐 IP: ${req.ip}`);
+
+      throw new ForbiddenException({
+        success: false,
+        statusCode: 403,
+        message: `Dominio no permitido: ${origin}`,
+        error: 'Forbidden',
+        code: 'SEC_403',
+      });
     }
 
+    // Dominio permitido, continuar
     next();
   }
 }

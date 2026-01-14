@@ -23,7 +23,13 @@ import { ROLES } from '@constants/roles.constant';
 import { IApiResponse } from '@shared/common';
 
 // Local imports
-import { SendEmailDto, SendNotificationDto, SendPushDto, SendSmsDto } from './dto';
+import {
+  NotificationChannel,
+  SendEmailDto,
+  SendNotificationDto,
+  SendPushDto,
+  SendSmsDto,
+} from './dto';
 import { IEmailResponse, IMultiChannelResponse, IPushResponse, ISmsResponse } from './interfaces';
 import { NotificationService } from './notification.service';
 
@@ -265,7 +271,9 @@ export class NotificationController {
   async checkChannel(
     @Query('channel') channel: string,
   ): Promise<IApiResponse<{ channel: string; available: boolean }>> {
-    const available = await this.notificationService.isChannelAvailable(channel as any);
+    const available = await this.notificationService.isChannelAvailable(
+      channel as NotificationChannel,
+    );
 
     return {
       success: true,

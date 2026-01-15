@@ -248,6 +248,6 @@ export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(RequestIdMiddleware, LoggerMiddleware, DomainValidationMiddleware)
-      .forRoutes('*'); // Aplicar a todas las rutas
+      .forRoutes('/*path'); // Aplicar a todas las rutas
   }
 }

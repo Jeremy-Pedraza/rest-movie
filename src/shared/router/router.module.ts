@@ -23,7 +23,7 @@ import { RouterService } from './router.service';
         timeout: configService.get<number>('app.httpTimeout') || 30000,
         maxRedirects: 5,
         headers: {
-          'User-Agent': `MokkaBackend/${configService.get<string>('app.version') || '1.0.0'}`,
+          'User-Agent': `RestBackend/${configService.get<string>('app.version') || '1.0.0'}`,
         },
       }),
     }),

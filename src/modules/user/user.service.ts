@@ -18,7 +18,7 @@ import { CacheService } from '@modules/cache';
 import { HandleErrorService, IPaginatedResponse, SanitizerService } from '@shared/common';
 import { TransactionService } from '@shared/database';
 import { UtilsService } from '@shared/utils';
-import { ChangePasswordDto, CreateUserDto, QueryUserDto, UpdateUserDto } from './dto';
+import { UpdatePasswordDto, CreateUserDto, QueryUserDto, UpdateUserDto } from './dto';
 import { UserEntity, UserStatus } from './entities/user.entity';
 import { IUserProfileResponse, IUserResponse } from './interfaces';
 import { UserRepository } from './user.repository';
@@ -269,7 +269,7 @@ export class UserService {
    * @param id - ID del usuario
    * @param dto - Datos de cambio de contraseña
    */
-  async changePassword(id: string, dto: ChangePasswordDto): Promise<void> {
+  async changePassword(id: string, dto: UpdatePasswordDto): Promise<void> {
     // ✅ FASE 1: Validar UUID
     if (!this.utils.validation.isUUID(id)) {
       this.handleError.badRequest('ID de usuario inválido', 'id');

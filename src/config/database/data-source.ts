@@ -10,7 +10,7 @@ export const dataSourceOptions: DataSourceOptions = {
   port: parseInt(process.env.DB_PORT || '5432', 10),
   username: process.env.DB_USERNAME || 'postgres',
   password: process.env.DB_PASSWORD || 'root',
-  database: process.env.DB_DATABASE || 'mokka_db',
+  database: process.env.DB_DATABASE || 'Rest_db',
   schema: process.env.DB_SCHEMA || 'public',
   synchronize: false,
   logging: process.env.DB_LOGGING === 'true',

@@ -103,8 +103,8 @@ export class TasksService implements OnModuleInit {
   }
 
   onModuleInit(): void {
-    this.logger.log('TasksService initialized');
-    this.logger.log(`Registered jobs: ${Array.from(this.jobInstances.keys()).join(', ')}`);
+    this.logger.log('📑 TasksService initialized');
+    this.logger.log(`⛑ Registered jobs: ${Array.from(this.jobInstances.keys()).join(', ')}`);
 
     // Inicializar historial para cada job
     for (const jobName of Object.values(JOB_NAMES)) {

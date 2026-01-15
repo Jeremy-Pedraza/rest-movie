@@ -9,7 +9,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsString, MinLength, MaxLength, Matches } from 'class-validator';
 import { Match } from '@decorators/match.decorator';
 
-export class ChangePasswordDto {
+export class UpdatePasswordDto {
   @ApiProperty({
     description: 'Contraseña actual',
     example: 'CurrentPass123!',

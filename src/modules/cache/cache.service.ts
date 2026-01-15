@@ -79,7 +79,7 @@ export class CacheService implements OnModuleInit {
   constructor(private readonly redis: RedisService) {}
 
   async onModuleInit() {
-    this.logger.log('CacheService initialized');
+    this.logger.log('✅ CacheService initialized');
     await this.initializeStats();
   }
 

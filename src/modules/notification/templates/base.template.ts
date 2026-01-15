@@ -46,10 +46,10 @@ export abstract class BaseEmailTemplate {
    * Configuración por defecto
    */
   protected static readonly DEFAULT_CONFIG = {
-    appName: 'Mokka Backend',
-    appUrl: 'https://mokka.com',
-    supportEmail: 'support@mokka.com',
-    logoUrl: 'https://mokka.com/logo.png',
+    appName: 'Rest Backend',
+    appUrl: 'https://Rest.com',
+    supportEmail: 'support@Rest.com',
+    logoUrl: 'https://Rest.com/logo.png',
     colors: {
       primary: '#3B82F6', // Blue
       secondary: '#8B5CF6', // Purple

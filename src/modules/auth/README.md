@@ -8,6 +8,7 @@
 ## ✅ Archivos Completados
 
 ### DTOs (6/6)
+
 - ✅ `login.dto.ts` - Login con email/password
 - ✅ `register.dto.ts` - Registro con validaciones completas
 - ✅ `refresh-token.dto.ts` - Refresh token
@@ -17,29 +18,36 @@
 - ✅ `index.ts` - Barrel export
 
 ### Interfaces (2/2)
+
 - ✅ `jwt-payload.interface.ts` - Payload JWT
 - ✅ `auth-response.interface.ts` - 7 interfaces de respuesta
 - ✅ `index.ts` - Barrel export
 
 ### Entities (1/1)
+
 - ✅ `session.entity.ts` - Sesiones con métodos helper
 - ✅ `index.ts` - Barrel export
 
 ### Repository (1/1)
+
 - ✅ `auth.repository.ts` - 20+ métodos con createQueryBuilder
 
 ### Service (1/1)
+
 - ✅ `auth.service.ts` - Lógica completa de autenticación
 
 ### Controller (1/1)
+
 - ✅ `auth.controller.ts` - 12 endpoints con Swagger
 
 ### Strategies (2/2)
+
 - ✅ `jwt.strategy.ts` - Validación JWT
 - ✅ `local.strategy.ts` - Validación local (placeholder)
 - ✅ `index.ts` - Barrel export
 
 ### Module (1/1)
+
 - ✅ `auth.module.ts` - Configuración completa
 
 ---
@@ -47,24 +55,26 @@
 ## 📋 Endpoints Implementados
 
 ### Públicos (sin autenticación)
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| POST | `/auth/login` | Login con email/password |
-| POST | `/auth/register` | Registro de nuevo usuario |
-| POST | `/auth/refresh` | Renovar access token |
-| POST | `/auth/forgot-password` | Solicitar reset de contraseña |
-| POST | `/auth/reset-password` | Resetear contraseña con token |
+
+| Método | Ruta                    | Descripción                   |
+| ------ | ----------------------- | ----------------------------- |
+| POST   | `/auth/login`           | Login con email/password      |
+| POST   | `/auth/register`        | Registro de nuevo usuario     |
+| POST   | `/auth/refresh`         | Renovar access token          |
+| POST   | `/auth/forgot-password` | Solicitar reset de contraseña |
+| POST   | `/auth/reset-password`  | Resetear contraseña con token |
 
 ### Privados (requieren autenticación)
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| POST | `/auth/logout` | Cerrar sesión actual |
-| POST | `/auth/logout/all` | Cerrar todas las sesiones |
-| POST | `/auth/change-password` | Cambiar contraseña |
-| GET | `/auth/sessions` | Listar sesiones activas |
-| DELETE | `/auth/sessions/:id` | Revocar sesión específica |
-| DELETE | `/auth/sessions/other/all` | Revocar otras sesiones |
-| GET | `/auth/me` | Información usuario autenticado |
+
+| Método | Ruta                       | Descripción                     |
+| ------ | -------------------------- | ------------------------------- |
+| POST   | `/auth/logout`             | Cerrar sesión actual            |
+| POST   | `/auth/logout/all`         | Cerrar todas las sesiones       |
+| POST   | `/auth/change-password`    | Cambiar contraseña              |
+| GET    | `/auth/sessions`           | Listar sesiones activas         |
+| DELETE | `/auth/sessions/:id`       | Revocar sesión específica       |
+| DELETE | `/auth/sessions/other/all` | Revocar otras sesiones          |
+| GET    | `/auth/me`                 | Información usuario autenticado |
 
 ---
 
@@ -107,7 +117,9 @@ async invalidatePasswordResetToken(userId: string): Promise<void>
 ```
 
 ### Alternativas
+
 Si no quieres modificar `UserService`, puedes:
+
 1. Implementar estos métodos directamente en `AuthService`
 2. Crear un `AuthUserRepository` separado
 3. Usar los métodos existentes de `UserService` y adaptar el código de `AuthService`
@@ -123,8 +135,8 @@ Si no quieres modificar `UserService`, puedes:
 JWT_SECRET=your-super-secret-key-change-in-production
 JWT_EXPIRES_IN=900                    # 15 minutos (en segundos)
 JWT_REFRESH_EXPIRES_IN=604800         # 7 días (en segundos)
-JWT_ISSUER=mokka-backend
-JWT_AUDIENCE=mokka-app
+JWT_ISSUER=Rest-backend
+JWT_AUDIENCE=Rest-app
 
 # JWT Reset Token (para forgot password)
 JWT_RESET_SECRET=your-reset-secret-key
@@ -165,6 +177,7 @@ La entidad `SessionEntity` ya está lista y se registrará automáticamente.
 ### Tabla sessions
 
 Estructura:
+
 - `id` (uuid, PK)
 - `userId` (uuid, FK a users)
 - `refreshToken` (text, unique)
@@ -183,6 +196,7 @@ Estructura:
 - `revokedReason` (varchar 255, nullable)
 
 Índices:
+
 - `(userId, deletedAt)`
 - `(refreshToken, deletedAt)`
 - `(expiresAt, deletedAt)`
@@ -192,6 +206,7 @@ Estructura:
 ## 🔐 Características de Seguridad
 
 ### Implementadas
+
 - ✅ Refresh token rotation (previene token reuse)
 - ✅ Refresh token family (detecta token theft)
 - ✅ Tracking de sesiones (IP, user agent, device)
@@ -206,6 +221,7 @@ Estructura:
 - ✅ Bloqueo temporal por intentos fallidos
 
 ### Pendientes (opcional)
+
 - ⏳ Email verification
 - ⏳ Two-factor authentication (2FA)
 - ⏳ Device fingerprinting
@@ -218,6 +234,7 @@ Estructura:
 ## 📊 Flujo de Autenticación
 
 ### Login
+
 ```
 1. POST /auth/login { email, password }
 2. AuthService.login()
@@ -233,6 +250,7 @@ Estructura:
 ```
 
 ### Refresh Token
+
 ```
 1. POST /auth/refresh { refreshToken }
 2. AuthService.refreshToken()
@@ -246,6 +264,7 @@ Estructura:
 ```
 
 ### Logout
+
 ```
 1. POST /auth/logout { refreshToken }
 2. AuthService.logout()
@@ -258,14 +277,17 @@ Estructura:
 ## 🧪 Testing Pendiente
 
 ### Unit Tests
+
 - [ ] `auth.service.spec.ts`
 - [ ] `auth.repository.spec.ts`
 - [ ] `auth.controller.spec.ts`
 
 ### Integration Tests
+
 - [ ] `auth.integration.spec.ts`
 
 ### E2E Tests
+
 - [ ] `auth.e2e-spec.ts`
 
 ---
@@ -310,7 +332,7 @@ export class SomeService {
   async someMethod() {
     // Obtener sesiones activas de un usuario
     const sessions = await this.authService.getActiveSessions(userId);
-    
+
     // Revocar todas las sesiones
     await this.authService.logoutAll(userId);
   }

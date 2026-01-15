@@ -13,7 +13,7 @@ export type LogDbLevel = 'all' | 'warnings' | 'errors' | 'none';
 
 export default registerAs('app', () => ({
   nodeEnv: process.env.NODE_ENV || 'development',
-  name: process.env.APP_NAME || 'mokka-backend',
+  name: process.env.APP_NAME || 'Rest-backend',
   port: parseInt(process.env.APP_PORT || '3000', 10),
   host: process.env.APP_HOST || 'localhost',
   url: process.env.APP_URL || 'http://localhost:3000',

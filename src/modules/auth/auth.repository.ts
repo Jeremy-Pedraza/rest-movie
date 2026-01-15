@@ -292,10 +292,11 @@ export class AuthRepository extends BaseRepository<SessionEntity> {
    */
   async deleteExpiredSessions(): Promise<number> {
     const result = await this.repository
-      .createQueryBuilder('session')
+      .createQueryBuilder() // ✅ SIN alias
       .delete()
-      .where('session.expiresAt < :now', { now: new Date() })
-      .orWhere('session.deletedAt IS NOT NULL')
+      .from(SessionEntity) // ✅ Especificar entidad explícitamente
+      .where('expiresAt < :now', { now: new Date() }) // ✅ SIN alias
+      .orWhere('deletedAt IS NOT NULL') // ✅ SIN alias
       .execute();
 
     return result.affected ?? 0;

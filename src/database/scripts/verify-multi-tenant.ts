@@ -119,20 +119,26 @@ async function verifyMultiTenant() {
 
     // 4. Verificar usuarios con/sin company
     console.log('\n4️⃣  Verificando usuarios...');
-    const usersWithCompany = await dataSource.query(`
-      SELECT COUNT(*) as count 
-      FROM public.users 
-      WHERE "companyId" IS NOT NULL;
-    `);
 
-    const usersWithoutCompany = await dataSource.query(`
-      SELECT COUNT(*) as count 
-      FROM public.users 
-      WHERE "companyId" IS NULL;
-    `);
+    // Solo verificar si la columna existe
+    if (companyIdColumn[0].exists) {
+      const usersWithCompany = await dataSource.query(`
+    SELECT COUNT(*) as count 
+    FROM public.users 
+    WHERE "companyId" IS NOT NULL;
+  `);
 
-    console.log(`   👥 Usuarios con company: ${usersWithCompany[0].count}`);
-    console.log(`   👤 Usuarios sin company: ${usersWithoutCompany[0].count}`);
+      const usersWithoutCompany = await dataSource.query(`
+    SELECT COUNT(*) as count 
+    FROM public.users 
+    WHERE "companyId" IS NULL;
+  `);
+
+      console.log(`   👥 Usuarios con company: ${usersWithCompany[0].count}`);
+      console.log(`   👤 Usuarios sin company: ${usersWithoutCompany[0].count}`);
+    } else {
+      console.log('   ⚠️  No se puede verificar usuarios (columna companyId no existe aún)');
+    }
 
     // Resumen
     console.log('\n╔══════════════════════════════════════════════════════╗');

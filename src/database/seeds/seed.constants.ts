@@ -346,16 +346,16 @@ export interface UserDefinition {
 
 export const USER_DEFINITIONS: UserDefinition[] = [
   {
-    email: 'admin@mokka.app',
+    email: 'admin@Rest.app',
     password: 'Admin123!', // Se hasheará en el seed
     firstName: 'Admin',
-    lastName: 'Mokka',
+    lastName: 'Rest',
     roles: ['super_admin'],
     emailVerified: true,
     status: 'active',
   },
   {
-    email: 'system@mokka.app',
+    email: 'system@Rest.app',
     password: 'System123!',
     firstName: 'System',
     lastName: 'User',
@@ -364,7 +364,7 @@ export const USER_DEFINITIONS: UserDefinition[] = [
     status: 'active',
   },
   {
-    email: 'manager@mokka.app',
+    email: 'manager@Rest.app',
     password: 'Manager123!',
     firstName: 'Manager',
     lastName: 'User',
@@ -373,7 +373,7 @@ export const USER_DEFINITIONS: UserDefinition[] = [
     status: 'active',
   },
   {
-    email: 'user@mokka.app',
+    email: 'user@Rest.app',
     password: 'User123!',
     firstName: 'Test',
     lastName: 'User',

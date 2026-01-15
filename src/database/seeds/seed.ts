@@ -28,7 +28,7 @@ async function seed() {
   const startTime = Date.now();
 
   console.log('╔══════════════════════════════════════════════════════╗');
-  console.log('║           🌱 MOKKA BACKEND - DATABASE SEED           ║');
+  console.log('║           🌱 Rest BACKEND - DATABASE SEED           ║');
   console.log('╚══════════════════════════════════════════════════════╝');
   console.log(`\n📅 ${new Date().toISOString()}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
@@ -44,13 +44,13 @@ async function seed() {
     // Ejecutar seeds en orden
     // 1. Permissions (independientes)
     await seedPermissions(dataSource);
-    
+
     // 2. Roles (dependen de permissions)
     await seedRoles(dataSource);
-    
+
     // 3. Companies (independientes)
     await seedCompanies(dataSource);
-    
+
     // 4. Users (dependen de roles y companies)
     await seedUsers(dataSource);
 

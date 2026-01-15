@@ -25,7 +25,7 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 
 import { UserService } from './user.service';
-import { CreateUserDto, UpdateUserDto, QueryUserDto, ChangePasswordDto } from './dto';
+import { CreateUserDto, UpdateUserDto, QueryUserDto, UpdatePasswordDto } from './dto';
 import { IUserResponse, IUserProfileResponse } from './interfaces';
 import { IPaginatedResponse, IApiResponse } from '@shared/common';
 import { Roles } from '@decorators/roles.decorator';
@@ -292,7 +292,7 @@ export class UserController {
   @ApiResponse({ status: 400, description: 'Contraseña incorrecta' })
   async changeMyPassword(
     @CurrentUser('id') userId: string,
-    @Body() dto: ChangePasswordDto,
+    @Body() dto: UpdatePasswordDto,
   ): Promise<IApiResponse<null>> {
     await this.userService.changePassword(userId, dto);
     return {

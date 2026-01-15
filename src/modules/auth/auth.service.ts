@@ -199,15 +199,15 @@ export class AuthService {
     const activationUrl = `${this.configService.get<string>('APP_URL')}/auth/verify-email?token=${tokens.accessToken}`;
     await this.emailProducer.queueEmail({
       to: user.email,
-      subject: '¡Bienvenido a Mokka App! 🎉',
+      subject: '¡Bienvenido a Rest App! 🎉',
       content: `
         <h1>¡Bienvenido ${user.firstName}!</h1>
-        <p>Gracias por registrarte en Mokka App.</p>
+        <p>Gracias por registrarte en Rest App.</p>
         <p>Tu cuenta ha sido creada exitosamente.</p>
         <p>Para comenzar, verifica tu email haciendo clic en el siguiente enlace:</p>
         <p><a href="${activationUrl}">Verificar mi email</a></p>
         <p>Si no te registraste en nuestra plataforma, ignora este correo.</p>
-        <p>Saludos,<br/>El equipo de Mokka App</p>
+        <p>Saludos,<br/>El equipo de Rest App</p>
       `,
       templateData: {
         userName: user.firstName,
@@ -386,7 +386,7 @@ export class AuthService {
       const resetUrl = `${this.configService.get<string>('APP_URL')}/auth/reset-password?token=${resetToken}`;
       await this.emailProducer.queueEmailUrgent({
         to: user.email,
-        subject: 'Restablecer contraseña - Mokka App',
+        subject: 'Restablecer contraseña - Rest App',
         content: `
           <h1>Restablecer contraseña</h1>
           <p>Hola ${user.firstName},</p>
@@ -395,7 +395,7 @@ export class AuthService {
           <p><a href="${resetUrl}">Restablecer contraseña</a></p>
           <p>Este enlace es válido por 1 hora.</p>
           <p>Si no solicitaste este cambio, ignora este correo.</p>
-          <p>Saludos,<br/>El equipo de Mokka App</p>
+          <p>Saludos,<br/>El equipo de Rest App</p>
         `,
         templateData: {
           userName: user.firstName,

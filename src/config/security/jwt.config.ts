@@ -44,8 +44,8 @@ export default registerAs('jwt', () => ({
   secret: process.env.JWT_SECRET || 'default_jwt_secret_change_in_production',
   expiresIn: parseTimeToSeconds(process.env.JWT_EXPIRES_IN || '15m'), // Número en segundos
   expiresInString: process.env.JWT_EXPIRES_IN || '15m', // String para JwtModule
-  issuer: process.env.JWT_ISSUER || 'mokka-api',
-  audience: process.env.JWT_AUDIENCE || 'mokka-client',
+  issuer: process.env.JWT_ISSUER || 'Rest-api',
+  audience: process.env.JWT_AUDIENCE || 'Rest-client',
 
   // ============================================
   // REFRESH TOKEN (Renovación de sesión)

@@ -79,6 +79,7 @@ import { JwtStrategy, LocalStrategy } from './strategies';
     PassportModule,
     JwtModule,
     AuthService, // Exportar para usar en otros módulos si es necesario
+    AuthRepository,
   ],
 })
 export class AuthModule {}

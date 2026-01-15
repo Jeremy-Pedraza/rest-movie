@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe, Logger, VersioningType } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { WinstonModule } from 'nest-winston';
 import compression from 'compression';
@@ -24,16 +24,13 @@ async function bootstrap() {
   // Get config values
   const port = configService.get<number>('app.port') || 3000;
   const host = configService.get<string>('app.host') || 'localhost';
+  // API Versioning
   const apiPrefix = configService.get<string>('app.apiPrefix') || 'api/v1';
   const nodeEnv = configService.get<string>('app.nodeEnv') || 'development';
 
   // Global prefix
-  app.setGlobalPrefix(apiPrefix);
-
-  // API Versioning
-  app.enableVersioning({
-    type: VersioningType.URI,
-    defaultVersion: '1',
+  app.setGlobalPrefix(apiPrefix, {
+    exclude: ['/docs', '/docs-json', '/health', '/health/ready'],
   });
 
   // Security
@@ -42,10 +39,6 @@ async function bootstrap() {
   // ✅ CORS con SecurityConfigService (sistema de whitelist multi-tenant)
   const corsOptions = getCorsOptionsWithSecurity(securityConfig, configService);
   app.enableCors(corsOptions);
-
-  logger.log(
-    `✅ CORS configurado con ${securityConfig.getAllowedDomains().length} dominios permitidos`,
-  );
 
   // Compression
   app.use(compression());
@@ -74,13 +67,16 @@ async function bootstrap() {
     setupSwagger(app);
     logger.log(`📚 Swagger documentation available at: http://${host}:${port}/docs`);
   }
-
   // Graceful shutdown
   app.enableShutdownHooks();
-
   // Start server
   await app.listen(port, host);
+  // Dominios permitidos 📕
+  logger.log(
+    `✅ CORS configurado con ${securityConfig.getAllowedDomains().length} dominios permitidos`,
+  );
 
+  // App running log
   logger.log(`🚀 Application is running on: http://${host}:${port}/${apiPrefix}`);
   logger.log(`🌍 Environment: ${nodeEnv}`);
   logger.log(`🔒 Security: ${securityConfig.getAllowedSchemas().length} schemas permitidos`);

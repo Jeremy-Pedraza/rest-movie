@@ -11,7 +11,7 @@ import { IsEmail, IsString, IsNotEmpty, MinLength } from 'class-validator';
 export class LoginDto {
   @ApiProperty({
     description: 'Email del usuario',
-    example: 'admin@mokka.com',
+    example: 'admin@Rest.com',
     format: 'email',
   })
   @IsEmail({}, { message: 'El email debe ser válido' })

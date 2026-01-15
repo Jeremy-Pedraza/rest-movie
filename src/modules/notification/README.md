@@ -1,4 +1,4 @@
-# 📧 Módulo Notification - Mokka Backend
+# 📧 Módulo Notification - Rest Backend
 
 > Sistema de notificaciones multi-canal (Email, SMS, Push)
 > **Estado:** 🔄 FASE 1 Completada - En desarrollo
@@ -42,14 +42,15 @@ Sistema completo de notificaciones que soporta múltiples canales de comunicaci�
 
 ### ✅ FASE 1: Estructura Base + Configuración (COMPLETADA)
 
-| Componente | Estado | Archivos |
-|------------|--------|----------|
-| **DTOs** | ✅ | 5 archivos |
-| **Interfaces** | ✅ | 4 archivos |
-| **Módulo Base** | ✅ | 1 archivo |
-| **Configuración** | ✅ | .env.example actualizado |
+| Componente        | Estado | Archivos                 |
+| ----------------- | ------ | ------------------------ |
+| **DTOs**          | ✅     | 5 archivos               |
+| **Interfaces**    | ✅     | 4 archivos               |
+| **Módulo Base**   | ✅     | 1 archivo                |
+| **Configuración** | ✅     | .env.example actualizado |
 
 **Archivos creados (10):**
+
 ```
 src/modules/notification/
 ├── dto/
@@ -69,13 +70,13 @@ src/modules/notification/
 
 ### ⏳ FASES PENDIENTES
 
-| Fase | Estado | Progreso |
-|------|--------|----------|
-| FASE 2: Canales de Notificación | ⏳ Pendiente | 0% |
-| FASE 3: Templates | ⏳ Pendiente | 0% |
-| FASE 4: Service + Controller | ⏳ Pendiente | 0% |
-| FASE 5: Integración con Queue | ⏳ Pendiente | 0% |
-| FASE 6: Testing | ⏳ Pendiente | 0% |
+| Fase                            | Estado       | Progreso |
+| ------------------------------- | ------------ | -------- |
+| FASE 2: Canales de Notificación | ⏳ Pendiente | 0%       |
+| FASE 3: Templates               | ⏳ Pendiente | 0%       |
+| FASE 4: Service + Controller    | ⏳ Pendiente | 0%       |
+| FASE 5: Integración con Queue   | ⏳ Pendiente | 0%       |
+| FASE 6: Testing                 | ⏳ Pendiente | 0%       |
 
 ---
 
@@ -138,6 +139,7 @@ interface INotificationChannel {
 **Estado:** ⏳ Pendiente (FASE 2)
 
 **Características:**
+
 - SMTP configurable
 - Templates HTML/texto plano
 - Archivos adjuntos
@@ -155,6 +157,7 @@ interface INotificationChannel {
 **Estado:** ⏳ Pendiente (FASE 2)
 
 **Características:**
+
 - SMS transaccionales
 - SMS promocionales
 - SMS de alertas
@@ -172,6 +175,7 @@ interface INotificationChannel {
 **Estado:** ⏳ Pendiente (FASE 2)
 
 **Características:**
+
 - Android + iOS + Web
 - Notificaciones con imagen
 - Deep linking
@@ -208,6 +212,7 @@ Envío por uno o varios canales simultáneamente.
 ```
 
 **Validaciones:**
+
 - `channels`: Array de enums (email, sms, push)
 - `recipients`: Array de objetos con al menos 1 elemento
 - `subject`: 3-200 caracteres
@@ -237,6 +242,7 @@ Envío específico de emails.
 ```
 
 **Validaciones:**
+
 - `to`: Array de emails válidos (min 1)
 - `cc/bcc`: Arrays de emails válidos (opcional)
 - `subject`: 3-200 caracteres
@@ -260,6 +266,7 @@ Envío específico de SMS.
 ```
 
 **Validaciones:**
+
 - `to`: Array de teléfonos formato E.164 (min 1)
 - `message`: 1-1600 caracteres
 - `type`: Enum (transactional, promotional, alert)
@@ -288,6 +295,7 @@ Envío específico de Push Notifications.
 ```
 
 **Validaciones:**
+
 - `tokens`: Array de strings (min 1)
 - `title`: 1-100 caracteres
 - `body`: 1-500 caracteres
@@ -304,6 +312,7 @@ Envío específico de Push Notifications.
 Todas las variables están documentadas en `.env.example`:
 
 #### Email (Nodemailer)
+
 ```env
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
@@ -311,11 +320,12 @@ SMTP_SECURE=false
 SMTP_USER=noreply@example.com
 SMTP_PASSWORD=your_smtp_password_here
 SMTP_FROM=noreply@example.com
-SMTP_FROM_NAME=Mokka Backend
+SMTP_FROM_NAME=Rest Backend
 EMAIL_RATE_LIMIT=100
 ```
 
 #### SMS (Twilio)
+
 ```env
 TWILIO_ACCOUNT_SID=
 TWILIO_AUTH_TOKEN=
@@ -324,6 +334,7 @@ SMS_RATE_LIMIT=10
 ```
 
 #### Push (Firebase)
+
 ```env
 FIREBASE_PROJECT_ID=
 FIREBASE_PRIVATE_KEY=
@@ -333,6 +344,7 @@ PUSH_RATE_LIMIT=500
 ```
 
 #### General
+
 ```env
 NOTIFICATION_EMAIL_ENABLED=true
 NOTIFICATION_SMS_ENABLED=false
@@ -350,6 +362,7 @@ NOTIFICATION_RETRY_DELAY=1000
 **Duración estimada:** 30 minutos
 
 **Archivos a crear:**
+
 ```
 src/modules/notification/
 ├── channels/
@@ -361,6 +374,7 @@ src/modules/notification/
 ```
 
 **Tareas:**
+
 - [ ] Crear clase abstracta `NotificationChannel`
 - [ ] Implementar `EmailChannel` con Nodemailer
 - [ ] Implementar `SmsChannel` con Twilio (stub para testing)
@@ -375,6 +389,7 @@ src/modules/notification/
 **Duración estimada:** 20 minutos
 
 **Archivos a crear:**
+
 ```
 src/modules/notification/
 ├── templates/
@@ -393,6 +408,7 @@ src/modules/notification/
 **Duración estimada:** 40 minutos
 
 **Archivos a crear:**
+
 ```
 src/modules/notification/
 ├── notification.service.ts
@@ -400,6 +416,7 @@ src/modules/notification/
 ```
 
 **Endpoints:**
+
 - `POST /notifications/email`
 - `POST /notifications/sms`
 - `POST /notifications/push`
@@ -413,6 +430,7 @@ src/modules/notification/
 **Duración estimada:** 30 minutos
 
 **Archivos a crear:**
+
 ```
 src/modules/notification/
 ├── processors/
@@ -430,6 +448,7 @@ src/modules/notification/
 **Duración estimada:** 30 minutos
 
 **Archivos a crear:**
+
 ```
 src/modules/notification/
 └── tests/

@@ -33,14 +33,14 @@ NestJS Backend API - Production Ready with Multi-Tenant Architecture
 
 ## 📊 Estado del Proyecto
 
-| Fase | Descripción | Estado | Progreso |
-|------|-------------|--------|----------|
-| 1 | Configuración Base | ✅ Completo | 100% |
-| 2 | Shared Modules | ✅ Completo | 100% |
-| 3 | Feature Modules | ✅ Completo | 100% |
-| 4 | Database & Seeds | ✅ Completo | 100% |
-| 5 | **Multi-Tenant System** | ✅ **Completo** | **100%** |
-| 6 | Testing | ⏳ En Progreso | 25% |
+| Fase | Descripción             | Estado          | Progreso |
+| ---- | ----------------------- | --------------- | -------- |
+| 1    | Configuración Base      | ✅ Completo     | 100%     |
+| 2    | Shared Modules          | ✅ Completo     | 100%     |
+| 3    | Feature Modules         | ✅ Completo     | 100%     |
+| 4    | Database & Seeds        | ✅ Completo     | 100%     |
+| 5    | **Multi-Tenant System** | ✅ **Completo** | **100%** |
+| 6    | Testing                 | ⏳ En Progreso  | 25%      |
 
 > **Última actualización:** Enero 2025  
 > **Estado:** Sistema Multi-Tenant Schema-per-Tenant Operativo
@@ -55,13 +55,13 @@ El backend implementa **schema-per-tenant** de PostgreSQL para **aislamiento fí
 
 ### Ventajas
 
-| Ventaja | Descripción |
-|---------|-------------|
-| **Aislamiento físico** | Cada tenant tiene su propio schema PostgreSQL |
-| **Seguridad máxima** | Imposible acceder a datos de otro tenant (a nivel PostgreSQL) |
-| **Performance** | Índices optimizados por tenant |
-| **Queries simples** | Sin necesidad de WHERE companyId en cada query |
-| **Backups independientes** | Backup/restore por tenant |
+| Ventaja                    | Descripción                                                   |
+| -------------------------- | ------------------------------------------------------------- |
+| **Aislamiento físico**     | Cada tenant tiene su propio schema PostgreSQL                 |
+| **Seguridad máxima**       | Imposible acceder a datos de otro tenant (a nivel PostgreSQL) |
+| **Performance**            | Índices optimizados por tenant                                |
+| **Queries simples**        | Sin necesidad de WHERE companyId en cada query                |
+| **Backups independientes** | Backup/restore por tenant                                     |
 
 ### Arquitectura
 
@@ -96,7 +96,7 @@ Request con JWT
 
 ```typescript
 // ✅ CORRECTO
-@Entity({ name: 'products' })  // Sin schema property
+@Entity({ name: 'products' }) // Sin schema property
 export class ProductEntity extends BaseEntity {
   @Column() name: string;
   @Column() price: number;
@@ -149,68 +149,68 @@ export class ProductsService {
 
 ### ⚡ Obligatorios Antes de Codificar
 
-| # | Documento | Descripción |
-|---|-----------|-------------|
-| 1 | [MASTER.md](docs/MASTER.md) | **⚡ Arquitectura y reglas fundamentales** |
-| 2 | [QUICK-REFERENCE.md](docs/QUICK-REFERENCE.md) | Referencia rápida de patrones |
-| 3 | [CODE-PATTERNS.md](docs/CODE-PATTERNS.md) | Templates completos para copiar |
+| #   | Documento                                     | Descripción                                |
+| --- | --------------------------------------------- | ------------------------------------------ |
+| 1   | [MASTER.md](docs/MASTER.md)                   | **⚡ Arquitectura y reglas fundamentales** |
+| 2   | [QUICK-REFERENCE.md](docs/QUICK-REFERENCE.md) | Referencia rápida de patrones              |
+| 3   | [CODE-PATTERNS.md](docs/CODE-PATTERNS.md)     | Templates completos para copiar            |
 
 ### 📖 Referencia por Módulo
 
-| Documento | Cuándo Consultar |
-|-----------|------------------|
-| [API-STANDARDS.md](docs/API-STANDARDS.md) | Formato de responses y errores |
-| [DATABASE-PATTERNS.md](docs/DATABASE-PATTERNS.md) | Queries TypeORM y transacciones |
-| [SECURITY-GUIDE.md](docs/SECURITY-GUIDE.md) | JWT, guards, autenticación |
-| [MULTI-TENANT.md](docs/MULTI-TENANT.md) | **Sistema multi-tenant completo** |
-| [QUEUE-MODULE.md](docs/QUEUE-MODULE.md) | Sistema de colas asíncronas |
-| [NOTIFICATION-MODULE.md](docs/NOTIFICATION-MODULE.md) | Notificaciones multi-canal |
-| [INTEGRATION-STATUS.md](docs/INTEGRATION-STATUS.md) | Componentes activos |
-| [PROGRESS.md](docs/PROGRESS.md) | Historial de desarrollo |
+| Documento                                             | Cuándo Consultar                  |
+| ----------------------------------------------------- | --------------------------------- |
+| [API-STANDARDS.md](docs/API-STANDARDS.md)             | Formato de responses y errores    |
+| [DATABASE-PATTERNS.md](docs/DATABASE-PATTERNS.md)     | Queries TypeORM y transacciones   |
+| [SECURITY-GUIDE.md](docs/SECURITY-GUIDE.md)           | JWT, guards, autenticación        |
+| [MULTI-TENANT.md](docs/MULTI-TENANT.md)               | **Sistema multi-tenant completo** |
+| [QUEUE-MODULE.md](docs/QUEUE-MODULE.md)               | Sistema de colas asíncronas       |
+| [NOTIFICATION-MODULE.md](docs/NOTIFICATION-MODULE.md) | Notificaciones multi-canal        |
+| [INTEGRATION-STATUS.md](docs/INTEGRATION-STATUS.md)   | Componentes activos               |
+| [PROGRESS.md](docs/PROGRESS.md)                       | Historial de desarrollo           |
 
 ### 🔧 Ejemplos Funcionales
 
-| Archivo | Contenido |
-|---------|-----------|
-| [complete-crud.example.ts](docs/EXAMPLES/complete-crud.example.ts) | CRUD completo |
-| [complete-auth.example.ts](docs/EXAMPLES/complete-auth.example.ts) | Autenticación JWT |
+| Archivo                                                                        | Contenido               |
+| ------------------------------------------------------------------------------ | ----------------------- |
+| [complete-crud.example.ts](docs/EXAMPLES/complete-crud.example.ts)             | CRUD completo           |
+| [complete-auth.example.ts](docs/EXAMPLES/complete-auth.example.ts)             | Autenticación JWT       |
 | [products.repository.example.ts](docs/EXAMPLES/products.repository.example.ts) | Repository multi-tenant |
-| [products.service.example.ts](docs/EXAMPLES/products.service.example.ts) | Service multi-tenant |
+| [products.service.example.ts](docs/EXAMPLES/products.service.example.ts)       | Service multi-tenant    |
 
 ---
 
 ## 📦 Módulos Implementados
 
-| Módulo | Estado | Descripción |
-|--------|--------|-------------|
-| **AuthModule** | ✅ 100% | Autenticación JWT + Sesiones + Reset Password |
-| **UserModule** | ✅ 100% | CRUD usuarios + Roles + Permisos |
-| **CompanyModule** | ✅ 100% | Gestión de tenants (multi-tenant) |
-| **QueueModule** | ✅ 100% | Colas asíncronas (Bull) para emails/reportes |
-| **NotificationModule** | ✅ 93% | Notificaciones multi-canal (Email/SMS/Push) |
-| **TasksModule** | ✅ 100% | Tareas programadas (Cron) - 5 jobs |
-| **CacheModule** | ✅ 100% | Cache con tags e invalidación |
-| **LoggerModule** | ✅ 100% | Logging a BD con buffer |
-| **HealthModule** | ✅ 100% | Health checks para Kubernetes |
+| Módulo                 | Estado  | Descripción                                   |
+| ---------------------- | ------- | --------------------------------------------- |
+| **AuthModule**         | ✅ 100% | Autenticación JWT + Sesiones + Reset Password |
+| **UserModule**         | ✅ 100% | CRUD usuarios + Roles + Permisos              |
+| **CompanyModule**      | ✅ 100% | Gestión de tenants (multi-tenant)             |
+| **QueueModule**        | ✅ 100% | Colas asíncronas (Bull) para emails/reportes  |
+| **NotificationModule** | ✅ 93%  | Notificaciones multi-canal (Email/SMS/Push)   |
+| **TasksModule**        | ✅ 100% | Tareas programadas (Cron) - 5 jobs            |
+| **CacheModule**        | ✅ 100% | Cache con tags e invalidación                 |
+| **LoggerModule**       | ✅ 100% | Logging a BD con buffer                       |
+| **HealthModule**       | ✅ 100% | Health checks para Kubernetes                 |
 
 ---
 
 ## 📋 Stack Tecnológico
 
-| Categoría | Tecnología | Versión |
-|-----------|------------|---------|
-| Framework | NestJS | 11.x |
-| Lenguaje | TypeScript | 5.x |
-| Base de Datos | PostgreSQL | 15+ |
-| ORM | TypeORM | 0.3.x |
-| Cache/Queue | Redis + ioredis | 7+ / 5.x |
-| Queue System | Bull | 4.x |
-| Cron Jobs | @nestjs/schedule | 6.x |
-| Auth | JWT + Passport | 11.x / 0.7.x |
-| Validación | class-validator | 0.14.x |
-| Documentación | Swagger | 11.x |
-| Logging | Winston | 3.x |
-| Testing | Jest + Supertest | 29.x |
+| Categoría     | Tecnología       | Versión      |
+| ------------- | ---------------- | ------------ |
+| Framework     | NestJS           | 11.x         |
+| Lenguaje      | TypeScript       | 5.x          |
+| Base de Datos | PostgreSQL       | 15+          |
+| ORM           | TypeORM          | 0.3.x        |
+| Cache/Queue   | Redis + ioredis  | 7+ / 5.x     |
+| Queue System  | Bull             | 4.x          |
+| Cron Jobs     | @nestjs/schedule | 6.x          |
+| Auth          | JWT + Passport   | 11.x / 0.7.x |
+| Validación    | class-validator  | 0.14.x       |
+| Documentación | Swagger          | 11.x         |
+| Logging       | Winston          | 3.x          |
+| Testing       | Jest + Supertest | 29.x         |
 
 ---
 
@@ -237,6 +237,7 @@ yarn start:dev
 ```
 
 **URLs:**
+
 - API: http://localhost:3000
 - Swagger: http://localhost:3000/docs
 - Health: http://localhost:3000/api/v1/health
@@ -253,48 +254,48 @@ yarn seed
 
 ### Datos Sembrados
 
-| Tipo | Cantidad | Descripción |
-|------|----------|-------------|
-| **Permisos** | 30 | users, roles, logs, tasks, cache, queue, notifications, etc. |
-| **Roles** | 6 | super_admin, admin, system, manager, user, guest |
-| **Usuarios** | 4 | admin, system, manager, user (todos con password) |
-| **Companies** | 4 | Sistema público + 3 tenants demo |
+| Tipo          | Cantidad | Descripción                                                  |
+| ------------- | -------- | ------------------------------------------------------------ |
+| **Permisos**  | 30       | users, roles, logs, tasks, cache, queue, notifications, etc. |
+| **Roles**     | 6        | super_admin, admin, system, manager, user, guest             |
+| **Usuarios**  | 4        | admin, system, manager, user (todos con password)            |
+| **Companies** | 4        | Sistema público + 3 tenants demo                             |
 
 ### Usuarios de Prueba
 
-| Email | Password | Rol | Company |
-|-------|----------|-----|---------|
-| admin@mokka.app | Admin123! | super_admin | Sistema (public) |
-| system@mokka.app | System123! | system | Sistema (public) |
-| manager@mokka.app | Manager123! | manager | Sistema (public) |
-| user@mokka.app | User123! | user | Sistema (public) |
+| Email            | Password    | Rol         | Company          |
+| ---------------- | ----------- | ----------- | ---------------- |
+| admin@rest.app   | Admin123!   | super_admin | Sistema (public) |
+| system@rest.app  | System123!  | system      | Sistema (public) |
+| manager@rest.app | Manager123! | manager     | Sistema (public) |
+| user@rest.app    | User123!    | user        | Sistema (public) |
 
 ### Companies Multi-Tenant
 
-| Company | Schema | Subdomain | Estado |
-|---------|--------|-----------|--------|
-| Sistema - Public Schema | `public` | `public` | Activa |
-| Restaurante Valle Demo | `restaurant_valle_schema` | `restaurant-demo` | Activa |
-| Cafetería Bogotá Demo | `cafe_bogota_schema` | `cafe-demo` | Activa |
-| Tienda Cali Demo | `tienda_cali_schema` | `tienda-demo` | Inactiva |
+| Company                 | Schema                    | Subdomain         | Estado   |
+| ----------------------- | ------------------------- | ----------------- | -------- |
+| Sistema - Public Schema | `public`                  | `public`          | Activa   |
+| Restaurante Valle Demo  | `restaurant_valle_schema` | `restaurant-demo` | Activa   |
+| Cafetería Bogotá Demo   | `cafe_bogota_schema`      | `cafe-demo`       | Activa   |
+| Tienda Cali Demo        | `tienda_cali_schema`      | `tienda-demo`     | Inactiva |
 
 ---
 
 ## 🔧 Scripts Principales
 
-| Script | Descripción |
-|--------|-------------|
-| `yarn start:dev` | Desarrollo con hot-reload |
-| `yarn build` | Compilar para producción |
-| `yarn start:prod` | Iniciar producción |
-| `yarn test` | Unit tests |
-| `yarn test:e2e` | E2E tests |
-| `yarn test:cov` | Coverage |
-| `yarn lint` | ESLint |
-| `yarn format` | Prettier |
-| `yarn migration:run` | Ejecutar migraciones |
-| `yarn migration:generate` | Generar migración |
-| `yarn seed` | Ejecutar seeds |
+| Script                    | Descripción               |
+| ------------------------- | ------------------------- |
+| `yarn start:dev`          | Desarrollo con hot-reload |
+| `yarn build`              | Compilar para producción  |
+| `yarn start:prod`         | Iniciar producción        |
+| `yarn test`               | Unit tests                |
+| `yarn test:e2e`           | E2E tests                 |
+| `yarn test:cov`           | Coverage                  |
+| `yarn lint`               | ESLint                    |
+| `yarn format`             | Prettier                  |
+| `yarn migration:run`      | Ejecutar migraciones      |
+| `yarn migration:generate` | Generar migración         |
+| `yarn seed`               | Ejecutar seeds            |
 
 ---
 
@@ -334,30 +335,30 @@ HTTP Request
 
 ## ⚙️ Componentes Globales Activos
 
-| Componente | Tipo | Bypass |
-|------------|------|--------|
-| `RequestIdMiddleware` | Middleware | - |
-| `LoggerMiddleware` | Middleware | - |
-| `ThrottlerGuard` | Guard Global | - |
-| `JwtAuthGuard` | Guard Global | `@Public()` |
-| `TenantGuard` | Guard Global | `@SkipTenant()` |
-| `RolesGuard` | Guard Global | Sin `@Roles()` |
-| `LoggingInterceptor` | Interceptor Global | `LOG_IGNORE_PATHS` |
-| `TenantInterceptor` | Interceptor Global | - |
-| `TimeoutInterceptor` | Interceptor Global | - |
-| `AllExceptionsFilter` | Filter Global | - |
+| Componente            | Tipo               | Bypass             |
+| --------------------- | ------------------ | ------------------ |
+| `RequestIdMiddleware` | Middleware         | -                  |
+| `LoggerMiddleware`    | Middleware         | -                  |
+| `ThrottlerGuard`      | Guard Global       | -                  |
+| `JwtAuthGuard`        | Guard Global       | `@Public()`        |
+| `TenantGuard`         | Guard Global       | `@SkipTenant()`    |
+| `RolesGuard`          | Guard Global       | Sin `@Roles()`     |
+| `LoggingInterceptor`  | Interceptor Global | `LOG_IGNORE_PATHS` |
+| `TenantInterceptor`   | Interceptor Global | -                  |
+| `TimeoutInterceptor`  | Interceptor Global | -                  |
+| `AllExceptionsFilter` | Filter Global      | -                  |
 
 ---
 
 ## ⏰ Tareas Programadas (TasksModule)
 
-| Job | Cron | Descripción |
-|-----|------|-------------|
-| **CleanupJob** | 3 AM diario | Elimina soft-deleted >30 días |
-| **BackupJob** | 2 AM domingos | Backup de tablas críticas |
-| **SessionCleanupJob** | Cada 15 min | Elimina sesiones expiradas |
-| **LogCleanupJob** | 4 AM diario | Elimina logs debug >7 días |
-| **CacheWarmupJob** | 6 AM diario | Precalienta cache |
+| Job                   | Cron          | Descripción                   |
+| --------------------- | ------------- | ----------------------------- |
+| **CleanupJob**        | 3 AM diario   | Elimina soft-deleted >30 días |
+| **BackupJob**         | 2 AM domingos | Backup de tablas críticas     |
+| **SessionCleanupJob** | Cada 15 min   | Elimina sesiones expiradas    |
+| **LogCleanupJob**     | 4 AM diario   | Elimina logs debug >7 días    |
+| **CacheWarmupJob**    | 6 AM diario   | Precalienta cache             |
 
 **Endpoints:** `GET/POST /api/v1/tasks/*` (requiere rol ADMIN)
 
@@ -488,6 +489,7 @@ Softlogy Internal Use Only
 ---
 
 > **⚠️ IMPORTANTE:**
+>
 > - Documentación en `/docs` es OBLIGATORIA
 > - Sistema multi-tenant requiere schemas en whitelist
 > - Código sin seguir patrones establecidos será rechazado

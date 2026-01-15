@@ -1,5 +1,5 @@
 {
-  "name": "mokka-backend",
+  "name": "rest-backend",
   "version": "1.0.0",
   "description": "NestJS Backend API - Production Ready",
   "author": "Softlogy S.A.S",
@@ -26,7 +26,8 @@
     "migration:show": "yarn typeorm migration:show -d src/config/database/data-source.ts",
     "seed": "ts-node -r tsconfig-paths/register src/database/seeds/seed.ts",
     "docs": "compodoc -p tsconfig.json -s",
-    "docs:build": "compodoc -p tsconfig.json"
+    "docs:build": "compodoc -p tsconfig.json",
+    "verify:multi-tenant": "ts-node -r tsconfig-paths/register src/database/scripts/verify-multi-tenant.ts"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.0",

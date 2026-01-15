@@ -10,7 +10,7 @@ export function setupSwagger(app: INestApplication): void {
     return;
   }
 
-  const title = configService.get<string>('SWAGGER_TITLE') || 'Mokka Backend API';
+  const title = configService.get<string>('SWAGGER_TITLE') || 'Rest Backend API';
   const description = configService.get<string>('SWAGGER_DESCRIPTION') || 'API REST Documentation';
   const version = configService.get<string>('SWAGGER_VERSION') || '1.0';
   const path = configService.get<string>('SWAGGER_PATH') || 'docs';

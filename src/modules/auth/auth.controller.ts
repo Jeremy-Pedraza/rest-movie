@@ -54,7 +54,7 @@ import {
   ISessionInfo,
 } from './interfaces';
 
-@ApiTags('Authentication')
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}

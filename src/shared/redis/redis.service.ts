@@ -92,7 +92,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
       this.client.on('connect', () => {
         this.isConnected = true;
-        this.logger.log('Redis client connected');
+        this.logger.log('🔌 Redis client connected');
       });
 
       this.client.on('error', (error) => {
@@ -107,7 +107,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
       // Esperar conexión
       await this.client.ping();
-      this.logger.log('Redis connection established');
+      this.logger.log('🔌 Redis connection established');
     } catch (error) {
       this.logger.error(`Failed to connect to Redis: ${error.message}`);
       throw error;

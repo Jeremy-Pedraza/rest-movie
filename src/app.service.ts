@@ -8,7 +8,7 @@ export class AppService {
   getStatus() {
     return {
       success: true,
-      message: 'Mokka Backend API is running',
+      message: 'Rest Backend API is running',
       data: {
         name: this.configService.get<string>('app.name'),
         version: '1.0.0',

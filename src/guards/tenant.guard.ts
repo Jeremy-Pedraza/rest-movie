@@ -67,6 +67,28 @@ export class TenantGuard implements CanActivate {
   ) {}
 
   /**
+   * Verifica si el host tiene un subdomain válido para tenant
+   * Ignora IPs locales y subdomains comunes
+   */
+  private isValidHostForTenant(host: string): boolean {
+    if (!host) return false;
+
+    // Ignorar IPs (127.0.0.1, localhost, 192.168.x.x, etc)
+    if (/^(localhost|127\.|192\.168\.|10\.)/.test(host)) {
+      return false;
+    }
+
+    const parts = host.split('.');
+    // Necesita al menos 3 partes (subdomain.domain.tld)
+    if (parts.length < 3) return false;
+
+    const subdomain = parts[0];
+    const ignoredSubdomains = ['www', 'api', 'admin'];
+
+    return !ignoredSubdomains.includes(subdomain);
+  }
+
+  /**
    * Valida y establece el contexto del tenant
    *
    * Flujo:
@@ -93,34 +115,37 @@ export class TenantGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest<Request>();
 
-    // 2. Obtener userId del JWT (request.user fue establecido por JwtAuthGuard)
+    // 2. Obtener userId del JWT
     const userId = request.user?.id;
 
     if (!userId) {
-      // Si no hay userId, intentar extraer tenant desde request (subdomain, header)
-      try {
-        const tenantContext = await this.tenantExtractor.extractFromRequest(request);
+      // ✅ Solo intentar extraer tenant si hay indicadores válidos
+      const headerSubdomain = request.headers['x-tenant-subdomain'];
+      const host = request.headers['host'] as string;
+      const hasValidSubdomain = headerSubdomain || this.isValidHostForTenant(host);
 
-        if (tenantContext) {
-          request.tenant = tenantContext;
-          this.logger.log(
-            `✅ Tenant extraído desde request: schema=${tenantContext.schema}, company=${tenantContext.companyId}`,
-          );
-          return true;
+      if (hasValidSubdomain) {
+        try {
+          const tenantContext = await this.tenantExtractor.extractFromRequest(request);
+
+          if (tenantContext) {
+            request.tenant = tenantContext;
+            this.logger.debug(`✅ Tenant extraído desde request: schema=${tenantContext.schema}`);
+            return true;
+          }
+        } catch (error) {
+          this.logger.debug(`No se pudo extraer tenant: ${error.message}`);
         }
-      } catch (error) {
-        // Error al extraer desde request, usar public como fallback
-        this.logger.debug(`No se pudo extraer tenant desde request: ${error.message}`);
       }
 
-      // Si no hay tenant, usar public como fallback
+      // Fallback a public
       request.tenant = {
         schema: 'public',
         companyId: null,
         userId: null,
       };
 
-      this.logger.debug('No hay userId ni tenant identificable, usando schema public');
+      this.logger.debug('Usando schema public (sin autenticación)');
       return true;
     }
 
@@ -133,12 +158,10 @@ export class TenantGuard implements CanActivate {
         `✅ Tenant extraído: schema=${tenantContext.schema}, company=${tenantContext.companyId}, user=${userId}`,
       );
     } catch (error) {
-      // Si falla la extracción, el error se propaga (ForbiddenException, etc)
       this.logger.error(`Error extrayendo tenant para user ${userId}: ${error.message}`);
       throw error;
     }
 
-    // 4. Siempre permitir continuar (el contexto ya fue establecido)
     return true;
   }
 }

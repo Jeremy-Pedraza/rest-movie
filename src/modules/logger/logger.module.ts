@@ -18,7 +18,7 @@ import { LogEntity } from './entities/log.entity';
   imports: [TypeOrmModule.forFeature([LogEntity])],
   controllers: [LoggerController],
   providers: [LoggerService, LoggerRepository],
-  exports: [LoggerService],
+  exports: [LoggerService, LoggerRepository],
 })
 export class LoggerModule implements OnModuleDestroy {
   constructor(private readonly loggerService: LoggerService) {}

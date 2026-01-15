@@ -45,13 +45,13 @@ export class CreateUsersTable1736709500000 implements MigrationInterface {
             isNullable: false,
           },
           {
-            name: 'firstName',
+            name: 'first_name',
             type: 'varchar',
             length: '50',
             isNullable: false,
           },
           {
-            name: 'lastName',
+            name: 'last_name',
             type: 'varchar',
             length: '50',
             isNullable: false,
@@ -80,18 +80,18 @@ export class CreateUsersTable1736709500000 implements MigrationInterface {
             isNullable: false,
           },
           {
-            name: 'emailVerified',
+            name: 'email_verified',
             type: 'boolean',
             default: false,
             isNullable: false,
           },
           {
-            name: 'emailVerifiedAt',
+            name: 'email_verified_at',
             type: 'timestamptz',
             isNullable: true,
           },
           {
-            name: 'emailVerificationToken',
+            name: 'email_verification_token',
             type: 'varchar',
             length: '255',
             isNullable: true,
@@ -101,34 +101,34 @@ export class CreateUsersTable1736709500000 implements MigrationInterface {
           // SEGURIDAD
           // ============================================
           {
-            name: 'failedLoginAttempts',
+            name: 'failed_login_attempts',
             type: 'integer',
             default: 0,
             isNullable: false,
           },
           {
-            name: 'lockedUntil',
+            name: 'locked_until',
             type: 'timestamptz',
             isNullable: true,
           },
           {
-            name: 'lastLoginAt',
+            name: 'last_login_at',
             type: 'timestamptz',
             isNullable: true,
           },
           {
-            name: 'lastLoginIp',
+            name: 'last_login_ip',
             type: 'varchar',
             length: '45',
             isNullable: true,
           },
           {
-            name: 'passwordResetToken',
+            name: 'password_reset_token',
             type: 'text',
             isNullable: true,
           },
           {
-            name: 'passwordResetExpires',
+            name: 'password_reset_expires',
             type: 'timestamptz',
             isNullable: true,
           },
@@ -151,19 +151,19 @@ export class CreateUsersTable1736709500000 implements MigrationInterface {
           // TIMESTAMPS
           // ============================================
           {
-            name: 'createdAt',
+            name: 'created_at',
             type: 'timestamptz',
             default: 'CURRENT_TIMESTAMP',
             isNullable: false,
           },
           {
-            name: 'updatedAt',
+            name: 'updated_at',
             type: 'timestamptz',
             default: 'CURRENT_TIMESTAMP',
             isNullable: false,
           },
           {
-            name: 'deletedAt',
+            name: 'deleted_at',
             type: 'timestamptz',
             isNullable: true,
           },
@@ -198,8 +198,8 @@ export class CreateUsersTable1736709500000 implements MigrationInterface {
     await queryRunner.createIndex(
       'users',
       new TableIndex({
-        name: 'IDX_users_email_deletedAt',
-        columnNames: ['email', 'deletedAt'],
+        name: 'IDX_users_email_deleted_at',
+        columnNames: ['email', 'deleted_at'],
       }),
     );
 
@@ -207,16 +207,16 @@ export class CreateUsersTable1736709500000 implements MigrationInterface {
     await queryRunner.createIndex(
       'users',
       new TableIndex({
-        name: 'IDX_users_status_deletedAt',
-        columnNames: ['status', 'deletedAt'],
+        name: 'IDX_users_status_deleted_at',
+        columnNames: ['status', 'deleted_at'],
       }),
     );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Eliminar índices
-    await queryRunner.dropIndex('users', 'IDX_users_status_deletedAt');
-    await queryRunner.dropIndex('users', 'IDX_users_email_deletedAt');
+    await queryRunner.dropIndex('users', 'IDX_users_status_deleted_at');
+    await queryRunner.dropIndex('users', 'IDX_users_email_deleted_at');
     await queryRunner.dropIndex('users', 'IDX_users_status');
     await queryRunner.dropIndex('users', 'IDX_users_email');
 

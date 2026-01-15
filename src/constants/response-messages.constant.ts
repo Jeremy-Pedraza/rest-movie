@@ -25,6 +25,7 @@ export const RESPONSE_MESSAGES = {
     USER_LOCKED: 'Usuario bloqueado temporalmente',
     TOKEN_EXPIRED: 'Token expirado',
     TOKEN_INVALID: 'Token inválido',
+    TOKEN_TYPE: 'Bearer',
     UNAUTHORIZED: 'No autorizado',
     FORBIDDEN: 'Acceso denegado',
     SESSION_EXPIRED: 'Sesión expirada',

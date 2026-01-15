@@ -42,7 +42,7 @@ export class CreateLogsTable1736800000000 implements MigrationInterface {
             type: 'uuid',
             isPrimary: true,
             generationStrategy: 'uuid',
-            default: 'uuid_generate_v4()',
+            default: 'gen_random_uuid()',
           },
           {
             name: 'level',
@@ -75,13 +75,13 @@ export class CreateLogsTable1736800000000 implements MigrationInterface {
             comment: 'Stack trace (para errores)',
           },
           {
-            name: 'requestId',
+            name: 'request_id',
             type: 'uuid',
             isNullable: true,
             comment: 'ID de la petición HTTP (correlación)',
           },
           {
-            name: 'userId',
+            name: 'user_id',
             type: 'uuid',
             isNullable: true,
             comment: 'ID del usuario (si está autenticado)',
@@ -94,7 +94,7 @@ export class CreateLogsTable1736800000000 implements MigrationInterface {
             comment: 'IP del cliente (IPv4 o IPv6)',
           },
           {
-            name: 'userAgent',
+            name: 'user_agent',
             type: 'varchar',
             length: '500',
             isNullable: true,
@@ -115,13 +115,13 @@ export class CreateLogsTable1736800000000 implements MigrationInterface {
             comment: 'URL de la petición',
           },
           {
-            name: 'statusCode',
+            name: 'status_code',
             type: 'int',
             isNullable: true,
             comment: 'Código de estado HTTP (200, 404, 500, etc.)',
           },
           {
-            name: 'responseTime',
+            name: 'response_time',
             type: 'int',
             isNullable: true,
             comment: 'Tiempo de respuesta en milisegundos',
@@ -141,14 +141,14 @@ export class CreateLogsTable1736800000000 implements MigrationInterface {
             comment: 'Nombre de la acción/método',
           },
           {
-            name: 'errorCode',
+            name: 'error_code',
             type: 'varchar',
             length: '50',
             isNullable: true,
             comment: 'Código de error del sistema (AUTH_1001, VAL_2001, etc.)',
           },
           {
-            name: 'createdAt',
+            name: 'created_at',
             type: 'timestamptz',
             default: 'now()',
             comment: 'Fecha de creación del log',
@@ -162,48 +162,48 @@ export class CreateLogsTable1736800000000 implements MigrationInterface {
     // 3. CREAR ÍNDICES
     // ============================================
 
-    // Índice compuesto: level + createdAt (para filtrar por nivel y ordenar por fecha)
+    // Índice compuesto: level + created_at (para filtrar por nivel y ordenar por fecha)
     await queryRunner.createIndex(
       'logs',
       new TableIndex({
-        name: 'IDX_logs_level_createdAt',
-        columnNames: ['level', 'createdAt'],
+        name: 'IDX_logs_level_created_at',
+        columnNames: ['level', 'created_at'],
       }),
     );
 
-    // Índice compuesto: context + createdAt (para filtrar por contexto y ordenar por fecha)
+    // Índice compuesto: context + created_at (para filtrar por contexto y ordenar por fecha)
     await queryRunner.createIndex(
       'logs',
       new TableIndex({
-        name: 'IDX_logs_context_createdAt',
-        columnNames: ['context', 'createdAt'],
+        name: 'IDX_logs_context_created_at',
+        columnNames: ['context', 'created_at'],
       }),
     );
 
-    // Índice compuesto: userId + createdAt (para ver logs de un usuario específico)
+    // Índice compuesto: user_id + created_at (para ver logs de un usuario específico)
     await queryRunner.createIndex(
       'logs',
       new TableIndex({
-        name: 'IDX_logs_userId_createdAt',
-        columnNames: ['userId', 'createdAt'],
+        name: 'IDX_logs_user_id_created_at',
+        columnNames: ['user_id', 'created_at'],
       }),
     );
 
-    // Índice simple: requestId (para tracing/correlación de requests)
+    // Índice simple: request_id (para tracing/correlación de requests)
     await queryRunner.createIndex(
       'logs',
       new TableIndex({
-        name: 'IDX_logs_requestId',
-        columnNames: ['requestId'],
+        name: 'IDX_logs_request_id',
+        columnNames: ['request_id'],
       }),
     );
 
-    // Índice simple: createdAt (para ordenar por fecha)
+    // Índice simple: created_at (para ordenar por fecha)
     await queryRunner.createIndex(
       'logs',
       new TableIndex({
-        name: 'IDX_logs_createdAt',
-        columnNames: ['createdAt'],
+        name: 'IDX_logs_created_at',
+        columnNames: ['created_at'],
       }),
     );
   }

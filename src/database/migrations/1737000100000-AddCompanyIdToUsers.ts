@@ -16,7 +16,7 @@ export class AddCompanyIdToUsers1737000100000 implements MigrationInterface {
     await queryRunner.addColumn(
       'users',
       new TableColumn({
-        name: 'companyId',
+        name: 'company_id',
         type: 'uuid',
         isNullable: true,
         comment: 'ID de la empresa a la que pertenece el usuario',
@@ -28,7 +28,7 @@ export class AddCompanyIdToUsers1737000100000 implements MigrationInterface {
       'users',
       new TableForeignKey({
         name: 'fk_users_company',
-        columnNames: ['companyId'],
+        columnNames: ['company_id'],
         referencedTableName: 'companies',
         referencedColumnNames: ['id'],
         onDelete: 'SET NULL', // Si se elimina la company, el usuario queda sin company
@@ -36,12 +36,12 @@ export class AddCompanyIdToUsers1737000100000 implements MigrationInterface {
       }),
     );
 
-    // Crear índice para búsquedas por companyId
+    // Crear índice para búsquedas por company_id
     await queryRunner.query(`
-      CREATE INDEX idx_users_company_id ON public.users ("companyId");
+      CREATE INDEX idx_users_company_id ON public.users ("company_id");
     `);
 
-    console.log('✅ Columna companyId agregada a users');
+    console.log('✅ Columna company_id agregada a users');
     console.log('✅ Foreign key fk_users_company creada');
     console.log('✅ Índice idx_users_company_id creado');
   }
@@ -56,8 +56,8 @@ export class AddCompanyIdToUsers1737000100000 implements MigrationInterface {
     await queryRunner.dropForeignKey('users', 'fk_users_company');
 
     // Eliminar columna
-    await queryRunner.dropColumn('users', 'companyId');
+    await queryRunner.dropColumn('users', 'company_id');
 
-    console.log('✅ Columna companyId eliminada de users');
+    console.log('✅ Columna company_id eliminada de users');
   }
 }

@@ -59,8 +59,8 @@ export async function seedRoles(dataSource: DataSource): Promise<void> {
       name: roleDef.name,
       description: roleDef.description,
       hierarchy: roleDef.hierarchy,
-      isSystem: roleDef.isSystem,
-      isActive: true,
+      is_system: roleDef.isSystem,
+      is_active: true,
       permissions,
     });
 

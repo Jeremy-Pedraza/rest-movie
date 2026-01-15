@@ -32,6 +32,7 @@
       "@middleware/*": ["src/middleware/*"],
       "@pipes/*": ["src/pipes/*"],
       "@constants/*": ["src/constants/*"],
+      "@constants": ["src/constants"],
       "@database/*": ["src/database/*"],
       "@types/*": ["src/@types/*"],
       "@test/*": ["test/*"]

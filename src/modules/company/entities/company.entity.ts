@@ -34,7 +34,7 @@ export class CompanyEntity extends BaseEntity {
   /**
    * Nombre de la empresa
    */
-  @Column({ type: 'varchar', length: 255 })
+  @Column({ type: 'varchar', length: 255, name: 'name' })
   name: string;
 
   /**
@@ -43,7 +43,7 @@ export class CompanyEntity extends BaseEntity {
    *
    * @example 'company_a_schema', 'restaurant_valle_schema'
    */
-  @Column({ type: 'varchar', length: 100, unique: true })
+  @Column({ type: 'varchar', length: 100, unique: true, name: 'schema' })
   @Index('idx_company_schema')
   schema: string;
 
@@ -52,7 +52,7 @@ export class CompanyEntity extends BaseEntity {
    *
    * @example 'company-a.rest.com', 'valle.miapp.com'
    */
-  @Column({ type: 'varchar', length: 255, unique: true, nullable: true })
+  @Column({ type: 'varchar', length: 255, unique: true, nullable: true, name: 'domain' })
   @Index('idx_company_domain')
   domain: string;
 
@@ -62,7 +62,7 @@ export class CompanyEntity extends BaseEntity {
    *
    * @example 'company-a', 'valle', 'tenant-1'
    */
-  @Column({ type: 'varchar', length: 50, unique: true, nullable: true })
+  @Column({ type: 'varchar', length: 50, unique: true, nullable: true, name: 'subdomain' })
   @Index('idx_company_subdomain')
   subdomain: string;
 
@@ -70,9 +70,9 @@ export class CompanyEntity extends BaseEntity {
    * Indica si la empresa está activa
    * Companies inactivas no pueden acceder al sistema
    */
-  @Column({ type: 'boolean', default: true })
+  @Column({ type: 'boolean', default: true, name: 'is_active' })
   @Index('idx_company_active')
-  isActive: boolean;
+  is_active: boolean;
 
   /**
    * Configuración adicional de la empresa (JSON)
@@ -82,7 +82,7 @@ export class CompanyEntity extends BaseEntity {
    * - Configuración de features
    * - Personalización
    */
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: 'jsonb', nullable: true, name: 'settings' })
   settings: Record<string, any>;
 
   /**
@@ -90,14 +90,14 @@ export class CompanyEntity extends BaseEntity {
    *
    * @example 'free', 'basic', 'premium', 'enterprise'
    */
-  @Column({ type: 'varchar', length: 50, nullable: true })
+  @Column({ type: 'varchar', length: 50, nullable: true, name: 'plan' })
   plan: string;
 
   /**
    * Fecha de expiración del plan (opcional)
    */
-  @Column({ type: 'timestamp', nullable: true })
-  planExpiresAt: Date;
+  @Column({ type: 'timestamp', nullable: true, name: 'plan_expires_at' })
+  plan_expires_at: Date | null;
 
   // ============================================
   // RELACIONES

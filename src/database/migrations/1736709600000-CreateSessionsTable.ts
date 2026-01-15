@@ -39,7 +39,7 @@ export class CreateSessionsTable1736709600000 implements MigrationInterface {
           // RELACIONES
           // ============================================
           {
-            name: 'userId',
+            name: 'user_id',
             type: 'uuid',
             isNullable: false,
           },
@@ -48,13 +48,13 @@ export class CreateSessionsTable1736709600000 implements MigrationInterface {
           // TOKENS
           // ============================================
           {
-            name: 'refreshToken',
+            name: 'refresh_token',
             type: 'text',
             isNullable: false,
             isUnique: true,
           },
           {
-            name: 'refreshTokenFamily',
+            name: 'refresh_token_family',
             type: 'text',
             isNullable: true,
           },
@@ -63,13 +63,13 @@ export class CreateSessionsTable1736709600000 implements MigrationInterface {
           // INFORMACIÓN DE SESIÓN
           // ============================================
           {
-            name: 'userAgent',
+            name: 'user_agent',
             type: 'varchar',
             length: '500',
             isNullable: true,
           },
           {
-            name: 'ipAddress',
+            name: 'ip_address',
             type: 'varchar',
             length: '45',
             isNullable: false,
@@ -91,24 +91,24 @@ export class CreateSessionsTable1736709600000 implements MigrationInterface {
           // TIMESTAMPS Y EXPIRACIÓN
           // ============================================
           {
-            name: 'createdAt',
+            name: 'created_at',
             type: 'timestamptz',
             default: 'CURRENT_TIMESTAMP',
             isNullable: false,
           },
           {
-            name: 'lastActivityAt',
+            name: 'last_activity_at',
             type: 'timestamptz',
             default: 'CURRENT_TIMESTAMP',
             isNullable: false,
           },
           {
-            name: 'expiresAt',
+            name: 'expires_at',
             type: 'timestamptz',
             isNullable: false,
           },
           {
-            name: 'deletedAt',
+            name: 'deleted_at',
             type: 'timestamptz',
             isNullable: true,
           },
@@ -117,24 +117,24 @@ export class CreateSessionsTable1736709600000 implements MigrationInterface {
           // METADATA
           // ============================================
           {
-            name: 'isActive',
+            name: 'is_active',
             type: 'boolean',
             default: true,
             isNullable: false,
           },
           {
-            name: 'isRevoked',
+            name: 'is_revoked',
             type: 'boolean',
             default: false,
             isNullable: false,
           },
           {
-            name: 'revokedAt',
+            name: 'revoked_at',
             type: 'timestamptz',
             isNullable: true,
           },
           {
-            name: 'revokedReason',
+            name: 'revoked_reason',
             type: 'varchar',
             length: '255',
             isNullable: true,
@@ -148,66 +148,66 @@ export class CreateSessionsTable1736709600000 implements MigrationInterface {
     // ÍNDICES
     // ============================================
 
-    // Índice simple en userId (para búsquedas rápidas por usuario)
+    // Índice simple en user_id (para búsquedas rápidas por usuario)
     await queryRunner.createIndex(
       'sessions',
       new TableIndex({
-        name: 'IDX_sessions_userId',
-        columnNames: ['userId'],
+        name: 'IDX_sessions_user_id',
+        columnNames: ['user_id'],
       }),
     );
 
-    // Índice simple en refreshToken (único, ya creado con isUnique)
+    // Índice simple en refresh_token (único, ya creado con isUnique)
     await queryRunner.createIndex(
       'sessions',
       new TableIndex({
-        name: 'IDX_sessions_refreshToken',
-        columnNames: ['refreshToken'],
+        name: 'IDX_sessions_refresh_token',
+        columnNames: ['refresh_token'],
       }),
     );
 
-    // Índice simple en ipAddress (para análisis de seguridad)
+    // Índice simple en ip_address (para análisis de seguridad)
     await queryRunner.createIndex(
       'sessions',
       new TableIndex({
-        name: 'IDX_sessions_ipAddress',
-        columnNames: ['ipAddress'],
+        name: 'IDX_sessions_ip_address',
+        columnNames: ['ip_address'],
       }),
     );
 
-    // Índice simple en expiresAt (para limpieza automática)
+    // Índice simple en expires_at (para limpieza automática)
     await queryRunner.createIndex(
       'sessions',
       new TableIndex({
-        name: 'IDX_sessions_expiresAt',
-        columnNames: ['expiresAt'],
+        name: 'IDX_sessions_expires_at',
+        columnNames: ['expires_at'],
       }),
     );
 
-    // Índice compuesto: userId + deletedAt (para sesiones activas de un usuario)
+    // Índice compuesto: user_id + deleted_at (para sesiones activas de un usuario)
     await queryRunner.createIndex(
       'sessions',
       new TableIndex({
-        name: 'IDX_sessions_userId_deletedAt',
-        columnNames: ['userId', 'deletedAt'],
+        name: 'IDX_sessions_user_id_deleted_at',
+        columnNames: ['user_id', 'deleted_at'],
       }),
     );
 
-    // Índice compuesto: refreshToken + deletedAt (para validación rápida)
+    // Índice compuesto: refresh_token + deleted_at (para validación rápida)
     await queryRunner.createIndex(
       'sessions',
       new TableIndex({
-        name: 'IDX_sessions_refreshToken_deletedAt',
-        columnNames: ['refreshToken', 'deletedAt'],
+        name: 'IDX_sessions_refresh_token_deleted_at',
+        columnNames: ['refresh_token', 'deleted_at'],
       }),
     );
 
-    // Índice compuesto: expiresAt + deletedAt (para limpieza eficiente)
+    // Índice compuesto: expires_at + deleted_at (para limpieza eficiente)
     await queryRunner.createIndex(
       'sessions',
       new TableIndex({
-        name: 'IDX_sessions_expiresAt_deletedAt',
-        columnNames: ['expiresAt', 'deletedAt'],
+        name: 'IDX_sessions_expires_at_deleted_at',
+        columnNames: ['expires_at', 'deleted_at'],
       }),
     );
 
@@ -219,8 +219,8 @@ export class CreateSessionsTable1736709600000 implements MigrationInterface {
     await queryRunner.createForeignKey(
       'sessions',
       new TableForeignKey({
-        name: 'FK_sessions_userId',
-        columnNames: ['userId'],
+        name: 'FK_sessions_user_id',
+        columnNames: ['user_id'],
         referencedTableName: 'users',
         referencedColumnNames: ['id'],
         onDelete: 'CASCADE', // Si se elimina el usuario, se eliminan sus sesiones
@@ -231,17 +231,16 @@ export class CreateSessionsTable1736709600000 implements MigrationInterface {
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Eliminar FK
-    await queryRunner.dropForeignKey('sessions', 'FK_sessions_userId');
+    await queryRunner.dropForeignKey('sessions', 'FK_sessions_user_id');
 
     // Eliminar índices (en orden inverso)
-    await queryRunner.dropIndex('sessions', 'IDX_sessions_expiresAt_deletedAt');
-    await queryRunner.dropIndex('sessions', 'IDX_sessions_refreshToken_deletedAt');
-    await queryRunner.dropIndex('sessions', 'IDX_sessions_userId_deletedAt');
-    await queryRunner.dropIndex('sessions', 'IDX_sessions_expiresAt');
-    await queryRunner.dropIndex('sessions', 'IDX_sessions_ipAddress');
-    await queryRunner.dropIndex('sessions', 'IDX_sessions_refreshToken');
-    await queryRunner.dropIndex('sessions', 'IDX_sessions_userId');
-
+    await queryRunner.dropIndex('sessions', 'IDX_sessions_expires_at_deleted_at');
+    await queryRunner.dropIndex('sessions', 'IDX_sessions_refresh_token_deleted_at');
+    await queryRunner.dropIndex('sessions', 'IDX_sessions_user_id_deleted_at');
+    await queryRunner.dropIndex('sessions', 'IDX_sessions_expires_at');
+    await queryRunner.dropIndex('sessions', 'IDX_sessions_ip_address');
+    await queryRunner.dropIndex('sessions', 'IDX_sessions_refresh_token');
+    await queryRunner.dropIndex('sessions', 'IDX_sessions_user_id');
     // Eliminar tabla
     await queryRunner.dropTable('sessions');
   }

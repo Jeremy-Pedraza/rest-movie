@@ -38,8 +38,8 @@ export enum UserStatus {
 
 @Entity({ name: 'users', schema: 'public' })
 @Index(['email'], { unique: true })
-@Index(['status', 'createdAt'])
-@Index(['deletedAt'])
+@Index(['status', 'created_at'])
+@Index(['deleted_at'])
 export class UserEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -47,38 +47,38 @@ export class UserEntity {
   /**
    * Email del usuario (único)
    */
-  @Column({ type: 'varchar', length: 255, unique: true })
+  @Column({ type: 'varchar', length: 255, unique: true, name: 'email' })
   @Index()
   email: string;
 
   /**
    * Contraseña hasheada
    */
-  @Column({ type: 'varchar', length: 255, select: false })
+  @Column({ type: 'varchar', length: 255, select: false, name: 'password' })
   password: string;
 
   /**
    * Nombre del usuario
    */
-  @Column({ type: 'varchar', length: 100 })
-  firstName: string;
+  @Column({ type: 'varchar', length: 100, name: 'first_name' })
+  first_name: string;
 
   /**
    * Apellido del usuario
    */
-  @Column({ type: 'varchar', length: 100 })
-  lastName: string;
+  @Column({ type: 'varchar', length: 100, name: 'last_name' })
+  last_name: string;
 
   /**
    * Teléfono (opcional)
    */
-  @Column({ type: 'varchar', length: 20, nullable: true })
+  @Column({ type: 'varchar', length: 20, nullable: true, name: 'phone' })
   phone: string | null;
 
   /**
    * Avatar URL (opcional)
    */
-  @Column({ type: 'varchar', length: 500, nullable: true })
+  @Column({ type: 'varchar', length: 500, nullable: true, name: 'avatar' })
   avatar: string | null;
 
   /**
@@ -88,6 +88,7 @@ export class UserEntity {
     type: 'enum',
     enum: UserStatus,
     default: UserStatus.PENDING,
+    name: 'status',
   })
   @Index()
   status: UserStatus;
@@ -95,67 +96,79 @@ export class UserEntity {
   /**
    * Email verificado
    */
-  @Column({ type: 'boolean', default: false })
-  emailVerified: boolean;
+  @Column({ type: 'boolean', default: false, name: 'email_verified' })
+  email_verified: boolean;
 
   /**
    * Fecha de verificación del email
    */
-  @Column({ type: 'timestamptz', nullable: true })
-  emailVerifiedAt: Date | null;
+  @Column({ type: 'timestamptz', nullable: true, name: 'email_verified_at' })
+  email_verified_at: Date | null;
 
   /**
    * Último login
    */
-  @Column({ type: 'timestamptz', nullable: true })
-  lastLoginAt: Date | null;
+  @Column({ type: 'timestamptz', nullable: true, name: 'last_login_at' })
+  last_login_at: Date | null;
 
   /**
    * IP del último login
    */
-  @Column({ type: 'varchar', length: 45, nullable: true })
-  lastLoginIp: string | null;
+  @Column({ type: 'varchar', length: 45, nullable: true, name: 'last_login_ip' })
+  last_login_ip: string | null;
 
   /**
    * Intentos de login fallidos
    */
-  @Column({ type: 'int', default: 0 })
-  failedLoginAttempts: number;
+  @Column({ type: 'int', default: 0, name: 'failed_login_attempts' })
+  failed_login_attempts: number;
 
   /**
    * Bloqueado hasta (por intentos fallidos)
    */
-  @Column({ type: 'timestamptz', nullable: true })
-  lockedUntil: Date | null;
+  @Column({ type: 'timestamptz', nullable: true, name: 'locked_until' })
+  locked_until: Date | null;
 
   /**
    * Token para reset de password
    */
-  @Column({ type: 'varchar', length: 255, nullable: true, select: false })
-  passwordResetToken: string | null;
+  @Column({
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+    select: false,
+    name: 'password_reset_token',
+  })
+  password_reset_token: string | null;
 
   /**
    * Expiración del token de reset
    */
-  @Column({ type: 'timestamptz', nullable: true, select: false })
-  passwordResetExpires: Date | null;
+  @Column({ type: 'timestamptz', nullable: true, select: false, name: 'password_reset_expires' })
+  password_reset_expires: Date | null;
 
   /**
    * Token de verificación de email
    */
-  @Column({ type: 'varchar', length: 255, nullable: true, select: false })
-  emailVerificationToken: string | null;
+  @Column({
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+    select: false,
+    name: 'email_verification_token',
+  })
+  email_verification_token: string | null;
 
   /**
    * Metadata adicional (JSON)
    */
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: 'jsonb', nullable: true, name: 'metadata' })
   metadata: Record<string, unknown> | null;
 
   /**
    * Preferencias del usuario
    */
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: 'jsonb', nullable: true, name: 'preferences' })
   preferences: Record<string, unknown> | null;
 
   /**
@@ -178,8 +191,8 @@ export class UserEntity {
    *
    * @nullable Si es null, el usuario pertenece al schema public
    */
-  @Column({ type: 'uuid', nullable: true })
-  companyId: string | null;
+  @Column({ type: 'uuid', nullable: true, name: 'company_id' })
+  company_id: string | null;
 
   /**
    * Empresa (tenant) a la que pertenece el usuario
@@ -191,26 +204,26 @@ export class UserEntity {
    * user.company.schema // 'restaurant_valle_schema'
    */
   @ManyToOne(() => CompanyEntity, (company) => company.users, { nullable: true })
-  @JoinColumn({ name: 'companyId' })
+  @JoinColumn({ name: 'company_id' })
   company: CompanyEntity | null;
 
   /**
    * Fecha de creación
    */
-  @CreateDateColumn({ type: 'timestamptz' })
-  createdAt: Date;
+  @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
+  created_at: Date;
 
   /**
    * Fecha de actualización
    */
-  @UpdateDateColumn({ type: 'timestamptz' })
-  updatedAt: Date;
+  @UpdateDateColumn({ type: 'timestamptz', nullable: true, name: 'updated_at' })
+  updated_at: Date | null;
 
   /**
    * Fecha de eliminación (soft delete)
    */
-  @DeleteDateColumn({ type: 'timestamptz', nullable: true })
-  deletedAt: Date | null;
+  @DeleteDateColumn({ type: 'timestamptz', nullable: true, name: 'deleted_at' })
+  deleted_at: Date | null;
 
   // ============================================
   // HOOKS
@@ -245,7 +258,7 @@ export class UserEntity {
    * Nombre completo
    */
   get fullName(): string {
-    return `${this.firstName} ${this.lastName}`.trim();
+    return `${this.first_name} ${this.last_name}`.trim();
   }
 
   /**
@@ -266,8 +279,8 @@ export class UserEntity {
    * Verifica si el usuario está bloqueado
    */
   get isLocked(): boolean {
-    if (!this.lockedUntil) return false;
-    return new Date() < this.lockedUntil;
+    if (!this.locked_until) return false;
+    return new Date() < this.locked_until;
   }
 
   // ============================================
@@ -305,11 +318,11 @@ export class UserEntity {
    * Registra un intento de login fallido
    */
   registerFailedLogin(): void {
-    this.failedLoginAttempts += 1;
+    this.failed_login_attempts += 1;
 
     // Bloquear después de 5 intentos por 30 minutos
-    if (this.failedLoginAttempts >= 5) {
-      this.lockedUntil = new Date(Date.now() + 30 * 60 * 1000);
+    if (this.failed_login_attempts >= 5) {
+      this.locked_until = new Date(Date.now() + 30 * 60 * 1000);
     }
   }
 
@@ -317,8 +330,8 @@ export class UserEntity {
    * Resetea los intentos de login fallidos
    */
   resetFailedAttempts(): void {
-    this.failedLoginAttempts = 0;
-    this.lockedUntil = null;
+    this.failed_login_attempts = 0;
+    this.locked_until = null;
   }
 
   /**
@@ -326,8 +339,8 @@ export class UserEntity {
    * @param ip - IP del cliente
    */
   registerSuccessfulLogin(ip?: string): void {
-    this.lastLoginAt = new Date();
-    this.lastLoginIp = ip || null;
+    this.last_login_at = new Date();
+    this.last_login_ip = ip || null;
     this.resetFailedAttempts();
   }
 }

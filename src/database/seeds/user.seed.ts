@@ -4,12 +4,9 @@
  */
 
 import { DataSource, In } from 'typeorm';
-import * as bcrypt from 'bcrypt';
 import { UserEntity, UserStatus } from '@modules/user/entities/user.entity';
 import { RoleEntity } from '@modules/user/entities/role.entity';
 import { USER_DEFINITIONS } from './seed.constants';
-
-const BCRYPT_ROUNDS = 12;
 
 export async function seedUsers(dataSource: DataSource): Promise<void> {
   console.log('\n👤 Seeding users...');
@@ -43,17 +40,14 @@ export async function seedUsers(dataSource: DataSource): Promise<void> {
       console.warn(`  ⚠ User ${userDef.email}: Missing roles: ${missing.join(', ')}`);
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(userDef.password, BCRYPT_ROUNDS);
-
-    // Crear usuario
+    // Crear usuario (el @BeforeInsert() de UserEntity hasheará la password automáticamente)
     const user = userRepo.create({
       email: userDef.email,
-      password: hashedPassword,
-      firstName: userDef.firstName,
-      lastName: userDef.lastName,
+      password: userDef.password, // ✅ Pasar password en texto plano
+      first_name: userDef.firstName,
+      last_name: userDef.lastName,
       roles,
-      emailVerified: userDef.emailVerified,
+      email_verified: userDef.emailVerified,
       status: userDef.status === 'active' ? UserStatus.ACTIVE : UserStatus.PENDING,
     });
 

@@ -45,13 +45,31 @@ export class CreateRolesAndPermissionsTables1736709400000 implements MigrationIn
             isNullable: true,
           },
           {
-            name: 'createdAt',
+            name: 'is_system',
+            type: 'boolean',
+            default: false,
+            isNullable: false,
+          },
+          {
+            name: 'is_active',
+            type: 'boolean',
+            default: true,
+            isNullable: false,
+          },
+          {
+            name: 'hierarchy',
+            type: 'int',
+            default: 0,
+            isNullable: false,
+          },
+          {
+            name: 'created_at',
             type: 'timestamptz',
             default: 'CURRENT_TIMESTAMP',
             isNullable: false,
           },
           {
-            name: 'updatedAt',
+            name: 'updated_at',
             type: 'timestamptz',
             default: 'CURRENT_TIMESTAMP',
             isNullable: false,
@@ -89,25 +107,37 @@ export class CreateRolesAndPermissionsTables1736709400000 implements MigrationIn
             isNullable: true,
           },
           {
-            name: 'resource',
+            name: 'module',
             type: 'varchar',
             length: '50',
-            isNullable: true,
+            isNullable: false,
           },
           {
             name: 'action',
             type: 'varchar',
             length: '50',
-            isNullable: true,
+            isNullable: false,
           },
           {
-            name: 'createdAt',
+            name: 'is_system',
+            type: 'boolean',
+            default: false,
+            isNullable: false,
+          },
+          {
+            name: 'is_active',
+            type: 'boolean',
+            default: true,
+            isNullable: false,
+          },
+          {
+            name: 'created_at',
             type: 'timestamptz',
             default: 'CURRENT_TIMESTAMP',
             isNullable: false,
           },
           {
-            name: 'updatedAt',
+            name: 'updated_at',
             type: 'timestamptz',
             default: 'CURRENT_TIMESTAMP',
             isNullable: false,
@@ -125,12 +155,12 @@ export class CreateRolesAndPermissionsTables1736709400000 implements MigrationIn
         name: 'role_permissions',
         columns: [
           {
-            name: 'roleId',
+            name: 'role_id',
             type: 'uuid',
             isNullable: false,
           },
           {
-            name: 'permissionId',
+            name: 'permission_id',
             type: 'uuid',
             isNullable: false,
           },
@@ -140,14 +170,14 @@ export class CreateRolesAndPermissionsTables1736709400000 implements MigrationIn
     );
 
     // Primary key compuesta para role_permissions
-    await queryRunner.createPrimaryKey('role_permissions', ['roleId', 'permissionId']);
+    await queryRunner.createPrimaryKey('role_permissions', ['role_id', 'permission_id']);
 
     // Foreign keys para role_permissions
     await queryRunner.createForeignKey(
       'role_permissions',
       new TableForeignKey({
-        name: 'FK_role_permissions_roleId',
-        columnNames: ['roleId'],
+        name: 'FK_role_permissions_role_id',
+        columnNames: ['role_id'],
         referencedTableName: 'roles',
         referencedColumnNames: ['id'],
         onDelete: 'CASCADE',
@@ -158,8 +188,8 @@ export class CreateRolesAndPermissionsTables1736709400000 implements MigrationIn
     await queryRunner.createForeignKey(
       'role_permissions',
       new TableForeignKey({
-        name: 'FK_role_permissions_permissionId',
-        columnNames: ['permissionId'],
+        name: 'FK_role_permissions_permission_id',
+        columnNames: ['permission_id'],
         referencedTableName: 'permissions',
         referencedColumnNames: ['id'],
         onDelete: 'CASCADE',
@@ -171,16 +201,16 @@ export class CreateRolesAndPermissionsTables1736709400000 implements MigrationIn
     await queryRunner.createIndex(
       'role_permissions',
       new TableIndex({
-        name: 'IDX_role_permissions_roleId',
-        columnNames: ['roleId'],
+        name: 'IDX_role_permissions_role_id',
+        columnNames: ['role_id'],
       }),
     );
 
     await queryRunner.createIndex(
       'role_permissions',
       new TableIndex({
-        name: 'IDX_role_permissions_permissionId',
-        columnNames: ['permissionId'],
+        name: 'IDX_role_permissions_permission_id',
+        columnNames: ['permission_id'],
       }),
     );
 
@@ -189,11 +219,11 @@ export class CreateRolesAndPermissionsTables1736709400000 implements MigrationIn
     // ============================================
     await queryRunner.query(`
       INSERT INTO roles (id, name, description) VALUES
-      (uuid_generate_v4(), 'super_admin', 'Super Administrador con acceso total'),
-      (uuid_generate_v4(), 'admin', 'Administrador del sistema'),
-      (uuid_generate_v4(), 'manager', 'Gerente con permisos de gestión'),
-      (uuid_generate_v4(), 'user', 'Usuario estándar'),
-      (uuid_generate_v4(), 'guest', 'Usuario invitado con acceso limitado')
+      (gen_random_uuid(), 'super_admin', 'Super Administrador con acceso total'),
+      (gen_random_uuid(), 'admin', 'Administrador del sistema'),
+      (gen_random_uuid(), 'manager', 'Gerente con permisos de gestión'),
+      (gen_random_uuid(), 'user', 'Usuario estándar'),
+      (gen_random_uuid(), 'guest', 'Usuario invitado con acceso limitado')
     `);
   }
 

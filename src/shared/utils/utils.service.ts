@@ -402,4 +402,44 @@ export class UtilsService {
   normalizeForSearch(text: string): string {
     return StringHelpers.normalizeForSearch(text);
   }
+
+  /**
+   * Elimina timestamps de un objeto o array de objetos
+   * Elimina: created_at, updated_at, createdAt, updatedAt
+   * @param obj - Objeto o array a limpiar
+   * @returns Objeto limpio
+   */
+  removeTimestamps(obj: any): any {
+    if (obj === null || obj === undefined) return obj;
+
+    // Si es array, aplicar recursivamente
+    if (Array.isArray(obj)) {
+      return obj.map((item) => this.removeTimestamps(item));
+    }
+
+    // Si es Date, mantenerlo
+    if (obj instanceof Date) {
+      return obj;
+    }
+
+    // Si es objeto, procesar cada propiedad
+    if (typeof obj === 'object') {
+      const cleaned: any = {};
+
+      // Keys a omitir (snake_case y camelCase)
+      const timestampKeys = ['created_at', 'updated_at', 'createdAt', 'updatedAt'];
+
+      for (const [key, value] of Object.entries(obj)) {
+        // Omitir timestamps en ambos formatos
+        if (!timestampKeys.includes(key)) {
+          cleaned[key] = this.removeTimestamps(value);
+        }
+      }
+
+      return cleaned;
+    }
+
+    // Primitivos: devolver tal cual
+    return obj;
+  }
 }

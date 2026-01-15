@@ -130,11 +130,11 @@ export class LoggerRepository extends BaseRepository<LogEntity> {
     }
 
     if (requestId) {
-      qb.andWhere('log.requestId = :requestId', { requestId });
+      qb.andWhere('log.request_id = :request_id', { request_id: requestId });
     }
 
     if (userId) {
-      qb.andWhere('log.userId = :userId', { userId });
+      qb.andWhere('log.user_id = :user_id', { user_id: userId });
     }
 
     if (service) {
@@ -142,7 +142,7 @@ export class LoggerRepository extends BaseRepository<LogEntity> {
     }
 
     if (errorCode) {
-      qb.andWhere('log.errorCode = :errorCode', { errorCode });
+      qb.andWhere('log.error_code = :error_code', { error_code: errorCode });
     }
 
     if (method) {
@@ -150,20 +150,20 @@ export class LoggerRepository extends BaseRepository<LogEntity> {
     }
 
     if (statusCode) {
-      qb.andWhere('log.statusCode = :statusCode', { statusCode });
+      qb.andWhere('log.status_code = :status_code', { status_code: statusCode });
     }
 
     if (fromDate) {
-      qb.andWhere('log.createdAt >= :fromDate', { fromDate: new Date(fromDate) });
+      qb.andWhere('log.created_at >= :fromDate', { fromDate: new Date(fromDate) });
     }
 
     if (toDate) {
-      qb.andWhere('log.createdAt <= :toDate', { toDate: new Date(toDate) });
+      qb.andWhere('log.created_at <= :toDate', { toDate: new Date(toDate) });
     }
 
     // Ordenamiento
-    const validSortFields = ['createdAt', 'level', 'context', 'statusCode', 'responseTime'];
-    const orderField = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
+    const validSortFields = ['created_at', 'level', 'context', 'status_code', 'response_time'];
+    const orderField = validSortFields.includes(sortBy) ? sortBy : 'created_at';
     qb.orderBy(`log.${orderField}`, sortOrder);
 
     // Paginación
@@ -194,8 +194,8 @@ export class LoggerRepository extends BaseRepository<LogEntity> {
    */
   async findByRequestId(requestId: string): Promise<LogEntity[]> {
     return this.createStaticQueryBuilder('log')
-      .where('log.requestId = :requestId', { requestId })
-      .orderBy('log.createdAt', 'ASC')
+      .where('log.request_id = :request_id', { request_id: requestId })
+      .orderBy('log.created_at', 'ASC')
       .getMany();
   }
 
@@ -207,8 +207,8 @@ export class LoggerRepository extends BaseRepository<LogEntity> {
    */
   async findByUserId(userId: string, limit: number = 100): Promise<LogEntity[]> {
     return this.createStaticQueryBuilder('log')
-      .where('log.userId = :userId', { userId })
-      .orderBy('log.createdAt', 'DESC')
+      .where('log.user_id = :user_id', { user_id: userId })
+      .orderBy('log.created_at', 'DESC')
       .take(limit)
       .getMany();
   }
@@ -225,8 +225,8 @@ export class LoggerRepository extends BaseRepository<LogEntity> {
 
     return this.createStaticQueryBuilder('log')
       .where('log.level = :level', { level: LogLevel.ERROR })
-      .andWhere('log.createdAt >= :since', { since })
-      .orderBy('log.createdAt', 'DESC')
+      .andWhere('log.created_at >= :since', { since })
+      .orderBy('log.created_at', 'DESC')
       .take(limit)
       .getMany();
   }
@@ -247,11 +247,11 @@ export class LoggerRepository extends BaseRepository<LogEntity> {
 
     // Filtros de fecha
     if (fromDate) {
-      qb.andWhere('log.createdAt >= :fromDate', { fromDate: new Date(fromDate) });
+      qb.andWhere('log.created_at >= :fromDate', { fromDate: new Date(fromDate) });
     }
 
     if (toDate) {
-      qb.andWhere('log.createdAt <= :toDate', { toDate: new Date(toDate) });
+      qb.andWhere('log.created_at <= :toDate', { toDate: new Date(toDate) });
     }
 
     // Agrupación según el tipo
@@ -265,17 +265,17 @@ export class LoggerRepository extends BaseRepository<LogEntity> {
         break;
 
       case 'hour':
-        qb.select("DATE_TRUNC('hour', log.createdAt)", 'hour')
+        qb.select("DATE_TRUNC('hour', log.created_at)", 'hour')
           .addSelect('COUNT(*)', 'count')
-          .groupBy("DATE_TRUNC('hour', log.createdAt)")
+          .groupBy("DATE_TRUNC('hour', log.created_at)")
           .orderBy('hour', 'DESC')
           .limit(24);
         break;
 
       case 'day':
-        qb.select("DATE_TRUNC('day', log.createdAt)", 'day')
+        qb.select("DATE_TRUNC('day', log.created_at)", 'day')
           .addSelect('COUNT(*)', 'count')
-          .groupBy("DATE_TRUNC('day', log.createdAt)")
+          .groupBy("DATE_TRUNC('day', log.created_at)")
           .orderBy('day', 'DESC')
           .limit(30);
         break;
@@ -314,9 +314,9 @@ export class LoggerRepository extends BaseRepository<LogEntity> {
     since.setHours(since.getHours() - hours);
 
     const result = await this.createStaticQueryBuilder('log')
-      .select('AVG(log.responseTime)', 'avg')
-      .where('log.responseTime IS NOT NULL')
-      .andWhere('log.createdAt >= :since', { since })
+      .select('AVG(log.response_time)', 'avg')
+      .where('log.response_time IS NOT NULL')
+      .andWhere('log.created_at >= :since', { since })
       .getRawOne<{ avg: string | null }>();
 
     return result?.avg ? parseFloat(result.avg) : 0;
@@ -340,7 +340,7 @@ export class LoggerRepository extends BaseRepository<LogEntity> {
       .createQueryBuilder()
       .delete()
       .from(LogEntity)
-      .where('createdAt < :cutoff', { cutoff })
+      .where('created_at < :cutoff', { cutoff })
       .execute();
 
     const deletedCount = result.affected ?? 0;
@@ -364,7 +364,7 @@ export class LoggerRepository extends BaseRepository<LogEntity> {
       .delete()
       .from(LogEntity)
       .where('level = :level', { level })
-      .andWhere('createdAt < :cutoff', { cutoff })
+      .andWhere('created_at < :cutoff', { cutoff })
       .execute();
 
     const deletedCount = result.affected ?? 0;

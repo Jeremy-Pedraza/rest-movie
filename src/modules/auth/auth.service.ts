@@ -17,7 +17,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 
-import { ROLES } from '@constants/roles.constant';
+import { ERROR_CODES, RESPONSE_MESSAGES, ROLES } from '@constants';
 import { EmailProducer } from '@modules/queue';
 import { UserService } from '@modules/user';
 import { HandleErrorService, SanitizerService } from '@shared/common';
@@ -80,7 +80,10 @@ export class AuthService {
     // 3. Buscar usuario por email (con password para validación)
     const user = await this.userService.findByEmailWithPassword(email);
     if (!user) {
-      this.handleError.unauthorized('Credenciales inválidas', 'AUTH_1001');
+      this.handleError.unauthorized(
+        RESPONSE_MESSAGES.AUTH.INVALID_CREDENTIALS,
+        ERROR_CODES.AUTH_INVALID_CREDENTIALS,
+      );
     }
 
     // 4. Verificar estado del usuario
@@ -90,7 +93,10 @@ export class AuthService {
     const isPasswordValid = await bcrypt.compare(dto.password, user.password);
     if (!isPasswordValid) {
       await this.userService.incrementFailedAttempts(user.id);
-      this.handleError.unauthorized('Credenciales inválidas', 'AUTH_1001');
+      this.handleError.unauthorized(
+        RESPONSE_MESSAGES.AUTH.INVALID_CREDENTIALS,
+        ERROR_CODES.AUTH_INVALID_CREDENTIALS,
+      );
     }
 
     // 6. Resetear intentos fallidos
@@ -102,7 +108,10 @@ export class AuthService {
     // 8. Cargar usuario completo con company y roles para el token
     const fullUser = await this.userService.findByIdWithCompanyAndRoles(user.id);
     if (!fullUser) {
-      this.handleError.unauthorized('Usuario no encontrado', 'AUTH_1010');
+      this.handleError.unauthorized(
+        RESPONSE_MESSAGES.AUTH.USER_NOT_FOUND,
+        ERROR_CODES.AUTH_USER_NOT_FOUND,
+      );
     }
 
     // 9. Generar tokens con companyId y schema
@@ -110,7 +119,7 @@ export class AuthService {
       fullUser.id,
       fullUser.email,
       fullUser.roles.map((r) => r.name),
-      fullUser.companyId,
+      fullUser.company_id,
       fullUser.company?.schema || null,
     );
 
@@ -130,13 +139,15 @@ export class AuthService {
     const maskedEmail = this.utils.string.maskEmail(fullUser.email);
     this.logger.log(`User logged in: ${maskedEmail} (${fullUser.company?.schema || 'public'})`);
 
-    return {
+    let data = {
       user: userResponse,
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
-      tokenType: 'Bearer',
+      tokenType: RESPONSE_MESSAGES.AUTH.TOKEN_TYPE,
       expiresIn: tokens.expiresIn,
     };
+    data = this.utils.removeTimestamps(data);
+    return data;
   }
 
   /**
@@ -239,27 +250,39 @@ export class AuthService {
     const session = await this.authRepository.findByRefreshToken(dto.refreshToken);
 
     if (!session) {
-      this.handleError.unauthorized('Refresh token inválido', 'AUTH_1003');
+      this.handleError.unauthorized(
+        RESPONSE_MESSAGES.AUTH.TOKEN_INVALID,
+        ERROR_CODES.AUTH_REFRESH_TOKEN_INVALID,
+      );
     }
 
     // 2. Verificar que la sesión sea válida
     if (!session.isValid()) {
       await this.authRepository.revokeSession(session.id, 'Sesión inválida');
-      this.handleError.unauthorized('Sesión expirada o inválida', 'AUTH_1002');
+      this.handleError.unauthorized(
+        RESPONSE_MESSAGES.AUTH.SESSION_EXPIRED,
+        ERROR_CODES.AUTH_SESSION_EXPIRED,
+      );
     }
 
     // 3. Verificar token reuse (seguridad)
-    if (session.isRevoked) {
+    if (session.is_revoked) {
       // Token fue reusado - revocar toda la familia de tokens
-      await this.authRepository.revokeAllByUserId(session.userId, 'Token reuse detected');
-      this.handleError.unauthorized('Token comprometido detectado', 'AUTH_1003');
+      await this.authRepository.revokeAllByUserId(session.user_id, 'Token reuse detected');
+      this.handleError.unauthorized(
+        RESPONSE_MESSAGES.AUTH.TOKEN_INVALID,
+        ERROR_CODES.AUTH_REFRESH_TOKEN_INVALID,
+      );
     }
 
     // ✅ 4. Verificar estado del usuario y cargar company
-    const user = await this.userService.findByIdWithCompanyAndRoles(session.userId);
+    const user = await this.userService.findByIdWithCompanyAndRoles(session.user_id);
     if (!user) {
       await this.authRepository.revokeSession(session.id);
-      this.handleError.unauthorized('Usuario no encontrado', 'AUTH_1010');
+      this.handleError.unauthorized(
+        RESPONSE_MESSAGES.AUTH.USER_NOT_FOUND,
+        ERROR_CODES.AUTH_USER_NOT_FOUND,
+      );
     }
 
     this.validateUserStatus(user);
@@ -269,7 +292,7 @@ export class AuthService {
       user.id,
       user.email,
       user.roles.map((r) => r.name),
-      user.companyId, // ✅ Incluir companyId
+      user.company_id, // ✅ Incluir companyId
       user.company?.schema || null, // ✅ Incluir schema
     );
 
@@ -436,12 +459,18 @@ export class AuthService {
         secret: this.configService.get<string>('jwt.resetSecret'),
       });
     } catch {
-      this.handleError.unauthorized('Token de reset inválido o expirado', 'AUTH_1003');
+      this.handleError.unauthorized(
+        RESPONSE_MESSAGES.AUTH.TOKEN_INVALID,
+        ERROR_CODES.AUTH_TOKEN_INVALID,
+      );
     }
 
     // 2. Verificar que el token no haya expirado
     if (payload.exp * 1000 < Date.now()) {
-      this.handleError.unauthorized('Token de reset expirado', 'AUTH_1002');
+      this.handleError.unauthorized(
+        RESPONSE_MESSAGES.AUTH.TOKEN_EXPIRED,
+        ERROR_CODES.AUTH_TOKEN_EXPIRED,
+      );
     }
 
     // 3. Actualizar contraseña
@@ -485,7 +514,7 @@ export class AuthService {
       this.handleError.notFound('Sesión', sessionId);
     }
 
-    if (session.userId !== userId) {
+    if (session.user_id !== userId) {
       this.handleError.forbidden('No tienes permiso para revocar esta sesión');
     }
 
@@ -573,13 +602,13 @@ export class AuthService {
     const expiresAt = new Date(Date.now() + expiresIn * 1000);
 
     return await this.authRepository.createSession({
-      userId,
-      refreshToken,
-      refreshTokenFamily: this.utils.generateId(), // ✅ UUIDv7 para detectar token reuse
-      expiresAt,
-      ipAddress,
-      userAgent: userAgent || null,
-      isActive: true,
+      user_id: userId,
+      refresh_token: refreshToken,
+      refresh_token_family: this.utils.generateId(), // ✅ UUIDv7 para detectar token reuse
+      expires_at: expiresAt,
+      ip_address: ipAddress,
+      user_agent: userAgent || null,
+      is_active: true,
     });
   }
 
@@ -605,15 +634,21 @@ export class AuthService {
     lockedUntil?: Date | null;
   }): void {
     if (!user.isActive) {
-      this.handleError.unauthorized('Usuario inactivo', 'AUTH_1011');
+      this.handleError.unauthorized(
+        RESPONSE_MESSAGES.AUTH.USER_INACTIVE,
+        ERROR_CODES.AUTH_USER_INACTIVE,
+      );
     }
 
     if (user.status === 'suspended') {
-      this.handleError.unauthorized('Usuario suspendido', 'AUTH_1011');
+      this.handleError.unauthorized(RESPONSE_MESSAGES.AUTH.FORBIDDEN, ERROR_CODES.AUTH_FORBIDDEN);
     }
 
     if (user.status === 'blocked') {
-      this.handleError.unauthorized('Usuario bloqueado', 'AUTH_1011');
+      this.handleError.unauthorized(
+        RESPONSE_MESSAGES.AUTH.USER_LOCKED,
+        ERROR_CODES.AUTH_USER_LOCKED,
+      );
     }
 
     // ✅ Formatear fecha cuando usuario está bloqueado temporalmente
@@ -623,7 +658,7 @@ export class AuthService {
 
       this.handleError.unauthorized(
         `Usuario bloqueado hasta ${formatted} (${timeUntil})`,
-        'AUTH_1011',
+        ERROR_CODES.AUTH_USER_LOCKED,
       );
     }
   }
@@ -634,11 +669,11 @@ export class AuthService {
   private toSessionInfo(session: SessionEntity): ISessionInfo {
     return {
       id: session.id,
-      userAgent: session.userAgent || 'Unknown',
-      ipAddress: session.ipAddress,
-      createdAt: session.createdAt,
-      lastActivityAt: session.lastActivityAt,
-      expiresAt: session.expiresAt,
+      userAgent: session.user_agent || 'Unknown',
+      ipAddress: session.ip_address,
+      createdAt: session.created_at,
+      lastActivityAt: session.last_activity_at,
+      expiresAt: session.expires_at,
       isCurrent: false, // El controller determinará cuál es la actual
     };
   }

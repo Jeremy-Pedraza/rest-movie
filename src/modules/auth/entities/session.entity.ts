@@ -26,9 +26,9 @@ import { UserEntity } from '@modules/user';
  * Almacena las sesiones activas de los usuarios
  */
 @Entity('sessions')
-@Index(['userId', 'deletedAt'])
-@Index(['refreshToken', 'deletedAt'])
-@Index(['expiresAt', 'deletedAt'])
+@Index(['user_id', 'deleted_at'])
+@Index(['refresh_token', 'deleted_at'])
+@Index(['expires_at', 'deleted_at'])
 export class SessionEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -37,74 +37,74 @@ export class SessionEntity {
   // RELACIONES
   // ============================================
 
-  @Column({ type: 'uuid' })
+  @Column({ type: 'uuid', name: 'user_id' })
   @Index()
-  userId: string;
+  user_id: string;
 
   @ManyToOne(() => UserEntity, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'userId' })
+  @JoinColumn({ name: 'user_id' })
   user: UserEntity;
 
   // ============================================
   // TOKENS
   // ============================================
 
-  @Column({ type: 'text', unique: true })
+  @Column({ type: 'text', unique: true, name: 'refresh_token' })
   @Index()
-  refreshToken: string;
+  refresh_token: string;
 
-  @Column({ type: 'text', nullable: true })
-  refreshTokenFamily: string | null; // Para detectar token reuse
+  @Column({ type: 'text', nullable: true, name: 'refresh_token_family' })
+  refresh_token_family: string | null; // Para detectar token reuse
 
   // ============================================
   // INFORMACIÓN DE SESIÓN
   // ============================================
 
-  @Column({ type: 'varchar', length: 500, nullable: true })
-  userAgent: string | null;
+  @Column({ type: 'varchar', length: 500, nullable: true, name: 'user_agent' })
+  user_agent: string | null;
 
-  @Column({ type: 'varchar', length: 45 })
+  @Column({ type: 'varchar', length: 45, name: 'ip_address' })
   @Index()
-  ipAddress: string;
+  ip_address: string;
 
-  @Column({ type: 'varchar', length: 100, nullable: true })
+  @Column({ type: 'varchar', length: 100, nullable: true, name: 'device' })
   device: string | null; // ej: "Chrome on Windows", "Safari on iPhone"
 
-  @Column({ type: 'varchar', length: 100, nullable: true })
+  @Column({ type: 'varchar', length: 100, nullable: true, name: 'location' })
   location: string | null; // ej: "Bucaramanga, CO"
 
   // ============================================
   // TIMESTAMPS Y EXPIRACIÓN
   // ============================================
 
-  @CreateDateColumn({ type: 'timestamptz' })
-  createdAt: Date;
+  @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
+  created_at: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz' })
-  lastActivityAt: Date;
+  @UpdateDateColumn({ type: 'timestamptz', name: 'last_activity_at' })
+  last_activity_at: Date;
 
-  @Column({ type: 'timestamptz' })
+  @Column({ type: 'timestamptz', name: 'expires_at' })
   @Index()
-  expiresAt: Date;
+  expires_at: Date;
 
-  @DeleteDateColumn({ type: 'timestamptz', nullable: true })
-  deletedAt: Date | null;
+  @DeleteDateColumn({ type: 'timestamptz', nullable: true, name: 'deleted_at' })
+  deleted_at: Date | null;
 
   // ============================================
   // METADATA
   // ============================================
 
-  @Column({ type: 'boolean', default: true })
-  isActive: boolean;
+  @Column({ type: 'boolean', default: true, name: 'is_active' })
+  is_active: boolean;
 
-  @Column({ type: 'boolean', default: false })
-  isRevoked: boolean;
+  @Column({ type: 'boolean', default: false, name: 'is_revoked' })
+  is_revoked: boolean;
 
-  @Column({ type: 'timestamptz', nullable: true })
-  revokedAt: Date | null;
+  @Column({ type: 'timestamptz', nullable: true, name: 'revoked_at' })
+  revoked_at: Date | null;
 
-  @Column({ type: 'varchar', length: 255, nullable: true })
-  revokedReason: string | null;
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'revoked_reason' })
+  revoked_reason: string | null;
 
   // ============================================
   // HOOKS
@@ -113,8 +113,8 @@ export class SessionEntity {
   @BeforeInsert()
   @BeforeUpdate()
   validateExpiration() {
-    if (this.expiresAt && this.expiresAt < new Date()) {
-      this.isActive = false;
+    if (this.expires_at && this.expires_at < new Date()) {
+      this.is_active = false;
     }
   }
 
@@ -126,23 +126,23 @@ export class SessionEntity {
    * Verifica si la sesión está expirada
    */
   isExpired(): boolean {
-    return this.expiresAt < new Date();
+    return this.expires_at < new Date();
   }
 
   /**
    * Verifica si la sesión es válida
    */
   isValid(): boolean {
-    return this.isActive && !this.isRevoked && !this.isExpired() && !this.deletedAt;
+    return this.is_active && !this.is_revoked && !this.isExpired() && !this.deleted_at;
   }
 
   /**
    * Revoca la sesión
    */
   revoke(reason?: string): void {
-    this.isRevoked = true;
-    this.revokedAt = new Date();
-    this.revokedReason = reason || 'Revoked by user';
-    this.isActive = false;
+    this.is_revoked = true;
+    this.revoked_at = new Date();
+    this.revoked_reason = reason || 'Revoked by user';
+    this.is_active = false;
   }
 }

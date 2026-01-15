@@ -23,7 +23,7 @@ export interface IUserResponse {
   lastLoginAt: Date | null;
   roles: IRoleResponse[];
   createdAt: Date;
-  updatedAt: Date;
+  updatedAt: Date | null;
 }
 
 /**

@@ -33,10 +33,10 @@ export enum LogContext {
 }
 
 @Entity({ name: 'logs', schema: 'public' })
-@Index(['level', 'createdAt'])
-@Index(['context', 'createdAt'])
-@Index(['userId', 'createdAt'])
-@Index(['requestId'])
+@Index(['level', 'created_at'])
+@Index(['context', 'created_at'])
+@Index(['user_id', 'created_at'])
+@Index(['request_id'])
 export class LogEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -48,6 +48,7 @@ export class LogEntity {
     type: 'enum',
     enum: LogLevel,
     default: LogLevel.INFO,
+    name: 'level',
   })
   @Index()
   level: LogLevel;
@@ -59,97 +60,98 @@ export class LogEntity {
     type: 'enum',
     enum: LogContext,
     default: LogContext.SYSTEM,
+    name: 'context',
   })
   context: LogContext;
 
   /**
    * Mensaje principal del log
    */
-  @Column({ type: 'text' })
+  @Column({ type: 'text', name: 'message' })
   message: string;
 
   /**
    * Datos adicionales estructurados
    */
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: 'jsonb', nullable: true, name: 'metadata' })
   metadata: Record<string, unknown> | null;
 
   /**
    * Stack trace (para errores)
    */
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'text', nullable: true, name: 'stack' })
   stack: string | null;
 
   /**
    * ID de la petición HTTP (correlación)
    */
-  @Column({ type: 'uuid', nullable: true })
-  requestId: string | null;
+  @Column({ type: 'uuid', nullable: true, name: 'request_id' })
+  request_id: string | null;
 
   /**
    * ID del usuario (si está autenticado)
    */
-  @Column({ type: 'uuid', nullable: true })
-  userId: string | null;
+  @Column({ type: 'uuid', nullable: true, name: 'user_id' })
+  user_id: string | null;
 
   /**
    * IP del cliente
    */
-  @Column({ type: 'varchar', length: 45, nullable: true })
+  @Column({ type: 'varchar', length: 45, nullable: true, name: 'ip' })
   ip: string | null;
 
   /**
    * User Agent del cliente
    */
-  @Column({ type: 'varchar', length: 500, nullable: true })
-  userAgent: string | null;
+  @Column({ type: 'varchar', length: 500, nullable: true, name: 'user_agent' })
+  user_agent: string | null;
 
   /**
    * Método HTTP
    */
-  @Column({ type: 'varchar', length: 10, nullable: true })
+  @Column({ type: 'varchar', length: 10, nullable: true, name: 'method' })
   method: string | null;
 
   /**
    * URL de la petición
    */
-  @Column({ type: 'varchar', length: 2048, nullable: true })
+  @Column({ type: 'varchar', length: 2048, nullable: true, name: 'url' })
   url: string | null;
 
   /**
    * Código de estado HTTP
    */
-  @Column({ type: 'int', nullable: true })
-  statusCode: number | null;
+  @Column({ type: 'int', nullable: true, name: 'status_code' })
+  status_code: number | null;
 
   /**
    * Tiempo de respuesta en ms
    */
-  @Column({ type: 'int', nullable: true })
-  responseTime: number | null;
+  @Column({ type: 'int', nullable: true, name: 'response_time' })
+  response_time: number | null;
 
   /**
    * Nombre del servicio/clase que genera el log
    */
-  @Column({ type: 'varchar', length: 100, nullable: true })
+  @Column({ type: 'varchar', length: 100, nullable: true, name: 'service' })
   service: string | null;
 
   /**
    * Nombre de la acción/método
    */
-  @Column({ type: 'varchar', length: 100, nullable: true })
+  @Column({ type: 'varchar', length: 100, nullable: true, name: 'action' })
   action: string | null;
 
   /**
    * Código de error (si aplica)
    */
-  @Column({ type: 'varchar', length: 50, nullable: true })
-  errorCode: string | null;
+  @Column({ type: 'varchar', length: 50, nullable: true, name: 'error_code' })
+  error_code: string | null;
 
   /**
    * Fecha de creación
    */
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
   @Index()
-  createdAt: Date;
+  created_at: Date;
 }

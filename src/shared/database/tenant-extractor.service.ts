@@ -83,7 +83,7 @@ export class TenantExtractorService {
     }
 
     // 2. Si no tiene company, usar schema public
-    if (!user.company || !user.companyId) {
+    if (!user.company || !user.company_id) {
       this.logger.debug(`Usuario ${userId} sin company, usando schema public`);
       return {
         schema: 'public',
@@ -93,7 +93,7 @@ export class TenantExtractorService {
     }
 
     // 3. Validar que la company esté activa
-    if (!user.company.isActive) {
+    if (!user.company.is_active) {
       this.logger.warn(`Company ${user.company.id} inactiva, usuario ${userId} bloqueado`);
       throw new ForbiddenException('Empresa desactivada');
     }
@@ -198,7 +198,7 @@ export class TenantExtractorService {
   private async extractFromSubdomain(subdomain: string): Promise<ITenantContext> {
     // Buscar company por subdomain
     const company = await this.companyRepo.findOne({
-      where: { subdomain, isActive: true },
+      where: { subdomain, is_active: true },
     });
 
     if (!company) {

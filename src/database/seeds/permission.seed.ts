@@ -32,8 +32,8 @@ export async function seedPermissions(dataSource: DataSource): Promise<void> {
       module: permDef.module,
       action: permDef.action,
       description: permDef.description,
-      isSystem: true,
-      isActive: true,
+      is_system: true,
+      is_active: true,
     });
 
     await permissionRepo.save(permission);

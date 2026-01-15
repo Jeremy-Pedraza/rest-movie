@@ -28,31 +28,31 @@ export class RoleEntity {
   /**
    * Nombre del rol (único)
    */
-  @Column({ type: 'varchar', length: 50, unique: true })
+  @Column({ type: 'varchar', length: 50, unique: true, name: 'name' })
   name: string;
 
   /**
    * Descripción del rol
    */
-  @Column({ type: 'varchar', length: 255, nullable: true })
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'description' })
   description: string | null;
 
   /**
    * Si es un rol del sistema (no eliminable)
    */
-  @Column({ type: 'boolean', default: false })
-  isSystem: boolean;
+  @Column({ type: 'boolean', default: false, name: 'is_system' })
+  is_system: boolean;
 
   /**
    * Si el rol está activo
    */
-  @Column({ type: 'boolean', default: true })
-  isActive: boolean;
+  @Column({ type: 'boolean', default: true, name: 'is_active' })
+  is_active: boolean;
 
   /**
    * Nivel de jerarquía (mayor = más permisos)
    */
-  @Column({ type: 'int', default: 0 })
+  @Column({ type: 'int', default: 0, name: 'hierarchy' })
   hierarchy: number;
 
   /**
@@ -75,14 +75,14 @@ export class RoleEntity {
   /**
    * Fecha de creación
    */
-  @CreateDateColumn({ type: 'timestamptz' })
-  createdAt: Date;
+  @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
+  created_at: Date;
 
   /**
    * Fecha de actualización
    */
-  @UpdateDateColumn({ type: 'timestamptz' })
-  updatedAt: Date;
+  @UpdateDateColumn({ type: 'timestamptz', name: 'updated_at' })
+  updated_at: Date;
 
   // ============================================
   // VIRTUAL PROPERTIES

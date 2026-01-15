@@ -154,16 +154,16 @@ export class UserRepository extends BaseRepository<UserEntity> {
 
     // Filtro por email verificado
     if (emailVerified !== undefined) {
-      qb.andWhere('user.emailVerified = :emailVerified', { emailVerified });
+      qb.andWhere('user.email_verified = :email_verified', { email_verified: emailVerified });
     }
 
     // Filtro por fecha
     if (fromDate) {
-      qb.andWhere('user.createdAt >= :fromDate', { fromDate: new Date(fromDate) });
+      qb.andWhere('user.created_at >= :from_date', { from_date: new Date(fromDate) });
     }
 
     if (toDate) {
-      qb.andWhere('user.createdAt <= :toDate', { toDate: new Date(toDate) });
+      qb.andWhere('user.created_at <= :to_date', { to_date: new Date(toDate) });
     }
 
     // Ordenamiento
@@ -273,7 +273,7 @@ export class UserRepository extends BaseRepository<UserEntity> {
     });
 
     if (excludeUserId) {
-      qb.andWhere('user.id != :excludeUserId', { excludeUserId });
+      qb.andWhere('user.id != :exclude_user_id', { exclude_user_id: excludeUserId });
     }
 
     const count = await qb.getCount();
@@ -289,8 +289,8 @@ export class UserRepository extends BaseRepository<UserEntity> {
   async updatePassword(id: string, hashedPassword: string): Promise<boolean> {
     const result = await this.repository.update(id, {
       password: hashedPassword,
-      passwordResetToken: null,
-      passwordResetExpires: null,
+      password_reset_token: null,
+      password_reset_expires: null,
     });
     return (result.affected ?? 0) > 0;
   }
@@ -313,10 +313,10 @@ export class UserRepository extends BaseRepository<UserEntity> {
    */
   async registerLogin(id: string, ip?: string): Promise<void> {
     await this.repository.update(id, {
-      lastLoginAt: new Date(),
-      lastLoginIp: ip || null,
-      failedLoginAttempts: 0,
-      lockedUntil: null,
+      last_login_at: new Date(),
+      last_login_ip: ip || null,
+      failed_login_attempts: 0,
+      locked_until: null,
     });
   }
 
@@ -339,9 +339,9 @@ export class UserRepository extends BaseRepository<UserEntity> {
    */
   async verifyEmail(id: string): Promise<boolean> {
     const result = await this.repository.update(id, {
-      emailVerified: true,
-      emailVerifiedAt: new Date(),
-      emailVerificationToken: null,
+      email_verified: true,
+      email_verified_at: new Date(),
+      email_verification_token: null,
       status: UserStatus.ACTIVE,
     });
     return (result.affected ?? 0) > 0;
@@ -389,10 +389,10 @@ export class UserRepository extends BaseRepository<UserEntity> {
       this.count(),
       this.countByStatus(),
       this.createStaticQueryBuilder('user')
-        .where('user.emailVerified = :verified', { verified: true })
+        .where('user.email_verified = :verified', { verified: true })
         .getCount(),
       this.createStaticQueryBuilder('user')
-        .where('user.emailVerified = :verified', { verified: false })
+        .where('user.email_verified = :verified', { verified: false })
         .getCount(),
     ]);
 
@@ -431,12 +431,12 @@ export class UserRepository extends BaseRepository<UserEntity> {
   /**
    * Busca un usuario por ID incluyendo company, roles y permisos completos
    * ⚠️ Solo para uso interno de autenticación (JwtStrategy)
-   * 
+   *
    * Este método carga toda la información necesaria para construir UserSessionDto:
    * - Datos del usuario
    * - Company (tenant) con schema
    * - Roles con permisos
-   * 
+   *
    * @param id - ID del usuario
    * @returns Usuario con company, roles y permisos o null
    */
@@ -446,7 +446,7 @@ export class UserRepository extends BaseRepository<UserEntity> {
       .leftJoinAndSelect('user.roles', 'roles')
       .leftJoinAndSelect('roles.permissions', 'permissions')
       .where('user.id = :id', { id })
-      .andWhere('user.deletedAt IS NULL')
+      .andWhere('user.deleted_at IS NULL')
       .getOne();
   }
 
@@ -456,8 +456,8 @@ export class UserRepository extends BaseRepository<UserEntity> {
    */
   async resetFailedAttempts(id: string): Promise<void> {
     await this.repository.update(id, {
-      failedLoginAttempts: 0,
-      lockedUntil: null,
+      failed_login_attempts: 0,
+      locked_until: null,
     });
   }
 
@@ -469,8 +469,8 @@ export class UserRepository extends BaseRepository<UserEntity> {
    */
   async savePasswordResetToken(id: string, token: string, expiresAt: Date): Promise<void> {
     await this.repository.update(id, {
-      passwordResetToken: token,
-      passwordResetExpires: expiresAt,
+      password_reset_token: token,
+      password_reset_expires: expiresAt,
     });
   }
 
@@ -480,8 +480,8 @@ export class UserRepository extends BaseRepository<UserEntity> {
    */
   async invalidatePasswordResetToken(id: string): Promise<void> {
     await this.repository.update(id, {
-      passwordResetToken: null,
-      passwordResetExpires: null,
+      password_reset_token: null,
+      password_reset_expires: null,
     });
   }
 }

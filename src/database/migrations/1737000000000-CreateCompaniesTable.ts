@@ -57,7 +57,7 @@ export class CreateCompaniesTable1737000000000 implements MigrationInterface {
             comment: 'Subdominio de la empresa',
           },
           {
-            name: 'isActive',
+            name: 'is_active',
             type: 'boolean',
             default: true,
             isNullable: false,
@@ -77,25 +77,25 @@ export class CreateCompaniesTable1737000000000 implements MigrationInterface {
             comment: 'Plan/Tier de la empresa',
           },
           {
-            name: 'planExpiresAt',
+            name: 'plan_expires_at',
             type: 'timestamp with time zone',
             isNullable: true,
             comment: 'Fecha de expiración del plan',
           },
           {
-            name: 'createdAt',
+            name: 'created_at',
             type: 'timestamp with time zone',
             default: 'now()',
             isNullable: false,
           },
           {
-            name: 'updatedAt',
+            name: 'updated_at',
             type: 'timestamp with time zone',
             default: 'now()',
             isNullable: false,
           },
           {
-            name: 'deletedAt',
+            name: 'deleted_at',
             type: 'timestamp with time zone',
             isNullable: true,
           },
@@ -132,14 +132,14 @@ export class CreateCompaniesTable1737000000000 implements MigrationInterface {
     await queryRunner.createIndex(
       'companies',
       new TableIndex({
-        name: 'idx_company_active',
-        columnNames: ['isActive'],
+        name: 'idx_company_is_active',
+        columnNames: ['is_active'],
       }),
     );
 
     // Insertar company por defecto para desarrollo (schema public)
     await queryRunner.query(`
-      INSERT INTO public.companies (name, schema, subdomain, "isActive", settings)
+      INSERT INTO public.companies (name, schema, subdomain, "is_active", settings)
       VALUES (
         'Sistema - Public Schema',
         'public',
@@ -155,7 +155,7 @@ export class CreateCompaniesTable1737000000000 implements MigrationInterface {
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Eliminar índices
-    await queryRunner.dropIndex('companies', 'idx_company_active');
+    await queryRunner.dropIndex('companies', 'idx_company_is_active');
     await queryRunner.dropIndex('companies', 'idx_company_subdomain');
     await queryRunner.dropIndex('companies', 'idx_company_domain');
     await queryRunner.dropIndex('companies', 'idx_company_schema');

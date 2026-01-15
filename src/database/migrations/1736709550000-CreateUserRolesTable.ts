@@ -18,12 +18,12 @@ export class CreateUserRolesTable1736709550000 implements MigrationInterface {
         name: 'user_roles',
         columns: [
           {
-            name: 'userId',
+            name: 'user_id',
             type: 'uuid',
             isNullable: false,
           },
           {
-            name: 'roleId',
+            name: 'role_id',
             type: 'uuid',
             isNullable: false,
           },
@@ -33,14 +33,14 @@ export class CreateUserRolesTable1736709550000 implements MigrationInterface {
     );
 
     // Primary key compuesta
-    await queryRunner.createPrimaryKey('user_roles', ['userId', 'roleId']);
+    await queryRunner.createPrimaryKey('user_roles', ['user_id', 'role_id']);
 
     // Foreign key a users
     await queryRunner.createForeignKey(
       'user_roles',
       new TableForeignKey({
         name: 'FK_user_roles_userId',
-        columnNames: ['userId'],
+        columnNames: ['user_id'],
         referencedTableName: 'users',
         referencedColumnNames: ['id'],
         onDelete: 'CASCADE',
@@ -52,8 +52,8 @@ export class CreateUserRolesTable1736709550000 implements MigrationInterface {
     await queryRunner.createForeignKey(
       'user_roles',
       new TableForeignKey({
-        name: 'FK_user_roles_roleId',
-        columnNames: ['roleId'],
+        name: 'FK_user_roles_role_id',
+        columnNames: ['role_id'],
         referencedTableName: 'roles',
         referencedColumnNames: ['id'],
         onDelete: 'CASCADE',
@@ -65,16 +65,16 @@ export class CreateUserRolesTable1736709550000 implements MigrationInterface {
     await queryRunner.createIndex(
       'user_roles',
       new TableIndex({
-        name: 'IDX_user_roles_userId',
-        columnNames: ['userId'],
+        name: 'IDX_user_roles_user_id',
+        columnNames: ['user_id'],
       }),
     );
 
     await queryRunner.createIndex(
       'user_roles',
       new TableIndex({
-        name: 'IDX_user_roles_roleId',
-        columnNames: ['roleId'],
+        name: 'IDX_user_roles_role_id',
+        columnNames: ['role_id'],
       }),
     );
   }

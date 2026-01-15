@@ -230,14 +230,15 @@ export class AuthService {
     // ✅ Log con email enmascarado (GDPR/Privacidad)
     const maskedEmail = this.utils.string.maskEmail(user.email);
     this.logger.log(`User registered: ${maskedEmail} - Welcome email enqueued`);
-
-    return {
+    let data = {
       user,
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
-      tokenType: 'Bearer',
+      tokenType: RESPONSE_MESSAGES.AUTH.TOKEN_TYPE,
       expiresIn: tokens.expiresIn,
     };
+    data = this.utils.removeTimestamps(data);
+    return data;
   }
 
   /**
@@ -305,12 +306,14 @@ export class AuthService {
 
     this.logger.log(`Token refreshed for user: ${user.email}`);
 
-    return {
+    let data = {
       accessToken: newTokens.accessToken,
       refreshToken: newTokens.refreshToken,
-      tokenType: 'Bearer',
+      tokenType: RESPONSE_MESSAGES.AUTH.TOKEN_TYPE,
       expiresIn: newTokens.expiresIn,
     };
+    data = this.utils.removeTimestamps(data);
+    return data;
   }
 
   /**

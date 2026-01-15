@@ -17,6 +17,7 @@ import * as bcrypt from 'bcrypt';
 import { CacheService } from '@modules/cache';
 import { HandleErrorService, IPaginatedResponse, SanitizerService } from '@shared/common';
 import { TransactionService } from '@shared/database';
+import { UtilsService } from '@shared/utils';
 import { ChangePasswordDto, CreateUserDto, QueryUserDto, UpdateUserDto } from './dto';
 import { UserEntity, UserStatus } from './entities/user.entity';
 import { IUserProfileResponse, IUserResponse } from './interfaces';
@@ -32,6 +33,7 @@ export class UserService {
     private readonly handleError: HandleErrorService,
     private readonly transactionService: TransactionService,
     private readonly cacheService: CacheService, // ✅ Cache inteligente
+    private readonly utils: UtilsService, // ✅ Utilidades (validación, formateo, crypto)
   ) {}
 
   // ============================================
@@ -44,6 +46,20 @@ export class UserService {
    * @returns Usuario creado
    */
   async create(dto: CreateUserDto): Promise<IUserResponse> {
+    // ✅ FASE 1: Validar email antes de sanitizar
+    if (!this.utils.validation.isEmail(dto.email)) {
+      this.handleError.badRequest('Email inválido', 'email');
+    }
+
+    // ✅ FASE 2: Validar fortaleza de password
+    const passwordValidation = this.utils.validation.validatePassword(dto.password);
+    if (!passwordValidation.isValid) {
+      this.handleError.badRequest(
+        `Password débil: ${passwordValidation.errors.join(', ')}`,
+        'password',
+      );
+    }
+
     // Sanitizar inputs
     const sanitizedDto = this.sanitizeCreateDto(dto);
 
@@ -55,7 +71,10 @@ export class UserService {
 
     try {
       const user = await this.userRepository.create(sanitizedDto);
-      this.logger.log(`User created: ${user.id} (${user.email})`);
+
+      // ✅ FASE 3: Log con email enmascarado (GDPR/Privacidad)
+      const maskedEmail = this.utils.string.maskEmail(user.email);
+      this.logger.log(`User created: ${user.id} (${maskedEmail})`);
 
       // Invalidar cache de stats al crear usuario
       await this.cacheService.invalidateTags(['users', 'user-stats']);
@@ -74,6 +93,11 @@ export class UserService {
    * ✅ Con cache: 1h TTL, tags: ['users', 'user:{id}']
    */
   async findById(id: string): Promise<IUserResponse> {
+    // ✅ FASE 1: Validar UUID
+    if (!this.utils.validation.isUUID(id)) {
+      this.handleError.badRequest('ID de usuario inválido', 'id');
+    }
+
     // remember() = obtener del cache o ejecutar callback
     return await this.cacheService.remember(
       `user:${id}`, // Key
@@ -98,6 +122,11 @@ export class UserService {
    * @returns Usuario encontrado
    */
   async findByEmail(email: string): Promise<IUserResponse> {
+    // ✅ FASE 1: Validar email antes de sanitizar
+    if (!this.utils.validation.isEmail(email)) {
+      this.handleError.badRequest('Email inválido', 'email');
+    }
+
     const sanitizedEmail = this.sanitizer.sanitizeEmail(email);
     const user = await this.userRepository.findByEmail(sanitizedEmail);
     if (!user) {
@@ -112,9 +141,11 @@ export class UserService {
    * @returns Usuarios paginados
    */
   async findAll(query: QueryUserDto): Promise<IPaginatedResponse<IUserResponse>> {
-    // Sanitizar búsqueda si existe
+    // ✅ FASE 3: Sanitizar + Normalizar búsqueda para mejores resultados
     if (query.search) {
       query.search = this.sanitizer.sanitizeString(query.search);
+      // Normalizar: quitar acentos, convertir a minúsculas, limpiar espacios
+      query.search = this.utils.string.normalizeForSearch(query.search);
     }
 
     const result = await this.userRepository.findAll(query);
@@ -132,6 +163,16 @@ export class UserService {
    * @returns Usuario actualizado
    */
   async update(id: string, dto: UpdateUserDto): Promise<IUserResponse> {
+    // ✅ FASE 1: Validar UUID
+    if (!this.utils.validation.isUUID(id)) {
+      this.handleError.badRequest('ID de usuario inválido', 'id');
+    }
+
+    // ✅ FASE 1: Validar email si se está actualizando
+    if (dto.email && !this.utils.validation.isEmail(dto.email)) {
+      this.handleError.badRequest('Email inválido', 'email');
+    }
+
     // Verificar que el usuario existe
     const existingUser = await this.userRepository.findById(id);
     if (!existingUser) {
@@ -170,6 +211,11 @@ export class UserService {
    * @param id - ID del usuario
    */
   async softDelete(id: string): Promise<void> {
+    // ✅ FASE 1: Validar UUID
+    if (!this.utils.validation.isUUID(id)) {
+      this.handleError.badRequest('ID de usuario inválido', 'id');
+    }
+
     const user = await this.userRepository.findById(id);
     if (!user) {
       this.handleError.notFound('Usuario', id);
@@ -191,6 +237,11 @@ export class UserService {
    * @param id - ID del usuario
    */
   async restore(id: string): Promise<IUserResponse> {
+    // ✅ FASE 1: Validar UUID
+    if (!this.utils.validation.isUUID(id)) {
+      this.handleError.badRequest('ID de usuario inválido', 'id');
+    }
+
     const restored = await this.userRepository.restore(id);
     if (!restored) {
       this.handleError.notFound('Usuario', id);
@@ -219,6 +270,20 @@ export class UserService {
    * @param dto - Datos de cambio de contraseña
    */
   async changePassword(id: string, dto: ChangePasswordDto): Promise<void> {
+    // ✅ FASE 1: Validar UUID
+    if (!this.utils.validation.isUUID(id)) {
+      this.handleError.badRequest('ID de usuario inválido', 'id');
+    }
+
+    // ✅ FASE 2: Validar fortaleza de nueva password
+    const passwordValidation = this.utils.validation.validatePassword(dto.newPassword);
+    if (!passwordValidation.isValid) {
+      this.handleError.badRequest(
+        `Password débil: ${passwordValidation.errors.join(', ')}`,
+        'password',
+      );
+    }
+
     // Buscar usuario con password
     const existingUser = await this.userRepository.findById(id);
     if (!existingUser) {
@@ -297,6 +362,11 @@ export class UserService {
    * @returns Perfil del usuario
    */
   async getProfile(id: string): Promise<IUserProfileResponse> {
+    // ✅ FASE 1: Validar UUID
+    if (!this.utils.validation.isUUID(id)) {
+      this.handleError.badRequest('ID de usuario inválido', 'id');
+    }
+
     const user = await this.userRepository.findById(id);
     if (!user) {
       this.handleError.notFound('Usuario', id);
@@ -314,6 +384,11 @@ export class UserService {
     id: string,
     dto: Pick<UpdateUserDto, 'firstName' | 'lastName' | 'phone' | 'avatar' | 'preferences'>,
   ): Promise<IUserProfileResponse> {
+    // ✅ FASE 1: Validar UUID
+    if (!this.utils.validation.isUUID(id)) {
+      this.handleError.badRequest('ID de usuario inválido', 'id');
+    }
+
     // Sanitizar inputs del perfil
     const sanitizedDto = {
       ...dto,
@@ -407,6 +482,11 @@ export class UserService {
     status: UserStatus,
     action: string,
   ): Promise<void> {
+    // ✅ FASE 1: Validar UUID
+    if (!this.utils.validation.isUUID(id)) {
+      this.handleError.badRequest('ID de usuario inválido', 'id');
+    }
+
     const user = await this.userRepository.findById(id);
     if (!user) {
       this.handleError.notFound('Usuario', id);
@@ -467,6 +547,11 @@ export class UserService {
    * @returns Usuario con password o null
    */
   async findByEmailWithPassword(email: string): Promise<UserEntity | null> {
+    // ✅ FASE 1: Validar email antes de sanitizar
+    if (!this.utils.validation.isEmail(email)) {
+      this.handleError.badRequest('Email inválido', 'email');
+    }
+
     const sanitizedEmail = this.sanitizer.sanitizeEmail(email);
     return await this.userRepository.findByEmail(sanitizedEmail, true);
   }
@@ -478,6 +563,11 @@ export class UserService {
    * @returns Usuario con password o null
    */
   async findByIdWithPassword(id: string): Promise<UserEntity | null> {
+    // ✅ FASE 1: Validar UUID
+    if (!this.utils.validation.isUUID(id)) {
+      this.handleError.badRequest('ID de usuario inválido', 'id');
+    }
+
     return await this.userRepository.findByIdWithPassword(id);
   }
 
@@ -487,17 +577,27 @@ export class UserService {
    * @returns Usuario con roles y permisos o null
    */
   async findByIdWithRoles(id: string): Promise<UserEntity | null> {
+    // ✅ FASE 1: Validar UUID
+    if (!this.utils.validation.isUUID(id)) {
+      this.handleError.badRequest('ID de usuario inválido', 'id');
+    }
+
     return await this.userRepository.findByIdWithRoles(id);
   }
 
   /**
    * Busca un usuario por ID incluyendo company, roles y permisos completos
    * ⚠️ Solo para uso interno de autenticación (JwtStrategy)
-   * 
+   *
    * @param id - ID del usuario
    * @returns Usuario con company, roles y permisos o null
    */
   async findByIdWithCompanyAndRoles(id: string): Promise<UserEntity | null> {
+    // ✅ FASE 1: Validar UUID
+    if (!this.utils.validation.isUUID(id)) {
+      this.handleError.badRequest('ID de usuario inválido', 'id');
+    }
+
     return await this.userRepository.findByIdWithCompanyAndRoles(id);
   }
 
@@ -507,6 +607,11 @@ export class UserService {
    * @returns true si existe
    */
   async existsByEmail(email: string): Promise<boolean> {
+    // ✅ FASE 1: Validar email antes de sanitizar
+    if (!this.utils.validation.isEmail(email)) {
+      this.handleError.badRequest('Email inválido', 'email');
+    }
+
     const sanitizedEmail = this.sanitizer.sanitizeEmail(email);
     return await this.userRepository.emailExists(sanitizedEmail);
   }
@@ -516,6 +621,11 @@ export class UserService {
    * @param id - ID del usuario
    */
   async incrementFailedAttempts(id: string): Promise<void> {
+    // ✅ FASE 1: Validar UUID
+    if (!this.utils.validation.isUUID(id)) {
+      this.handleError.badRequest('ID de usuario inválido', 'id');
+    }
+
     await this.userRepository.registerFailedLogin(id);
     this.logger.warn(`Failed login attempt registered for user: ${id}`);
   }
@@ -525,6 +635,11 @@ export class UserService {
    * @param id - ID del usuario
    */
   async resetFailedAttempts(id: string): Promise<void> {
+    // ✅ FASE 1: Validar UUID
+    if (!this.utils.validation.isUUID(id)) {
+      this.handleError.badRequest('ID de usuario inválido', 'id');
+    }
+
     await this.userRepository.resetFailedAttempts(id);
   }
 
@@ -534,6 +649,11 @@ export class UserService {
    * @param ip - IP del cliente (opcional)
    */
   async updateLastLogin(id: string, ip?: string): Promise<void> {
+    // ✅ FASE 1: Validar UUID
+    if (!this.utils.validation.isUUID(id)) {
+      this.handleError.badRequest('ID de usuario inválido', 'id');
+    }
+
     await this.userRepository.registerLogin(id, ip);
   }
 
@@ -544,6 +664,20 @@ export class UserService {
    * @param newPassword - Nueva contraseña en texto plano (será hasheada)
    */
   async updatePassword(id: string, newPassword: string): Promise<void> {
+    // ✅ FASE 1: Validar UUID
+    if (!this.utils.validation.isUUID(id)) {
+      this.handleError.badRequest('ID de usuario inválido', 'id');
+    }
+
+    // ✅ FASE 2: Validar fortaleza de password
+    const passwordValidation = this.utils.validation.validatePassword(newPassword);
+    if (!passwordValidation.isValid) {
+      this.handleError.badRequest(
+        `Password débil: ${passwordValidation.errors.join(', ')}`,
+        'password',
+      );
+    }
+
     // Hash de la nueva contraseña
     const hashedPassword = await bcrypt.hash(newPassword, 12);
 
@@ -561,6 +695,11 @@ export class UserService {
    * @param token - Token de reset (JWT)
    */
   async savePasswordResetToken(id: string, token: string): Promise<void> {
+    // ✅ FASE 1: Validar UUID
+    if (!this.utils.validation.isUUID(id)) {
+      this.handleError.badRequest('ID de usuario inválido', 'id');
+    }
+
     // El token expira en 1 hora
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
     await this.userRepository.savePasswordResetToken(id, token, expiresAt);
@@ -572,6 +711,11 @@ export class UserService {
    * @param id - ID del usuario
    */
   async invalidatePasswordResetToken(id: string): Promise<void> {
+    // ✅ FASE 1: Validar UUID
+    if (!this.utils.validation.isUUID(id)) {
+      this.handleError.badRequest('ID de usuario inválido', 'id');
+    }
+
     await this.userRepository.invalidatePasswordResetToken(id);
     this.logger.log(`Password reset token invalidated for user: ${id}`);
   }

@@ -7,13 +7,13 @@
 
 /**
  * Usuario autenticado con información completa de sesión
- * 
+ *
  * Este DTO contiene TODA la información disponible después de autenticación:
  * - Datos del usuario
  * - Información de la company (tenant)
  * - Datos de la sesión
  * - Roles y permisos
- * 
+ *
  * Disponible en: request.user (después de JwtAuthGuard)
  */
 export interface UserSessionDto {
@@ -67,13 +67,14 @@ export interface UserSessionDto {
 
 /**
  * Permiso de usuario
+ *
+ * Basado en PermissionEntity (module.action)
+ * Ejemplo: { id: 'perm-1', name: 'users.read', module: 'users', action: 'read' }
  */
 export interface UserPermission {
   id: string;
-  module: string;
-  name: string;
-  canRead: boolean;
-  canWrite: boolean;
-  canEdit: boolean;
-  canDelete: boolean;
+  name: string; // Nombre completo (module.action)
+  module: string; // Módulo (users, roles, etc.)
+  action: string; // Acción (create, read, update, delete)
+  description?: string; // Descripción opcional
 }

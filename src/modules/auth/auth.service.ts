@@ -16,12 +16,12 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { v4 as uuidv4 } from 'uuid';
 
 import { ROLES } from '@constants/roles.constant';
 import { EmailProducer } from '@modules/queue';
 import { UserService } from '@modules/user';
 import { HandleErrorService, SanitizerService } from '@shared/common';
+import { UtilsService } from '@shared/utils';
 
 import { AuthRepository } from './auth.repository';
 import {
@@ -56,6 +56,7 @@ export class AuthService {
     private readonly sanitizer: SanitizerService, // ✅ OBLIGATORIO
     private readonly handleError: HandleErrorService, // ✅ OBLIGATORIO
     private readonly emailProducer: EmailProducer, // ✅ Para envío asíncrono de emails
+    private readonly utils: UtilsService, // ✅ Utilidades (validación, formateo, crypto)
   ) {}
 
   // ============================================
@@ -64,47 +65,70 @@ export class AuthService {
 
   /**
    * Login de usuario
+   *
+   * ✅ FASE 4: ACTUALIZADO para incluir companyId y schema en JWT
    */
   async login(dto: LoginDto, ipAddress: string, userAgent?: string): Promise<IAuthResponse> {
-    // 1. Sanitizar email
+    // 1. ✅ VALIDAR email antes de sanitizar
+    if (!this.utils.validation.isEmail(dto.email)) {
+      this.handleError.badRequest('Email inválido', 'email');
+    }
+
+    // 2. Sanitizar email
     const email = this.sanitizer.sanitizeEmail(dto.email);
 
-    // 2. Buscar usuario por email
+    // 3. Buscar usuario por email (con password para validación)
     const user = await this.userService.findByEmailWithPassword(email);
     if (!user) {
       this.handleError.unauthorized('Credenciales inválidas', 'AUTH_1001');
     }
 
-    // 3. Verificar estado del usuario
+    // 4. Verificar estado del usuario
     this.validateUserStatus(user);
 
-    // 4. Verificar contraseña
+    // 5. Verificar contraseña
     const isPasswordValid = await bcrypt.compare(dto.password, user.password);
     if (!isPasswordValid) {
       await this.userService.incrementFailedAttempts(user.id);
       this.handleError.unauthorized('Credenciales inválidas', 'AUTH_1001');
     }
 
-    // 5. Resetear intentos fallidos
+    // 6. Resetear intentos fallidos
     await this.userService.resetFailedAttempts(user.id);
 
-    // 6. Actualizar último login
+    // 7. Actualizar último login
     await this.userService.updateLastLogin(user.id);
 
-    // 7. Generar tokens
+    // 8. Cargar usuario completo con company y roles para el token
+    const fullUser = await this.userService.findByIdWithCompanyAndRoles(user.id);
+    if (!fullUser) {
+      this.handleError.unauthorized('Usuario no encontrado', 'AUTH_1010');
+    }
+
+    // 9. Generar tokens con companyId y schema
     const tokens = await this.generateTokens(
-      user.id,
-      user.email,
-      user.roles.map((r) => r.name),
+      fullUser.id,
+      fullUser.email,
+      fullUser.roles.map((r) => r.name),
+      fullUser.companyId,
+      fullUser.company?.schema || null,
     );
 
-    // 8. Crear sesión
-    await this.createSession(user.id, tokens.refreshToken, tokens.expiresIn, ipAddress, userAgent);
+    // 10. Crear sesión
+    await this.createSession(
+      fullUser.id,
+      tokens.refreshToken,
+      tokens.expiresIn,
+      ipAddress,
+      userAgent,
+    );
 
-    // 9. Retornar respuesta (sin password)
-    const userResponse = await this.userService.findById(user.id);
+    // 11. Retornar respuesta (sin password)
+    const userResponse = await this.userService.findById(fullUser.id);
 
-    this.logger.log(`User logged in: ${user.email}`);
+    // ✅ Log con email enmascarado (GDPR/Privacidad)
+    const maskedEmail = this.utils.string.maskEmail(fullUser.email);
+    this.logger.log(`User logged in: ${maskedEmail} (${fullUser.company?.schema || 'public'})`);
 
     return {
       user: userResponse,
@@ -117,9 +141,27 @@ export class AuthService {
 
   /**
    * Registro de nuevo usuario
+   *
+   * ✅ FASE 4: ACTUALIZADO para generar tokens con companyId/schema
+   * NOTA: En registro, el usuario normalmente NO tiene company aún,
+   *       por lo que companyId y schema serán null.
    */
   async register(dto: RegisterDto, ipAddress: string, userAgent?: string): Promise<IAuthResponse> {
-    // 1. Sanitizar inputs
+    // 1. ✅ Validar email antes de sanitizar
+    if (!this.utils.validation.isEmail(dto.email)) {
+      this.handleError.badRequest('Email inválido', 'email');
+    }
+
+    // 2. ✅ Validar fortaleza de password
+    const passwordValidation = this.utils.validation.validatePassword(dto.password);
+    if (!passwordValidation.isValid) {
+      this.handleError.badRequest(
+        `Password débil: ${passwordValidation.errors.join(', ')}`,
+        'password',
+      );
+    }
+
+    // 3. Sanitizar inputs
     const sanitizedDto = {
       email: this.sanitizer.sanitizeEmail(dto.email),
       password: dto.password, // No sanitizar password
@@ -128,26 +170,32 @@ export class AuthService {
       phone: dto.phone ? this.sanitizer.sanitizeString(dto.phone) : undefined,
     };
 
-    // 2. Verificar que el email no exista
+    // 4. Verificar que el email no exista
     const exists = await this.userService.existsByEmail(sanitizedDto.email);
     if (exists) {
       this.handleError.conflict('El email ya está registrado', 'email');
     }
 
-    // 3. Crear usuario con rol USER por defecto
+    // 5. Crear usuario con rol USER por defecto
     // Nota: El UserService asignará el rol USER por defecto si no se especifica roleIds
     const user = await this.userService.create({
       ...sanitizedDto,
       // roleIds se manejará internamente en UserService si no se proporciona
     });
 
-    // 4. Generar tokens
-    const tokens = await this.generateTokens(user.id, user.email, [ROLES.USER]);
+    // ✅ 6. Generar tokens (sin company en registro - será null)
+    const tokens = await this.generateTokens(
+      user.id,
+      user.email,
+      [ROLES.USER],
+      null, // ✅ companyId null en registro
+      null, // ✅ schema null en registro
+    );
 
-    // 5. Crear sesión
+    // 7. Crear sesión
     await this.createSession(user.id, tokens.refreshToken, tokens.expiresIn, ipAddress, userAgent);
 
-    // 6. Encolar email de bienvenida (asíncrono, no bloquea el registro)
+    // 8. Encolar email de bienvenida (asíncrono, no bloquea el registro)
     const activationUrl = `${this.configService.get<string>('APP_URL')}/auth/verify-email?token=${tokens.accessToken}`;
     await this.emailProducer.queueEmail({
       to: user.email,
@@ -168,7 +216,9 @@ export class AuthService {
       },
     });
 
-    this.logger.log(`User registered: ${user.email} - Welcome email enqueued`);
+    // ✅ Log con email enmascarado (GDPR/Privacidad)
+    const maskedEmail = this.utils.string.maskEmail(user.email);
+    this.logger.log(`User registered: ${maskedEmail} - Welcome email enqueued`);
 
     return {
       user,
@@ -181,6 +231,8 @@ export class AuthService {
 
   /**
    * Refresh token con rotación
+   *
+   * ✅ FASE 4: ACTUALIZADO para incluir companyId y schema en tokens nuevos
    */
   async refreshToken(dto: RefreshTokenDto): Promise<IRefreshTokenResponse> {
     // 1. Buscar sesión por refresh token
@@ -203,8 +255,8 @@ export class AuthService {
       this.handleError.unauthorized('Token comprometido detectado', 'AUTH_1003');
     }
 
-    // 4. Verificar estado del usuario
-    const user = await this.userService.findByIdWithRoles(session.userId);
+    // ✅ 4. Verificar estado del usuario y cargar company
+    const user = await this.userService.findByIdWithCompanyAndRoles(session.userId);
     if (!user) {
       await this.authRepository.revokeSession(session.id);
       this.handleError.unauthorized('Usuario no encontrado', 'AUTH_1010');
@@ -212,11 +264,13 @@ export class AuthService {
 
     this.validateUserStatus(user);
 
-    // 5. Generar nuevos tokens (rotación)
+    // ✅ 5. Generar nuevos tokens con companyId y schema (rotación)
     const newTokens = await this.generateTokens(
       user.id,
       user.email,
       user.roles.map((r) => r.name),
+      user.companyId, // ✅ Incluir companyId
+      user.company?.schema || null, // ✅ Incluir schema
     );
 
     // 6. Actualizar sesión con nuevo refresh token
@@ -314,16 +368,21 @@ export class AuthService {
    * Solicitar reset de contraseña (forgot password)
    */
   async forgotPassword(dto: ForgotPasswordDto): Promise<IForgotPasswordResponse> {
+    // 1. ✅ Validar email antes de sanitizar
+    if (!this.utils.validation.isEmail(dto.email)) {
+      this.handleError.badRequest('Email inválido', 'email');
+    }
+
     const email = this.sanitizer.sanitizeEmail(dto.email);
 
-    // 1. Buscar usuario (no revelar si existe o no por seguridad)
+    // 2. Buscar usuario (no revelar si existe o no por seguridad)
     const user = await this.userService.findByEmail(email);
 
     if (user) {
-      // 2. Generar token de reset (válido por 1 hora)
+      // 3. Generar token de reset (válido por 1 hora)
       const resetToken = this.generateResetToken(user.id);
 
-      // 3. Encolar email de reset de contraseña (asíncrono)
+      // 4. Encolar email de reset de contraseña (asíncrono)
       const resetUrl = `${this.configService.get<string>('APP_URL')}/auth/reset-password?token=${resetToken}`;
       await this.emailProducer.queueEmailUrgent({
         to: user.email,
@@ -345,13 +404,17 @@ export class AuthService {
         },
       });
 
-      // 4. Guardar token en metadata del usuario o en tabla separada
+      // 5. Guardar token en metadata del usuario o en tabla separada
       await this.userService.savePasswordResetToken(user.id, resetToken);
 
-      this.logger.log(`Password reset requested for: ${email} - Email enqueued`);
+      // ✅ Log con email enmascarado (GDPR/Privacidad)
+      const maskedEmail = this.utils.string.maskEmail(email);
+      this.logger.log(`Password reset requested for: ${maskedEmail} - Email enqueued`);
     } else {
-      // Por seguridad, no revelar que el usuario no existe
-      this.logger.warn(`Password reset attempted for non-existent user: ${email}`);
+      // ✅ Por seguridad, no revelar que el usuario no existe
+      // Log enmascarado para proteger privacidad
+      const maskedEmail = this.utils.string.maskEmail(email);
+      this.logger.warn(`Password reset attempted for non-existent user: ${maskedEmail}`);
     }
 
     // Siempre retornar success (no revelar si el usuario existe)
@@ -446,20 +509,33 @@ export class AuthService {
 
   /**
    * Generar access token y refresh token
+   *
+   * ✅ FASE 4: ACTUALIZADO para incluir companyId y schema en JWT payload
+   *
+   * @param userId - ID del usuario
+   * @param email - Email del usuario
+   * @param roles - Lista de roles
+   * @param companyId - ID de la company (null para usuarios sin company)
+   * @param schema - Schema de PostgreSQL (null para public/sin tenant)
    */
   private async generateTokens(
     userId: string,
     email: string,
     roles: string[],
+    companyId: string | null = null, // ✅ Nuevo parámetro
+    schema: string | null = null, // ✅ Nuevo parámetro
   ): Promise<{
     accessToken: string;
     refreshToken: string;
     expiresIn: number;
   }> {
+    // ✅ Payload con companyId y schema para multi-tenancy
     const payload: IJwtPayload = {
       sub: userId,
       email,
       roles,
+      companyId, // ✅ Incluir companyId
+      schema, // ✅ Incluir schema
     };
 
     const accessTokenExpiresIn = this.configService.get<number>('jwt.expiresIn') || 900; // 15 min
@@ -470,7 +546,7 @@ export class AuthService {
         expiresIn: accessTokenExpiresIn,
       }),
       this.jwtService.signAsync(
-        { ...payload, tokenId: uuidv4() },
+        { ...payload, tokenId: this.utils.generateId() },
         {
           expiresIn: refreshTokenExpiresIn,
         },
@@ -499,7 +575,7 @@ export class AuthService {
     return await this.authRepository.createSession({
       userId,
       refreshToken,
-      refreshTokenFamily: uuidv4(), // Para detectar token reuse
+      refreshTokenFamily: this.utils.generateId(), // ✅ UUIDv7 para detectar token reuse
       expiresAt,
       ipAddress,
       userAgent: userAgent || null,
@@ -523,7 +599,11 @@ export class AuthService {
   /**
    * Validar estado del usuario
    */
-  private validateUserStatus(user: any): void {
+  private validateUserStatus(user: {
+    isActive: boolean;
+    status: string;
+    lockedUntil?: Date | null;
+  }): void {
     if (!user.isActive) {
       this.handleError.unauthorized('Usuario inactivo', 'AUTH_1011');
     }
@@ -536,9 +616,13 @@ export class AuthService {
       this.handleError.unauthorized('Usuario bloqueado', 'AUTH_1011');
     }
 
-    if (user.lockedUntil && user.lockedUntil > new Date()) {
+    // ✅ Formatear fecha cuando usuario está bloqueado temporalmente
+    if (user.lockedUntil && this.utils.date.isFuture(user.lockedUntil)) {
+      const formatted = this.utils.date.formatDateTime(user.lockedUntil);
+      const timeUntil = this.utils.date.timeUntil(user.lockedUntil);
+
       this.handleError.unauthorized(
-        `Usuario bloqueado hasta ${user.lockedUntil.toISOString()}`,
+        `Usuario bloqueado hasta ${formatted} (${timeUntil})`,
         'AUTH_1011',
       );
     }

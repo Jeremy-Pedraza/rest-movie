@@ -1,5 +1,16 @@
 // src/modules/reports/entities/adjustment.entity.ts
 
+/**
+ * @fileoverview Entidad Adjustment - Ajustes y devoluciones
+ * @module modules/reports
+ *
+ * ARQUITECTURA MULTI-TENANT:
+ * Esta entidad es una ENTIDAD DE TENANT - sus datos se almacenan
+ * en el schema específico de cada compañía.
+ *
+ * @version 3.0.0 - FASE 5: Soporte multi-tenant
+ */
+
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -18,8 +29,12 @@ import { ReportHeaderEntity } from './report-header.entity';
  * Representa el desglose de ajustes realizados durante el período.
  * Incluye devoluciones, cancelaciones y otros ajustes.
  *
+ * MULTI-TENANT:
+ * - Esta entidad vive en el schema del tenant
+ * - FK a report_headers del MISMO schema
+ *
  * Relaciones:
- * - Pertenece a un ReportHeader (ManyToOne)
+ * - Pertenece a un ReportHeader (ManyToOne) - MISMO SCHEMA
  *
  * @example
  * ```typescript
@@ -28,11 +43,10 @@ import { ReportHeaderEntity } from './report-header.entity';
  * adjustment.adjustment_type = 'refund';
  * adjustment.reason = 'Cliente insatisfecho';
  * adjustment.total_amount = -150.00;
- * adjustment.count = 3;
- * await adjustmentRepo.save(adjustment);
+ * adjustment.items_count = 3;
  * ```
  */
-@Entity({ name: 'adjustments', schema: 'public' })
+@Entity({ name: 'adjustments' })
 @Index(['report_header_id'])
 @Index(['adjustment_type'])
 export class AdjustmentEntity {
@@ -41,6 +55,7 @@ export class AdjustmentEntity {
 
   /**
    * ID del reporte padre
+   * FK a report_headers (mismo schema)
    */
   @Column({
     type: 'uuid',
@@ -70,7 +85,8 @@ export class AdjustmentEntity {
    * @example 'Cliente insatisfecho', 'Error en orden'
    */
   @Column({
-    type: 'text',
+    type: 'varchar',
+    length: 255,
     nullable: true,
     name: 'reason',
   })
@@ -89,26 +105,14 @@ export class AdjustmentEntity {
   total_amount: number;
 
   /**
-   * Cantidad de ajustes de este tipo
+   * Cantidad de items afectados
    */
   @Column({
     type: 'int',
     default: 0,
-    name: 'count',
+    name: 'items_count',
   })
-  count: number;
-
-  /**
-   * Monto promedio por ajuste
-   */
-  @Column({
-    type: 'decimal',
-    precision: 10,
-    scale: 2,
-    default: 0,
-    name: 'average_amount',
-  })
-  average_amount: number;
+  items_count: number;
 
   // ============================================
   // RELACIONES

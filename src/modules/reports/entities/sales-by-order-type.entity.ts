@@ -1,5 +1,16 @@
 // src/modules/reports/entities/sales-by-order-type.entity.ts
 
+/**
+ * @fileoverview Entidad SalesByOrderType - Ventas por tipo de orden
+ * @module modules/reports
+ *
+ * ARQUITECTURA MULTI-TENANT:
+ * Esta entidad es una ENTIDAD DE TENANT - sus datos se almacenan
+ * en el schema específico de cada compañía.
+ *
+ * @version 3.0.0 - FASE 5: Soporte multi-tenant
+ */
+
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -18,8 +29,12 @@ import { ReportHeaderEntity } from './report-header.entity';
  * Representa el desglose de ventas por tipo de orden (dine-in, takeout, delivery).
  * Cada registro corresponde a un tipo de orden específico dentro de un reporte.
  *
+ * MULTI-TENANT:
+ * - Esta entidad vive en el schema del tenant
+ * - FK a report_headers del MISMO schema
+ *
  * Relaciones:
- * - Pertenece a un ReportHeader (ManyToOne)
+ * - Pertenece a un ReportHeader (ManyToOne) - MISMO SCHEMA
  *
  * @example
  * ```typescript
@@ -28,10 +43,9 @@ import { ReportHeaderEntity } from './report-header.entity';
  * sales.order_type = 'dine_in';
  * sales.total_sales = 5000.50;
  * sales.orders_count = 25;
- * await salesRepo.save(sales);
  * ```
  */
-@Entity({ name: 'sales_by_order_type', schema: 'public' })
+@Entity({ name: 'sales_by_order_type' })
 @Index(['report_header_id'])
 @Index(['order_type'])
 export class SalesByOrderTypeEntity {
@@ -40,6 +54,7 @@ export class SalesByOrderTypeEntity {
 
   /**
    * ID del reporte padre
+   * FK a report_headers (mismo schema)
    */
   @Column({
     type: 'uuid',
@@ -106,6 +121,18 @@ export class SalesByOrderTypeEntity {
     name: 'average_ticket',
   })
   average_ticket: number;
+
+  /**
+   * Porcentaje del total de ventas
+   */
+  @Column({
+    type: 'decimal',
+    precision: 5,
+    scale: 2,
+    default: 0,
+    name: 'percentage',
+  })
+  percentage: number;
 
   // ============================================
   // RELACIONES

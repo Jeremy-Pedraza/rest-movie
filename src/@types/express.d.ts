@@ -3,41 +3,83 @@
 /**
  * @fileoverview Extensiones de tipos para Express
  * @module @types
+ *
+ * Este archivo extiende los tipos de Express para incluir
+ * propiedades personalizadas en Request.
+ *
+ * IMPORTANTE: Este archivo NO debe tener imports de nivel superior
+ * para que funcione como declaración global.
  */
 
-import type { ITenantContext } from '@shared/database';
-import { UserSessionDto } from '@modules/auth/interfaces';
+/**
+ * Contexto del tenant para multi-tenant
+ */
+interface ITenantContext {
+  schema: string;
+  companyId: string | null;
+  userId: string | null;
+}
+
+/**
+ * Permiso de usuario
+ */
+interface UserPermission {
+  id: string;
+  name: string;
+  module: string;
+  action: string;
+  description?: string;
+}
+
+/**
+ * Datos de sesión del usuario autenticado
+ */
+interface UserSessionData {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  companyId: string | null;
+  schema: string | null;
+  roles: string[];
+  permissions: UserPermission[];
+  status: string;
+  emailVerified: boolean;
+  session: {
+    id: string;
+    sessionUid: string;
+    deviceId?: string;
+    startedAt: Date;
+    expiresAt?: Date;
+  };
+  company: {
+    id: string;
+    name: string;
+    schema: string;
+    isActive: boolean;
+  };
+  createdAt: Date;
+  updatedAt?: Date;
+}
 
 declare global {
   namespace Express {
-    /**
-     * Usuario autenticado en la request
-     * 
-     * NOTA: Para endpoints autenticados, usar AuthRequest en lugar de Request
-     * para tener acceso garantizado al usuario con todos sus datos.
-     */
-    interface User {
-      id: string;
-      email: string;
-      roles?: string[];
-    }
+    interface User extends UserSessionData {}
 
     interface Request {
       /**
        * Usuario autenticado (agregado por Passport/JWT)
-       * 
-       * Después de JwtAuthGuard, contiene UserSessionDto con:
-       * - Datos del usuario
-       * - Company (tenant)
-       * - Schema
-       * - Roles y permisos
-       * - Información de sesión
        */
-      user?: UserSessionDto;
+      user?: UserSessionData;
+
+      /**
+       * Contexto del tenant para multi-tenant
+       * Establecido por TenantGuard después de autenticación
+       */
+      tenant?: ITenantContext;
 
       /**
        * Token JWT desencriptado (para validaciones internas)
-       * @internal
        */
       decryptedToken?: string;
 
@@ -52,59 +94,13 @@ declare global {
       startTime?: number;
 
       /**
-       * Raw body para verificación de webhooks (Stripe, etc.)
+       * Raw body para verificación de webhooks
        */
       rawBody?: Buffer;
-
-      /**
-       * Contexto del tenant para multi-tenant
-       * 
-       * @deprecated Usar request.user.schema en su lugar
-       * 
-       * Establecido por TenantGuard después de autenticación
-       * Contiene información del schema, company y user
-       * 
-       * @example
-       * ```typescript
-       * // En un controller
-       * @Get()
-       * findAll(@Req() req: Request) {
-       *   const schema = req.tenant?.schema; // 'company_a_schema'
-       *   const companyId = req.tenant?.companyId; // 'company-id-123'
-       * }
-       * ```
-       */
-      tenant?: ITenantContext;
     }
   }
 }
 
-/**
- * Request con usuario autenticado garantizado
- * 
- * Usar en controllers que requieren autenticación para tener
- * acceso type-safe a todos los datos del usuario.
- * 
- * @example
- * ```typescript
- * import { AuthRequest } from '@types/express';
- * 
- * @Controller('users')
- * export class UserController {
- *   @Get()
- *   @UseGuards(JwtAuthGuard)
- *   async findAll(@Req() request: AuthRequest) {
- *     const userId = request.user.id;
- *     const schema = request.user.schema;
- *     const companyId = request.user.companyId;
- *     const roles = request.user.roles;
- *     const permissions = request.user.permissions;
- *   }
- * }
- * ```
- */
-export interface AuthRequest extends Express.Request {
-  user: UserSessionDto; // ← No opcional, siempre presente
-}
-
+// Export vacío para forzar que sea tratado como módulo
+// pero manteniendo el declare global funcionando
 export {};

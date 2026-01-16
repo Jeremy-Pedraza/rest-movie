@@ -18,29 +18,57 @@ import type { CompanyEntity } from '@modules/company/entities';
 import type { UserEntity } from '@modules/user/entities';
 
 /**
+ * Interfaz para horarios de operación
+ */
+export interface IOperatingHours {
+  monday?: { open: string; close: string };
+  tuesday?: { open: string; close: string };
+  wednesday?: { open: string; close: string };
+  thursday?: { open: string; close: string };
+  friday?: { open: string; close: string };
+  saturday?: { open: string; close: string };
+  sunday?: { open: string; close: string };
+}
+
+/**
  * StoreEntity - Tienda/Sucursal del sistema
  *
  * @description
  * Representa una tienda o sucursal que pertenece a una compañía.
  * Las tiendas generan reportes de ventas y pueden tener usuarios asignados (rol USER).
  *
+ * @version 2.0.0 - Agregados campos de segmentación para reportes (FASE 2)
+ *
  * Relaciones:
  * - Pertenece a una Company (ManyToOne)
  * - Puede tener múltiples Users asignados (ManyToMany)
  * - Genera múltiples Reports (OneToMany)
  *
+ * Segmentación disponible:
+ * - Por región geográfica
+ * - Por tipo de ubicación (mall, street, airport, etc.)
+ * - Por formato de tienda (express, regular, flagship, etc.)
+ * - Por tier de ventas (A, B, C, D, E)
+ * - Por características (drive_thru, delivery, etc.)
+ *
  * @example
  * ```typescript
  * const store = new StoreEntity();
  * store.company_id = 'uuid-company';
- * store.nombre = 'Sucursal Centro';
- * store.codigo = 'TDA-001';
- * store.direccion = 'Av. Principal 123';
- * store.ciudad = 'Quito';
+ * store.nombre = 'Taco Bell Agora Mall';
+ * store.codigo = 'TB-RD-001';
+ * store.direccion = 'Agora Mall, Local 201';
+ * store.ciudad = 'Santo Domingo';
+ * store.region = 'Metropolitana';
+ * store.location_type = 'mall';
+ * store.store_format = 'regular';
+ * store.sales_tier = 'A';
+ * store.has_drive_thru = false;
+ * store.has_delivery = true;
  * await storeRepo.save(store);
  * ```
  */
-@Entity({ name: 'stores', schema: 'public' })
+@Entity({ name: 'stores' })
 @Index(['company_id'])
 @Index(['codigo'], { unique: true })
 @Index(['company_id', 'codigo'], { unique: true })
@@ -60,10 +88,14 @@ export class StoreEntity {
   })
   company_id: string;
 
+  // ============================================
+  // INFORMACIÓN BÁSICA
+  // ============================================
+
   /**
    * Nombre de la tienda
    *
-   * @example 'Sucursal Centro', 'Mall del Sol'
+   * @example 'Taco Bell Agora Mall', 'Taco Bell Blue Mall'
    */
   @Column({
     type: 'varchar',
@@ -77,7 +109,7 @@ export class StoreEntity {
    * Código único de la tienda
    * Usado para identificación y reportes
    *
-   * @example 'TDA-001', 'SUC-CENTRO'
+   * @example 'TB-RD-001', 'TB-GT-015'
    */
   @Column({
     type: 'varchar',
@@ -111,6 +143,10 @@ export class StoreEntity {
   })
   telefono?: string;
 
+  // ============================================
+  // UBICACIÓN
+  // ============================================
+
   /**
    * Dirección física de la tienda
    */
@@ -135,7 +171,7 @@ export class StoreEntity {
   /**
    * Zona o sector de la ciudad
    *
-   * @example 'Norte', 'Centro', 'Sur'
+   * @example 'Norte', 'Centro', 'Sur', 'Piantini', 'Zona Colonial'
    */
   @Column({
     type: 'varchar',
@@ -149,7 +185,7 @@ export class StoreEntity {
    * Latitud GPS de la ubicación
    * Precision: 10 dígitos totales, 8 decimales
    *
-   * @example -0.18070055
+   * @example 18.4861111
    */
   @Column({
     type: 'decimal',
@@ -164,7 +200,7 @@ export class StoreEntity {
    * Longitud GPS de la ubicación
    * Precision: 11 dígitos totales, 8 decimales
    *
-   * @example -78.46783882
+   * @example -69.9388889
    */
   @Column({
     type: 'decimal',
@@ -174,6 +210,154 @@ export class StoreEntity {
     name: 'longitud',
   })
   longitud?: number;
+
+  // ============================================
+  // CAMPOS DE SEGMENTACIÓN (FASE 2)
+  // ============================================
+
+  /**
+   * Región geográfica para agrupación de reportes
+   *
+   * @example 'Metropolitana', 'Norte', 'Sur', 'Este', 'Cibao Central'
+   */
+  @Column({
+    type: 'varchar',
+    length: 50,
+    nullable: true,
+    name: 'region',
+  })
+  @Index('idx_stores_region')
+  region?: string;
+
+  /**
+   * Tipo de ubicación de la tienda
+   *
+   * @example 'mall', 'street', 'airport', 'highway', 'food_court', 'gas_station', 'university'
+   */
+  @Column({
+    type: 'varchar',
+    length: 30,
+    nullable: true,
+    name: 'location_type',
+  })
+  @Index('idx_stores_location_type')
+  location_type?: string;
+
+  /**
+   * Formato de tienda (tamaño/concepto)
+   *
+   * @example 'express', 'regular', 'flagship', 'cantina', 'drive_thru_only', 'delivery_hub'
+   */
+  @Column({
+    type: 'varchar',
+    length: 30,
+    nullable: true,
+    name: 'store_format',
+  })
+  @Index('idx_stores_format')
+  store_format?: string;
+
+  /**
+   * Capacidad de asientos (para dine-in)
+   * null si es solo para llevar
+   */
+  @Column({
+    type: 'int',
+    nullable: true,
+    name: 'seating_capacity',
+  })
+  seating_capacity?: number;
+
+  /**
+   * Indica si tiene servicio drive-thru
+   */
+  @Column({
+    type: 'boolean',
+    default: false,
+    name: 'has_drive_thru',
+  })
+  has_drive_thru: boolean;
+
+  /**
+   * Indica si tiene servicio de delivery propio
+   */
+  @Column({
+    type: 'boolean',
+    default: false,
+    name: 'has_delivery',
+  })
+  has_delivery: boolean;
+
+  /**
+   * Horarios de operación por día
+   *
+   * @example { monday: { open: '08:00', close: '22:00' }, ... }
+   */
+  @Column({
+    type: 'jsonb',
+    nullable: true,
+    name: 'operating_hours',
+  })
+  operating_hours?: IOperatingHours;
+
+  /**
+   * Fecha de apertura de la tienda
+   * Útil para análisis de madurez y comparaciones
+   */
+  @Column({
+    type: 'date',
+    nullable: true,
+    name: 'opening_date',
+  })
+  opening_date?: Date;
+
+  /**
+   * Nombre del gerente/responsable de la tienda
+   */
+  @Column({
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+    name: 'manager_name',
+  })
+  manager_name?: string;
+
+  /**
+   * Clasificación de ventas basada en histórico
+   * A = Top performers (top 20%)
+   * B = Above average (20-40%)
+   * C = Average (40-60%)
+   * D = Below average (60-80%)
+   * E = Underperforming (bottom 20%)
+   *
+   * @example 'A', 'B', 'C', 'D', 'E'
+   */
+  @Column({
+    type: 'varchar',
+    length: 5,
+    nullable: true,
+    name: 'sales_tier',
+  })
+  @Index('idx_stores_sales_tier')
+  sales_tier?: string;
+
+  /**
+   * Tags para filtrado flexible
+   * Permite segmentación adicional sin agregar columnas
+   *
+   * @example ['24h', 'nuevo', 'remodelado', 'temporada_alta', 'wifi']
+   */
+  @Column({
+    type: 'text',
+    array: true,
+    nullable: true,
+    name: 'tags',
+  })
+  tags?: string[];
+
+  // ============================================
+  // ESTADO Y METADATA
+  // ============================================
 
   /**
    * Estado activo/inactivo
@@ -190,9 +374,9 @@ export class StoreEntity {
    * Metadata adicional en formato JSON
    *
    * Puede contener:
-   * - Horarios de atención
-   * - Capacidad
-   * - Configuración específica
+   * - Configuración de POS
+   * - Integraciones
+   * - Datos específicos del país
    */
   @Column({
     type: 'jsonb',

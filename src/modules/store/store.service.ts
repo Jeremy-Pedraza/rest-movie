@@ -10,7 +10,13 @@ import {
   AssignUsersToStoreDto,
   RemoveUsersFromStoreDto,
 } from './dto';
-import { IStoreResponse, IStoreWithUsersResponse, IStoreStatsResponse } from './interfaces';
+import {
+  IStoreResponse,
+  IStoreWithUsersResponse,
+  IStoreStatsResponse,
+  IStoreListResponse,
+  IStoreSegmentationResponse,
+} from './interfaces';
 import { StoreEntity } from './entities';
 
 /**
@@ -19,6 +25,8 @@ import { StoreEntity } from './entities';
  * @description
  * Maneja la lógica de negocio para el módulo Store.
  * Utiliza shared services para sanitización y manejo de errores.
+ *
+ * @version 2.0.0 - Agregados métodos de segmentación (FASE 2)
  *
  * Responsabilidades:
  * - Validar reglas de negocio
@@ -162,6 +170,107 @@ export class StoreService {
     return stores.map((s) => this.toResponse(s));
   }
 
+  // ============================================
+  // MÉTODOS DE SEGMENTACIÓN (FASE 2)
+  // ============================================
+
+  /**
+   * Obtener tiendas por región
+   *
+   * @param region - Nombre de la región
+   * @param companyId - (Opcional) Filtrar por compañía
+   * @returns Array de IStoreListResponse
+   */
+  async findByRegion(region: string, companyId?: string): Promise<IStoreListResponse[]> {
+    const stores = await this.storeRepository.findByRegion(region, companyId);
+    return stores.map((s) => this.toListResponse(s));
+  }
+
+  /**
+   * Obtener tiendas por tipo de ubicación
+   *
+   * @param locationType - Tipo de ubicación
+   * @param companyId - (Opcional) Filtrar por compañía
+   * @returns Array de IStoreListResponse
+   */
+  async findByLocationType(
+    locationType: string,
+    companyId?: string,
+  ): Promise<IStoreListResponse[]> {
+    const stores = await this.storeRepository.findByLocationType(locationType, companyId);
+    return stores.map((s) => this.toListResponse(s));
+  }
+
+  /**
+   * Obtener tiendas por formato
+   *
+   * @param storeFormat - Formato de tienda
+   * @param companyId - (Opcional) Filtrar por compañía
+   * @returns Array de IStoreListResponse
+   */
+  async findByFormat(storeFormat: string, companyId?: string): Promise<IStoreListResponse[]> {
+    const stores = await this.storeRepository.findByFormat(storeFormat, companyId);
+    return stores.map((s) => this.toListResponse(s));
+  }
+
+  /**
+   * Obtener tiendas por tier de ventas
+   *
+   * @param salesTier - Clasificación de ventas (A, B, C, D, E)
+   * @param companyId - (Opcional) Filtrar por compañía
+   * @returns Array de IStoreListResponse
+   */
+  async findBySalesTier(salesTier: string, companyId?: string): Promise<IStoreListResponse[]> {
+    const stores = await this.storeRepository.findBySalesTier(salesTier, companyId);
+    return stores.map((s) => this.toListResponse(s));
+  }
+
+  /**
+   * Obtener tiendas con drive-thru
+   *
+   * @param companyId - (Opcional) Filtrar por compañía
+   * @returns Array de IStoreListResponse
+   */
+  async findWithDriveThru(companyId?: string): Promise<IStoreListResponse[]> {
+    const stores = await this.storeRepository.findWithDriveThru(companyId);
+    return stores.map((s) => this.toListResponse(s));
+  }
+
+  /**
+   * Obtener tiendas con delivery
+   *
+   * @param companyId - (Opcional) Filtrar por compañía
+   * @returns Array de IStoreListResponse
+   */
+  async findWithDelivery(companyId?: string): Promise<IStoreListResponse[]> {
+    const stores = await this.storeRepository.findWithDelivery(companyId);
+    return stores.map((s) => this.toListResponse(s));
+  }
+
+  /**
+   * Obtener datos de segmentación de una tienda
+   *
+   * @param id - UUID de la tienda
+   * @returns IStoreSegmentationResponse
+   */
+  async getSegmentation(id: string): Promise<IStoreSegmentationResponse> {
+    const store = await this.storeRepository.findById(id);
+    if (!store) {
+      this.handleError.notFound('Tienda', id);
+    }
+    return this.toSegmentationResponse(store);
+  }
+
+  /**
+   * Obtener regiones de una compañía
+   *
+   * @param companyId - UUID de la compañía
+   * @returns Array de { region, count }
+   */
+  async getRegions(companyId: string): Promise<Array<{ region: string; count: number }>> {
+    return await this.storeRepository.getRegions(companyId);
+  }
+
   /**
    * Actualizar tienda
    *
@@ -183,7 +292,6 @@ export class StoreService {
       const updated = await this.storeRepository.update(id, sanitizedData);
       if (!updated) {
         this.handleError.internal('Error al actualizar tienda');
-        throw new Error('Update failed'); // TypeScript guard
       }
       this.logger.log(`Tienda actualizada: ${id}`);
       return this.toResponse(updated);
@@ -240,7 +348,6 @@ export class StoreService {
     const updated = await this.storeRepository.update(id, { activo: true });
     if (!updated) {
       this.handleError.internal('Error al activar tienda');
-      throw new Error('Update failed'); // TypeScript guard
     }
     this.logger.log(`Tienda activada: ${id}`);
     return this.toResponse(updated);
@@ -262,7 +369,6 @@ export class StoreService {
     const updated = await this.storeRepository.update(id, { activo: false });
     if (!updated) {
       this.handleError.internal('Error al desactivar tienda');
-      throw new Error('Update failed'); // TypeScript guard
     }
     this.logger.log(`Tienda desactivada: ${id}`);
     return this.toResponse(updated);
@@ -322,10 +428,11 @@ export class StoreService {
   /**
    * Obtener estadísticas globales
    *
+   * @param companyId - (Opcional) Filtrar por compañía
    * @returns IStoreStatsResponse
    */
-  async getStats(): Promise<IStoreStatsResponse> {
-    return await this.storeRepository.getStats();
+  async getStats(companyId?: string): Promise<IStoreStatsResponse> {
+    return await this.storeRepository.getStats(companyId);
   }
 
   // ============================================
@@ -337,6 +444,7 @@ export class StoreService {
    */
   private sanitizeCreateDto(dto: CreateStoreDto): Partial<StoreEntity> {
     return {
+      // Campos base
       company_id: dto.company_id,
       nombre: this.sanitizer.sanitizeString(dto.nombre),
       codigo: this.sanitizer.sanitizeString(dto.codigo).toUpperCase(),
@@ -349,6 +457,19 @@ export class StoreService {
       longitud: dto.longitud,
       activo: dto.activo ?? true,
       metadata: dto.metadata,
+
+      // Campos de segmentación (FASE 2)
+      region: dto.region ? this.sanitizer.sanitizeString(dto.region) : undefined,
+      location_type: dto.location_type || undefined,
+      store_format: dto.store_format || undefined,
+      seating_capacity: dto.seating_capacity,
+      has_drive_thru: dto.has_drive_thru ?? false,
+      has_delivery: dto.has_delivery ?? false,
+      operating_hours: dto.operating_hours || undefined,
+      opening_date: dto.opening_date ? new Date(dto.opening_date) : undefined,
+      manager_name: dto.manager_name ? this.sanitizer.sanitizeString(dto.manager_name) : undefined,
+      sales_tier: dto.sales_tier || undefined,
+      tags: dto.tags || undefined,
     };
   }
 
@@ -358,6 +479,7 @@ export class StoreService {
   private sanitizeUpdateDto(dto: UpdateStoreDto): Partial<StoreEntity> {
     const sanitized: Partial<StoreEntity> = {};
 
+    // Campos base
     if (dto.nombre) sanitized.nombre = this.sanitizer.sanitizeString(dto.nombre);
     if (dto.email) sanitized.email = this.sanitizer.sanitizeEmail(dto.email);
     if (dto.telefono) sanitized.telefono = this.sanitizer.sanitizeString(dto.telefono);
@@ -369,30 +491,98 @@ export class StoreService {
     if (dto.activo !== undefined) sanitized.activo = dto.activo;
     if (dto.metadata) sanitized.metadata = dto.metadata;
 
+    // Campos de segmentación (FASE 2)
+    if (dto.region) sanitized.region = this.sanitizer.sanitizeString(dto.region);
+    if (dto.location_type) sanitized.location_type = dto.location_type;
+    if (dto.store_format) sanitized.store_format = dto.store_format;
+    if (dto.seating_capacity !== undefined) sanitized.seating_capacity = dto.seating_capacity;
+    if (dto.has_drive_thru !== undefined) sanitized.has_drive_thru = dto.has_drive_thru;
+    if (dto.has_delivery !== undefined) sanitized.has_delivery = dto.has_delivery;
+    if (dto.operating_hours) sanitized.operating_hours = dto.operating_hours;
+    if (dto.opening_date) sanitized.opening_date = new Date(dto.opening_date);
+    if (dto.manager_name) sanitized.manager_name = this.sanitizer.sanitizeString(dto.manager_name);
+    if (dto.sales_tier) sanitized.sales_tier = dto.sales_tier;
+    if (dto.tags) sanitized.tags = dto.tags;
+
     return sanitized;
   }
 
   /**
-   * Convertir entidad a respuesta
+   * Convertir entidad a respuesta completa
    */
   private toResponse(store: StoreEntity): IStoreResponse {
     return {
       id: store.id,
       company_id: store.company_id,
       company_name: store.company?.name,
+
+      // Información básica
       nombre: store.nombre,
       codigo: store.codigo,
       email: store.email,
       telefono: store.telefono,
+
+      // Ubicación
       direccion: store.direccion,
       ciudad: store.ciudad,
       zona: store.zona,
-      latitud: store.latitud,
-      longitud: store.longitud,
+      latitud: store.latitud ? Number(store.latitud) : undefined,
+      longitud: store.longitud ? Number(store.longitud) : undefined,
+
+      // Campos de segmentación (FASE 2)
+      region: store.region,
+      location_type: store.location_type,
+      store_format: store.store_format,
+      seating_capacity: store.seating_capacity,
+      has_drive_thru: store.has_drive_thru,
+      has_delivery: store.has_delivery,
+      operating_hours: store.operating_hours,
+      opening_date: store.opening_date,
+      manager_name: store.manager_name,
+      sales_tier: store.sales_tier,
+      tags: store.tags,
+
+      // Estado
       activo: store.activo,
       metadata: store.metadata,
+
+      // Timestamps
       created_at: store.created_at,
       updated_at: store.updated_at,
+    };
+  }
+
+  /**
+   * Convertir entidad a respuesta simplificada (para listados)
+   */
+  private toListResponse(store: StoreEntity): IStoreListResponse {
+    return {
+      id: store.id,
+      nombre: store.nombre,
+      codigo: store.codigo,
+      ciudad: store.ciudad,
+      region: store.region,
+      store_format: store.store_format,
+      sales_tier: store.sales_tier,
+      activo: store.activo,
+    };
+  }
+
+  /**
+   * Convertir entidad a respuesta de segmentación
+   */
+  private toSegmentationResponse(store: StoreEntity): IStoreSegmentationResponse {
+    return {
+      id: store.id,
+      nombre: store.nombre,
+      codigo: store.codigo,
+      region: store.region,
+      location_type: store.location_type,
+      store_format: store.store_format,
+      sales_tier: store.sales_tier,
+      has_drive_thru: store.has_drive_thru,
+      has_delivery: store.has_delivery,
+      tags: store.tags,
     };
   }
 }

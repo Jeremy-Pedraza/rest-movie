@@ -1,5 +1,16 @@
 // src/modules/reports/entities/dynamic-discount.entity.ts
 
+/**
+ * @fileoverview Entidad DynamicDiscount - Descuentos dinámicos
+ * @module modules/reports
+ *
+ * ARQUITECTURA MULTI-TENANT:
+ * Esta entidad es una ENTIDAD DE TENANT - sus datos se almacenan
+ * en el schema específico de cada compañía.
+ *
+ * @version 3.0.0 - FASE 5: Soporte multi-tenant
+ */
+
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -18,8 +29,12 @@ import { ReportHeaderEntity } from './report-header.entity';
  * Representa el desglose de descuentos aplicados durante el período.
  * Cada registro corresponde a un tipo de descuento específico.
  *
+ * MULTI-TENANT:
+ * - Esta entidad vive en el schema del tenant
+ * - FK a report_headers del MISMO schema
+ *
  * Relaciones:
- * - Pertenece a un ReportHeader (ManyToOne)
+ * - Pertenece a un ReportHeader (ManyToOne) - MISMO SCHEMA
  *
  * @example
  * ```typescript
@@ -29,10 +44,9 @@ import { ReportHeaderEntity } from './report-header.entity';
  * discount.discount_name = 'Happy Hour 2x1';
  * discount.total_discount = 500.00;
  * discount.times_applied = 10;
- * await discountRepo.save(discount);
  * ```
  */
-@Entity({ name: 'dynamic_discounts', schema: 'public' })
+@Entity({ name: 'dynamic_discounts' })
 @Index(['report_header_id'])
 @Index(['discount_type'])
 export class DynamicDiscountEntity {
@@ -41,6 +55,7 @@ export class DynamicDiscountEntity {
 
   /**
    * ID del reporte padre
+   * FK a report_headers (mismo schema)
    */
   @Column({
     type: 'uuid',
@@ -48,22 +63,6 @@ export class DynamicDiscountEntity {
     name: 'report_header_id',
   })
   report_header_id: string;
-
-  /**
-   * Tipo de descuento
-   * - promotional: Descuento promocional
-   * - loyalty: Descuento por lealtad
-   * - coupon: Cupón de descuento
-   * - seasonal: Descuento estacional
-   * - employee: Descuento de empleado
-   */
-  @Column({
-    type: 'varchar',
-    length: 50,
-    nullable: false,
-    name: 'discount_type',
-  })
-  discount_type: string;
 
   /**
    * Nombre del descuento
@@ -76,6 +75,23 @@ export class DynamicDiscountEntity {
     name: 'discount_name',
   })
   discount_name: string;
+
+  /**
+   * Tipo de descuento
+   * - percentage: Porcentaje
+   * - fixed: Monto fijo
+   * - promotional: Descuento promocional
+   * - loyalty: Descuento por lealtad
+   * - coupon: Cupón de descuento
+   */
+  @Column({
+    type: 'varchar',
+    length: 50,
+    nullable: false,
+    default: 'percentage',
+    name: 'discount_type',
+  })
+  discount_type: string;
 
   /**
    * Monto total de descuento aplicado

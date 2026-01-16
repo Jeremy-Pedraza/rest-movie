@@ -1,5 +1,16 @@
 // src/modules/reports/entities/effective-order.entity.ts
 
+/**
+ * @fileoverview Entidad EffectiveOrder - Órdenes efectivas
+ * @module modules/reports
+ *
+ * ARQUITECTURA MULTI-TENANT:
+ * Esta entidad es una ENTIDAD DE TENANT - sus datos se almacenan
+ * en el schema específico de cada compañía.
+ *
+ * @version 3.0.0 - FASE 5: Soporte multi-tenant
+ */
+
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -18,8 +29,12 @@ import { ReportHeaderEntity } from './report-header.entity';
  * Representa el desglose de órdenes procesadas durante el período.
  * Cada registro corresponde a una orden específica con su detalle.
  *
+ * MULTI-TENANT:
+ * - Esta entidad vive en el schema del tenant
+ * - FK a report_headers del MISMO schema
+ *
  * Relaciones:
- * - Pertenece a un ReportHeader (ManyToOne)
+ * - Pertenece a un ReportHeader (ManyToOne) - MISMO SCHEMA
  *
  * @example
  * ```typescript
@@ -27,13 +42,12 @@ import { ReportHeaderEntity } from './report-header.entity';
  * order.report_header_id = 'uuid-report';
  * order.order_number = 'ORD-12345';
  * order.order_type = 'dine_in';
- * order.total_amount = 150.50;
+ * order.total = 150.50;
  * order.items_count = 4;
  * order.order_datetime = new Date();
- * await orderRepo.save(order);
  * ```
  */
-@Entity({ name: 'effective_orders', schema: 'public' })
+@Entity({ name: 'effective_orders' })
 @Index(['report_header_id'])
 @Index(['order_number'])
 @Index(['order_type'])
@@ -44,6 +58,7 @@ export class EffectiveOrderEntity {
 
   /**
    * ID del reporte padre
+   * FK a report_headers (mismo schema)
    */
   @Column({
     type: 'uuid',
@@ -65,6 +80,16 @@ export class EffectiveOrderEntity {
   order_number: string;
 
   /**
+   * Fecha y hora de la orden
+   */
+  @Column({
+    type: 'timestamptz',
+    nullable: false,
+    name: 'order_datetime',
+  })
+  order_datetime: Date;
+
+  /**
    * Tipo de orden
    * - dine_in: Comer en el lugar
    * - takeout: Para llevar
@@ -80,28 +105,16 @@ export class EffectiveOrderEntity {
   order_type: string;
 
   /**
-   * Monto total de la orden (después de descuentos)
+   * Subtotal de la orden (antes de descuentos e impuestos)
    */
   @Column({
     type: 'decimal',
     precision: 12,
     scale: 2,
     default: 0,
-    name: 'total_amount',
+    name: 'subtotal',
   })
-  total_amount: number;
-
-  /**
-   * Monto de ventas brutas (antes de descuentos)
-   */
-  @Column({
-    type: 'decimal',
-    precision: 12,
-    scale: 2,
-    default: 0,
-    name: 'gross_amount',
-  })
-  gross_amount: number;
+  subtotal: number;
 
   /**
    * Descuentos aplicados a esta orden
@@ -111,9 +124,33 @@ export class EffectiveOrderEntity {
     precision: 12,
     scale: 2,
     default: 0,
-    name: 'discounts',
+    name: 'discount',
   })
-  discounts: number;
+  discount: number;
+
+  /**
+   * Impuestos de la orden
+   */
+  @Column({
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    default: 0,
+    name: 'tax',
+  })
+  tax: number;
+
+  /**
+   * Total de la orden (subtotal - discount + tax)
+   */
+  @Column({
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    default: 0,
+    name: 'total',
+  })
+  total: number;
 
   /**
    * Cantidad de items en la orden
@@ -138,28 +175,15 @@ export class EffectiveOrderEntity {
   payment_method?: string;
 
   /**
-   * Fecha y hora de la orden
-   */
-  @Column({
-    type: 'timestamptz',
-    nullable: false,
-    name: 'order_datetime',
-  })
-  order_datetime: Date;
-
-  /**
-   * Estado de la orden
-   * - completed: Completada
-   * - cancelled: Cancelada
-   * - refunded: Devuelta
+   * ID del cliente (opcional)
    */
   @Column({
     type: 'varchar',
-    length: 20,
-    default: 'completed',
-    name: 'status',
+    length: 100,
+    nullable: true,
+    name: 'customer_id',
   })
-  status: string;
+  customer_id?: string;
 
   /**
    * Información adicional de la orden (JSON)

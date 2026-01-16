@@ -12,7 +12,15 @@
 import { Injectable, NestInterceptor, ExecutionContext, CallHandler, Logger } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { Request } from 'express';
-import { SchemaContext } from '@shared/database';
+import { SchemaContext, ITenantContext } from '@shared/database';
+
+/**
+ * Interfaz extendida de Request con propiedades de tenant
+ * Esta interfaz evita dependencias de archivos .d.ts globales
+ */
+interface RequestWithTenant extends Request {
+  tenant?: ITenantContext;
+}
 
 /**
  * TenantInterceptor - Inyecta el schema en AsyncLocalStorage
@@ -74,7 +82,7 @@ export class TenantInterceptor implements NestInterceptor {
    * @returns Observable del resultado
    */
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    const request = context.switchToHttp().getRequest<Request>();
+    const request = context.switchToHttp().getRequest<RequestWithTenant>();
     const tenant = request.tenant;
 
     // Si no hay tenant, continuar sin contexto
@@ -119,13 +127,20 @@ export class TenantInterceptor implements NestInterceptor {
    * @param tenant - Objeto a validar
    * @returns true si tiene la estructura correcta
    */
-  private isValidTenantContext(tenant: any): tenant is import('@shared/database').ITenantContext {
+  private isValidTenantContext(tenant: unknown): tenant is ITenantContext {
     return (
       typeof tenant === 'object' &&
       tenant !== null &&
-      typeof tenant.schema === 'string' &&
-      (tenant.companyId === null || typeof tenant.companyId === 'string') &&
-      (tenant.userId === null || typeof tenant.userId === 'string')
+      'schema' in tenant &&
+      typeof (tenant as ITenantContext).schema === 'string' &&
+      ('companyId' in tenant
+        ? (tenant as ITenantContext).companyId === null ||
+          typeof (tenant as ITenantContext).companyId === 'string'
+        : true) &&
+      ('userId' in tenant
+        ? (tenant as ITenantContext).userId === null ||
+          typeof (tenant as ITenantContext).userId === 'string'
+        : true)
     );
   }
 }

@@ -5,7 +5,9 @@
  * Ejecuta todos los seeds en orden:
  * 1. Permissions (primero, son independientes)
  * 2. Roles (dependen de permissions)
- * 3. Users (dependen de roles)
+ * 3. Companies (independientes)
+ * 4. Tenant Schemas (dependen de companies) ← NUEVO
+ * 5. Users (dependen de roles y companies)
  *
  * @example
  * # Ejecutar seeds
@@ -22,6 +24,7 @@ import { dataSourceOptions } from '@config/database/data-source';
 import { seedPermissions } from './permission.seed';
 import { seedRoles } from './role.seed';
 import { seedCompanies } from './company.seed';
+import { seedTenantSchemas } from './tenant-schema.seed';
 import { seedUsers } from './user.seed';
 
 async function seed() {
@@ -51,7 +54,10 @@ async function seed() {
     // 3. Companies (independientes)
     await seedCompanies(dataSource);
 
-    // 4. Users (dependen de roles y companies)
+    // 4. Tenant Schemas (dependen de companies) ← NUEVO
+    await seedTenantSchemas(dataSource);
+
+    // 5. Users (dependen de roles y companies)
     await seedUsers(dataSource);
 
     // Resumen

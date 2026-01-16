@@ -12,12 +12,28 @@
 import { Injectable, CanActivate, ExecutionContext, Logger } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
-import { TenantExtractorService } from '@shared/database/tenant-extractor.service';
+import { TenantExtractorService, ITenantContext } from '@shared/database';
 
 /**
  * Metadata key para el decorador @SkipTenant()
  */
 export const SKIP_TENANT_KEY = 'skipTenant';
+
+/**
+ * Interfaz extendida de Request con propiedades de tenant y user
+ * Esta interfaz evita dependencias de archivos .d.ts globales
+ */
+interface RequestWithTenant extends Request {
+  tenant?: ITenantContext;
+  user?: {
+    id: string;
+    email: string;
+    companyId?: string | null;
+    schema?: string | null;
+    roles?: string[];
+    [key: string]: unknown;
+  };
+}
 
 /**
  * TenantGuard - Guard global para multi-tenant
@@ -113,7 +129,7 @@ export class TenantGuard implements CanActivate {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest<Request>();
+    const request = context.switchToHttp().getRequest<RequestWithTenant>();
 
     // 2. Obtener userId del JWT
     const userId = request.user?.id;
@@ -134,7 +150,8 @@ export class TenantGuard implements CanActivate {
             return true;
           }
         } catch (error) {
-          this.logger.debug(`No se pudo extraer tenant: ${error.message}`);
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          this.logger.debug(`No se pudo extraer tenant: ${errorMessage}`);
         }
       }
 
@@ -158,7 +175,8 @@ export class TenantGuard implements CanActivate {
         `✅ Tenant extraído: schema=${tenantContext.schema}, company=${tenantContext.companyId}, user=${userId}`,
       );
     } catch (error) {
-      this.logger.error(`Error extrayendo tenant para user ${userId}: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Error extrayendo tenant para user ${userId}: ${errorMessage}`);
       throw error;
     }
 

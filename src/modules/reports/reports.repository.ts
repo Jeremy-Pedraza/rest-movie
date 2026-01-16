@@ -1,8 +1,41 @@
 // src/modules/reports/reports.repository.ts
 
+/**
+ * @fileoverview Repository para módulo de reportes
+ * @module modules/reports
+ *
+ * ARQUITECTURA MULTI-TENANT (FASE 5):
+ *
+ * Estado actual:
+ * - Las 6 tablas de reportes están en schema PUBLIC
+ * - Se usa createStaticQueryBuilder() para todas las queries
+ * - Las relaciones con stores/companies funcionan normalmente
+ *
+ * Estado futuro (cuando se muevan tablas a tenant schemas):
+ * - Las tablas de reportes vivirán en el schema de cada tenant
+ * - Se usará withSchema() para queries con schema dinámico
+ * - La relación con stores será cross-schema (tenant → public)
+ *
+ * Patrón actual:
+ * ```typescript
+ * // Queries a schema public (estado actual)
+ * const reports = await this.createStaticQueryBuilder('report')...
+ * ```
+ *
+ * Patrón futuro:
+ * ```typescript
+ * // Queries a schema del tenant
+ * const reports = await this.withSchema(async (manager) => {
+ *   return manager.find(ReportHeaderEntity, { where: { store_id } });
+ * });
+ * ```
+ *
+ * @version 3.1.0 - FASE 5: Documentación multi-tenant actualizada
+ */
+
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 import {
   ReportHeaderEntity,
   SalesByOrderTypeEntity,
@@ -13,13 +46,18 @@ import {
 } from './entities';
 import { ReportTypeEnum } from './enums';
 import { QueryReportDto, RankingStoresDto, RankingMetricEnum, RankingDirectionEnum } from './dto';
+import { BaseRepository, SchemaContext } from '@shared/database';
 
 /**
  * ReportsRepository
  *
  * @description
  * Maneja todas las operaciones de base de datos para el módulo de reportes.
- * Utiliza createQueryBuilder para prevenir SQL injection.
+ * Extiende BaseRepository para soporte multi-tenant.
+ *
+ * NOTA IMPORTANTE - MULTI-TENANT:
+ * Actualmente las tablas están en schema PUBLIC y se usa createStaticQueryBuilder().
+ * Cuando se migre a schemas por tenant, se cambiará a withSchema().
  *
  * Secciones:
  * - CRUD básico (create, findAll, findById, update, delete)
@@ -30,10 +68,11 @@ import { QueryReportDto, RankingStoresDto, RankingMetricEnum, RankingDirectionEn
  * - Operaciones con entidades de detalle
  */
 @Injectable()
-export class ReportsRepository {
+export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   constructor(
     @InjectRepository(ReportHeaderEntity)
-    private readonly reportRepo: Repository<ReportHeaderEntity>,
+    repository: Repository<ReportHeaderEntity>,
+    schemaContext: SchemaContext,
 
     @InjectRepository(SalesByOrderTypeEntity)
     private readonly salesByOrderTypeRepo: Repository<SalesByOrderTypeEntity>,
@@ -49,7 +88,27 @@ export class ReportsRepository {
 
     @InjectRepository(EffectiveOrderEntity)
     private readonly effectiveOrderRepo: Repository<EffectiveOrderEntity>,
-  ) {}
+  ) {
+    super(repository, schemaContext);
+  }
+
+  // ============================================
+  // QUERY BUILDERS HELPERS
+  // ============================================
+
+  /**
+   * Query builder para SalesByOrderType
+   */
+  private createSalesOrderTypeQB(alias: string): SelectQueryBuilder<SalesByOrderTypeEntity> {
+    return this.salesByOrderTypeRepo.createQueryBuilder(alias);
+  }
+
+  /**
+   * Query builder para PaymentMethod
+   */
+  private createPaymentMethodQB(alias: string): SelectQueryBuilder<PaymentMethodEntity> {
+    return this.paymentMethodRepo.createQueryBuilder(alias);
+  }
 
   // ============================================
   // SECCIÓN 1: CRUD BÁSICO
@@ -81,8 +140,8 @@ export class ReportsRepository {
     } = data;
 
     // Crear header
-    const report = this.reportRepo.create(headerData);
-    const savedReport = await this.reportRepo.save(report);
+    const report = this.repository.create(headerData);
+    const savedReport = await this.repository.save(report);
 
     // Crear detalles si existen
     if (sales_by_order_type?.length) {
@@ -135,7 +194,7 @@ export class ReportsRepository {
    * @returns Tupla [reportes, total]
    */
   async findAll(query: QueryReportDto): Promise<[ReportHeaderEntity[], number]> {
-    const qb = this.reportRepo.createQueryBuilder('report');
+    const qb = this.createStaticQueryBuilder('report');
 
     // Joins opcionales
     if (query.include_store || query.company_id) {
@@ -238,8 +297,7 @@ export class ReportsRepository {
    * @returns ReportHeaderEntity o null
    */
   async findById(id: string, includeDetails = false): Promise<ReportHeaderEntity | null> {
-    const qb = this.reportRepo
-      .createQueryBuilder('report')
+    const qb = this.createStaticQueryBuilder('report')
       .leftJoinAndSelect('report.store', 'store')
       .where('report.id = :id', { id });
 
@@ -267,8 +325,7 @@ export class ReportsRepository {
     reportDate: string,
     reportType?: ReportTypeEnum,
   ): Promise<ReportHeaderEntity | null> {
-    const qb = this.reportRepo
-      .createQueryBuilder('report')
+    const qb = this.createStaticQueryBuilder('report')
       .where('report.store_id = :storeId', { storeId })
       .andWhere('report.report_date = :reportDate', { reportDate });
 
@@ -288,8 +345,7 @@ export class ReportsRepository {
    * @returns true si existe
    */
   async exists(storeId: string, reportDate: string, excludeId?: string): Promise<boolean> {
-    const qb = this.reportRepo
-      .createQueryBuilder('report')
+    const qb = this.createStaticQueryBuilder('report')
       .where('report.store_id = :storeId', { storeId })
       .andWhere('report.report_date = :reportDate', { reportDate });
 
@@ -333,7 +389,7 @@ export class ReportsRepository {
     }
 
     if (Object.keys(updateData).length > 0) {
-      await this.reportRepo.update(id, updateData);
+      await this.repository.update(id, updateData);
     }
 
     return await this.findById(id);
@@ -346,7 +402,7 @@ export class ReportsRepository {
    * @returns true si se eliminó
    */
   async delete(id: string): Promise<boolean> {
-    const result = await this.reportRepo.delete(id);
+    const result = await this.repository.delete(id);
     return (result.affected ?? 0) > 0;
   }
 
@@ -367,9 +423,9 @@ export class ReportsRepository {
     dateFrom?: string,
     dateTo?: string,
   ): Promise<ReportHeaderEntity[]> {
-    const qb = this.reportRepo
-      .createQueryBuilder('report')
-      .where('report.store_id = :storeId', { storeId });
+    const qb = this.createStaticQueryBuilder('report').where('report.store_id = :storeId', {
+      storeId,
+    });
 
     if (dateFrom && dateTo) {
       qb.andWhere('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
@@ -391,8 +447,7 @@ export class ReportsRepository {
     dateFrom: string,
     dateTo: string,
   ): Promise<ReportHeaderEntity[]> {
-    return await this.reportRepo
-      .createQueryBuilder('report')
+    return await this.createStaticQueryBuilder('report')
       .leftJoin('report.store', 'store')
       .leftJoinAndSelect('report.store', 'storeSelect')
       .where('store.company_id = :companyId', { companyId })
@@ -415,8 +470,7 @@ export class ReportsRepository {
     dateTo: string,
     reportType?: ReportTypeEnum,
   ): Promise<ReportHeaderEntity[]> {
-    const qb = this.reportRepo
-      .createQueryBuilder('report')
+    const qb = this.createStaticQueryBuilder('report')
       .leftJoinAndSelect('report.store', 'store')
       .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
 
@@ -440,8 +494,7 @@ export class ReportsRepository {
     dateTo: string,
     companyId?: string,
   ): Promise<string[]> {
-    const qb = this.reportRepo
-      .createQueryBuilder('report')
+    const qb = this.createStaticQueryBuilder('report')
       .select('DISTINCT report.store_id', 'store_id')
       .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
 
@@ -479,8 +532,7 @@ export class ReportsRepository {
     reports_count: number;
     days_count: number;
   }> {
-    const result = await this.reportRepo
-      .createQueryBuilder('report')
+    const result = await this.createStaticQueryBuilder('report')
       .select('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
       .addSelect('COALESCE(SUM(report.total_revenue), 0)', 'total_revenue')
       .addSelect('COALESCE(SUM(report.total_quantity), 0)', 'total_quantity')
@@ -540,8 +592,7 @@ export class ReportsRepository {
     }>;
   }> {
     // Totales de la compañía
-    const totals = await this.reportRepo
-      .createQueryBuilder('report')
+    const totals = await this.createStaticQueryBuilder('report')
       .leftJoin('report.store', 'store')
       .select('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
       .addSelect('COALESCE(SUM(report.total_revenue), 0)', 'total_revenue')
@@ -557,8 +608,7 @@ export class ReportsRepository {
       .getRawOne();
 
     // Desglose por tienda
-    const storesBreakdown = await this.reportRepo
-      .createQueryBuilder('report')
+    const storesBreakdown = await this.createStaticQueryBuilder('report')
       .leftJoin('report.store', 'store')
       .select('store.id', 'store_id')
       .addSelect('store.nombre', 'store_name')
@@ -632,8 +682,7 @@ export class ReportsRepository {
     }>;
   }> {
     // Totales globales
-    const totals = await this.reportRepo
-      .createQueryBuilder('report')
+    const totals = await this.createStaticQueryBuilder('report')
       .leftJoin('report.store', 'store')
       .leftJoin('store.company', 'company')
       .select('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
@@ -649,8 +698,7 @@ export class ReportsRepository {
       .getRawOne();
 
     // Desglose por compañía
-    const companiesBreakdown = await this.reportRepo
-      .createQueryBuilder('report')
+    const companiesBreakdown = await this.createStaticQueryBuilder('report')
       .leftJoin('report.store', 'store')
       .leftJoin('store.company', 'company')
       .select('company.id', 'company_id')
@@ -711,8 +759,7 @@ export class ReportsRepository {
       percentage_of_total: number;
     }>
   > {
-    const qb = this.salesByOrderTypeRepo
-      .createQueryBuilder('sot')
+    const qb = this.createSalesOrderTypeQB('sot')
       .leftJoin('sot.report_header', 'report')
       .select('sot.order_type', 'order_type')
       .addSelect('COALESCE(SUM(sot.total_sales), 0)', 'total_sales')
@@ -760,8 +807,7 @@ export class ReportsRepository {
       percentage_of_total: number;
     }>
   > {
-    const qb = this.paymentMethodRepo
-      .createQueryBuilder('pm')
+    const qb = this.createPaymentMethodQB('pm')
       .leftJoin('pm.report_header', 'report')
       .select('pm.payment_method', 'payment_method')
       .addSelect('COALESCE(SUM(pm.total_amount), 0)', 'total_amount')
@@ -809,8 +855,7 @@ export class ReportsRepository {
       stores_reported: number;
     }>
   > {
-    const qb = this.reportRepo
-      .createQueryBuilder('report')
+    const qb = this.createStaticQueryBuilder('report')
       .select('report.report_date', 'date')
       .addSelect('EXTRACT(DOW FROM report.report_date)', 'day_of_week')
       .addSelect('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
@@ -864,8 +909,7 @@ export class ReportsRepository {
     const metricColumn = this.getMetricColumn(dto.metric);
     const sortDirection = dto.direction === RankingDirectionEnum.BOTTOM ? 'ASC' : 'DESC';
 
-    const qb = this.reportRepo
-      .createQueryBuilder('report')
+    const qb = this.createStaticQueryBuilder('report')
       .leftJoin('report.store', 'store')
       .leftJoin('store.company', 'company')
       .select('store.id', 'store_id')
@@ -973,8 +1017,7 @@ export class ReportsRepository {
     const metricColumn = this.getMetricColumn(metric);
     const sortDirection = direction === RankingDirectionEnum.BOTTOM ? 'ASC' : 'DESC';
 
-    const results = await this.reportRepo
-      .createQueryBuilder('report')
+    const results = await this.createStaticQueryBuilder('report')
       .leftJoin('report.store', 'store')
       .leftJoin('store.company', 'company')
       .select('company.id', 'company_id')
@@ -1062,8 +1105,7 @@ export class ReportsRepository {
       reports_count: number;
     }>
   > {
-    const results = await this.reportRepo
-      .createQueryBuilder('report')
+    const results = await this.createStaticQueryBuilder('report')
       .leftJoin('report.store', 'store')
       .select('store.id', 'store_id')
       .addSelect('store.nombre', 'store_name')
@@ -1114,8 +1156,7 @@ export class ReportsRepository {
     };
   }> {
     const buildQuery = (dateFrom: string, dateTo: string) => {
-      const qb = this.reportRepo
-        .createQueryBuilder('report')
+      const qb = this.createStaticQueryBuilder('report')
         .select('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
         .addSelect('COALESCE(SUM(report.total_revenue), 0)', 'total_revenue')
         .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
@@ -1164,8 +1205,7 @@ export class ReportsRepository {
   > {
     const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
-    const qb = this.reportRepo
-      .createQueryBuilder('report')
+    const qb = this.createStaticQueryBuilder('report')
       .select('EXTRACT(DOW FROM report.report_date)', 'day_of_week')
       .addSelect('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
       .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
@@ -1214,25 +1254,20 @@ export class ReportsRepository {
 
     const [total, reportsToday, reportsThisWeek, reportsThisMonth, stores, companies] =
       await Promise.all([
-        this.reportRepo.createQueryBuilder('report').getCount(),
-        this.reportRepo
-          .createQueryBuilder('report')
+        this.createStaticQueryBuilder('report').getCount(),
+        this.createStaticQueryBuilder('report')
           .where('report.report_date = :today', { today })
           .getCount(),
-        this.reportRepo
-          .createQueryBuilder('report')
+        this.createStaticQueryBuilder('report')
           .where('report.report_date >= :weekAgo', { weekAgo })
           .getCount(),
-        this.reportRepo
-          .createQueryBuilder('report')
+        this.createStaticQueryBuilder('report')
           .where('report.report_date >= :monthStart', { monthStart })
           .getCount(),
-        this.reportRepo
-          .createQueryBuilder('report')
+        this.createStaticQueryBuilder('report')
           .select('COUNT(DISTINCT report.store_id)', 'count')
           .getRawOne(),
-        this.reportRepo
-          .createQueryBuilder('report')
+        this.createStaticQueryBuilder('report')
           .leftJoin('report.store', 'store')
           .select('COUNT(DISTINCT store.company_id)', 'count')
           .getRawOne(),
@@ -1264,8 +1299,7 @@ export class ReportsRepository {
     days_with_reports: number;
     average_daily_sales: number;
   }> {
-    const qb = this.reportRepo
-      .createQueryBuilder('report')
+    const qb = this.createStaticQueryBuilder('report')
       .select('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
       .addSelect('COALESCE(SUM(report.total_revenue), 0)', 'total_revenue')
       .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
@@ -1330,8 +1364,7 @@ export class ReportsRepository {
         groupByClause = 'report.report_date';
     }
 
-    const qb = this.reportRepo
-      .createQueryBuilder('report')
+    const qb = this.createStaticQueryBuilder('report')
       .select(dateSelector, 'period')
       .addSelect('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
       .addSelect('COALESCE(SUM(report.total_revenue), 0)', 'total_revenue')
@@ -1403,16 +1436,14 @@ export class ReportsRepository {
   }
 
   async getSalesByOrderType(reportId: string): Promise<SalesByOrderTypeEntity[]> {
-    return await this.salesByOrderTypeRepo
-      .createQueryBuilder('sot')
+    return await this.createSalesOrderTypeQB('sot')
       .where('sot.report_header_id = :reportId', { reportId })
       .orderBy('sot.total_sales', 'DESC')
       .getMany();
   }
 
   async getPaymentMethods(reportId: string): Promise<PaymentMethodEntity[]> {
-    return await this.paymentMethodRepo
-      .createQueryBuilder('pm')
+    return await this.createPaymentMethodQB('pm')
       .where('pm.report_header_id = :reportId', { reportId })
       .orderBy('pm.total_amount', 'DESC')
       .getMany();
@@ -1454,8 +1485,7 @@ export class ReportsRepository {
   }
 
   async countByStatus(companyId?: string): Promise<Record<string, number>> {
-    const qb = this.reportRepo
-      .createQueryBuilder('report')
+    const qb = this.createStaticQueryBuilder('report')
       .select('report.status', 'status')
       .addSelect('COUNT(*)', 'count');
     if (companyId) {

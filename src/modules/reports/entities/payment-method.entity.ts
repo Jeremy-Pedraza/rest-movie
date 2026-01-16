@@ -1,5 +1,16 @@
 // src/modules/reports/entities/payment-method.entity.ts
 
+/**
+ * @fileoverview Entidad PaymentMethod - Métodos de pago
+ * @module modules/reports
+ *
+ * ARQUITECTURA MULTI-TENANT:
+ * Esta entidad es una ENTIDAD DE TENANT - sus datos se almacenan
+ * en el schema específico de cada compañía.
+ *
+ * @version 3.0.0 - FASE 5: Soporte multi-tenant
+ */
+
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -18,8 +29,12 @@ import { ReportHeaderEntity } from './report-header.entity';
  * Representa el desglose de ventas por método de pago (efectivo, tarjeta, etc.).
  * Cada registro corresponde a un método de pago específico dentro de un reporte.
  *
+ * MULTI-TENANT:
+ * - Esta entidad vive en el schema del tenant
+ * - FK a report_headers del MISMO schema
+ *
  * Relaciones:
- * - Pertenece a un ReportHeader (ManyToOne)
+ * - Pertenece a un ReportHeader (ManyToOne) - MISMO SCHEMA
  *
  * @example
  * ```typescript
@@ -28,10 +43,9 @@ import { ReportHeaderEntity } from './report-header.entity';
  * payment.payment_method = 'cash';
  * payment.total_amount = 3000.00;
  * payment.transactions_count = 15;
- * await paymentRepo.save(payment);
  * ```
  */
-@Entity({ name: 'payment_methods', schema: 'public' })
+@Entity({ name: 'payment_methods' })
 @Index(['report_header_id'])
 @Index(['payment_method'])
 export class PaymentMethodEntity {
@@ -40,6 +54,7 @@ export class PaymentMethodEntity {
 
   /**
    * ID del reporte padre
+   * FK a report_headers (mismo schema)
    */
   @Column({
     type: 'uuid',
@@ -87,16 +102,16 @@ export class PaymentMethodEntity {
   transactions_count: number;
 
   /**
-   * Monto promedio por transacción
+   * Porcentaje del total de ventas
    */
   @Column({
     type: 'decimal',
-    precision: 10,
+    precision: 5,
     scale: 2,
     default: 0,
-    name: 'average_amount',
+    name: 'percentage',
   })
-  average_amount: number;
+  percentage: number;
 
   // ============================================
   // RELACIONES

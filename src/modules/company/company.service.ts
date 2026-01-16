@@ -4,7 +4,13 @@ import { Injectable, Logger } from '@nestjs/common';
 import { CompanyRepository } from './company.repository';
 import { SanitizerService, HandleErrorService, IPaginatedResponse } from '@shared/common';
 import { CreateCompanyDto, UpdateCompanyDto, QueryCompanyDto } from './dto';
-import { ICompanyResponse, ICompanyWithStoresResponse, ICompanyStatsResponse } from './interfaces';
+import {
+  ICompanyResponse,
+  ICompanyWithStoresResponse,
+  ICompanyStatsResponse,
+  ICompanyListResponse,
+  ICompanyLocaleResponse,
+} from './interfaces';
 import { CompanyEntity } from './entities';
 
 /**
@@ -13,6 +19,8 @@ import { CompanyEntity } from './entities';
  * @description
  * Maneja la lógica de negocio para el módulo Company.
  * Utiliza shared services para sanitización y manejo de errores.
+ *
+ * @version 2.0.0 - Agregados métodos de internacionalización (FASE 1)
  *
  * Responsabilidades:
  * - Validar reglas de negocio
@@ -264,6 +272,66 @@ export class CompanyService {
   }
 
   // ============================================
+  // MÉTODOS DE INTERNACIONALIZACIÓN (FASE 1)
+  // ============================================
+
+  /**
+   * Obtener compañías por código de país
+   *
+   * @param countryCode - Código ISO 3166-1 alpha-2 (ej: 'DO', 'GT')
+   * @returns Array de ICompanyListResponse
+   */
+  async findByCountryCode(countryCode: string): Promise<ICompanyListResponse[]> {
+    const companies = await this.companyRepository.findByCountryCode(countryCode);
+    return companies.map((c) => this.toListResponse(c));
+  }
+
+  /**
+   * Obtener compañías por moneda
+   *
+   * @param currencyCode - Código ISO 4217 (ej: 'DOP', 'GTQ')
+   * @returns Array de ICompanyListResponse
+   */
+  async findByCurrency(currencyCode: string): Promise<ICompanyListResponse[]> {
+    const companies = await this.companyRepository.findByCurrency(currencyCode);
+    return companies.map((c) => this.toListResponse(c));
+  }
+
+  /**
+   * Obtener configuración de localización de una compañía
+   *
+   * @param id - UUID de la compañía
+   * @returns ICompanyLocaleResponse
+   */
+  async getLocale(id: string): Promise<ICompanyLocaleResponse> {
+    const company = await this.companyRepository.findById(id);
+    if (!company) {
+      this.handleError.notFound('Compañía', id);
+    }
+    return this.toLocaleResponse(company);
+  }
+
+  /**
+   * Obtener listado de países únicos
+   *
+   * @returns Array de { pais, country_code, count }
+   */
+  async getCountryCodes(): Promise<Array<{ pais: string; country_code: string; count: number }>> {
+    return await this.companyRepository.getCountryCodes();
+  }
+
+  /**
+   * Obtener listado de monedas únicas
+   *
+   * @returns Array de { currency_code, currency_symbol, count }
+   */
+  async getCurrencies(): Promise<
+    Array<{ currency_code: string; currency_symbol: string; count: number }>
+  > {
+    return await this.companyRepository.getCurrencies();
+  }
+
+  // ============================================
   // MÉTODOS PRIVADOS
   // ============================================
 
@@ -272,6 +340,7 @@ export class CompanyService {
    */
   private sanitizeCreateDto(dto: CreateCompanyDto): Partial<CompanyEntity> {
     return {
+      // Campos base
       name: this.sanitizer.sanitizeString(dto.name),
       schema: dto.schema ? this.sanitizer.sanitizeString(dto.schema) : undefined,
       domain: dto.domain ? this.sanitizer.sanitizeString(dto.domain) : undefined,
@@ -285,6 +354,17 @@ export class CompanyService {
       is_active: dto.is_active ?? true,
       plan: dto.plan ? this.sanitizer.sanitizeString(dto.plan) : undefined,
       settings: dto.settings,
+
+      // Campos de internacionalización (FASE 1)
+      timezone: dto.timezone || 'America/Santo_Domingo',
+      country_code: dto.country_code || 'DO',
+      departamento: dto.departamento
+        ? this.sanitizer.sanitizeString(dto.departamento)
+        : undefined,
+      currency_code: dto.currency_code || 'DOP',
+      currency_symbol: dto.currency_symbol || 'RD$',
+      date_format: dto.date_format || 'DD/MM/YYYY',
+      tax_config: dto.tax_config || undefined,
     };
   }
 
@@ -294,6 +374,7 @@ export class CompanyService {
   private sanitizeUpdateDto(dto: UpdateCompanyDto): Partial<CompanyEntity> {
     const sanitized: Partial<CompanyEntity> = {};
 
+    // Campos base
     if (dto.name) sanitized.name = this.sanitizer.sanitizeString(dto.name);
     if (dto.domain) sanitized.domain = this.sanitizer.sanitizeString(dto.domain);
     if (dto.subdomain) sanitized.subdomain = this.sanitizer.sanitizeString(dto.subdomain);
@@ -307,11 +388,20 @@ export class CompanyService {
     if (dto.plan) sanitized.plan = this.sanitizer.sanitizeString(dto.plan);
     if (dto.settings) sanitized.settings = dto.settings;
 
+    // Campos de internacionalización (FASE 1)
+    if (dto.timezone) sanitized.timezone = dto.timezone;
+    if (dto.country_code) sanitized.country_code = dto.country_code;
+    if (dto.departamento) sanitized.departamento = this.sanitizer.sanitizeString(dto.departamento);
+    if (dto.currency_code) sanitized.currency_code = dto.currency_code;
+    if (dto.currency_symbol) sanitized.currency_symbol = dto.currency_symbol;
+    if (dto.date_format) sanitized.date_format = dto.date_format;
+    if (dto.tax_config) sanitized.tax_config = dto.tax_config;
+
     return sanitized;
   }
 
   /**
-   * Convertir entidad a respuesta
+   * Convertir entidad a respuesta completa
    */
   private toResponse(company: CompanyEntity): ICompanyResponse {
     return {
@@ -330,8 +420,49 @@ export class CompanyService {
       plan: company.plan,
       plan_expires_at: company.plan_expires_at,
       settings: company.settings,
+
+      // Campos de internacionalización (FASE 1)
+      timezone: company.timezone,
+      country_code: company.country_code,
+      departamento: company.departamento,
+      currency_code: company.currency_code,
+      currency_symbol: company.currency_symbol,
+      date_format: company.date_format,
+      tax_config: company.tax_config,
+
+      // Timestamps
       created_at: company.created_at,
       updated_at: company.updated_at,
+    };
+  }
+
+  /**
+   * Convertir entidad a respuesta simplificada (para listados)
+   */
+  private toListResponse(company: CompanyEntity): ICompanyListResponse {
+    return {
+      id: company.id,
+      name: company.name,
+      subdomain: company.subdomain,
+      country_code: company.country_code,
+      currency_code: company.currency_code,
+      is_active: company.is_active,
+    };
+  }
+
+  /**
+   * Convertir entidad a respuesta de localización
+   */
+  private toLocaleResponse(company: CompanyEntity): ICompanyLocaleResponse {
+    return {
+      id: company.id,
+      name: company.name,
+      country_code: company.country_code,
+      timezone: company.timezone,
+      currency_code: company.currency_code,
+      currency_symbol: company.currency_symbol,
+      date_format: company.date_format,
+      tax_config: company.tax_config,
     };
   }
 }

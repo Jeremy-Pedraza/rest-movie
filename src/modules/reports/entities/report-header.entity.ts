@@ -1,5 +1,19 @@
 // src/modules/reports/entities/report-header.entity.ts
 
+/**
+ * @fileoverview Entidad ReportHeader - Cabecera de reportes de ventas
+ * @module modules/reports
+ *
+ * ARQUITECTURA MULTI-TENANT:
+ * Esta entidad es una ENTIDAD DE TENANT - sus datos se almacenan
+ * en el schema específico de cada compañía (ej: taco_bell_rd.report_headers)
+ *
+ * El schema se determina dinámicamente vía SchemaContext/BaseRepository.
+ * NO debe especificarse schema en el decorador @Entity.
+ *
+ * @version 3.0.0 - FASE 5: Soporte multi-tenant
+ */
+
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -21,25 +35,31 @@ import { ReportTypeEnum } from '../enums';
  * Representa el encabezado de un reporte de ventas.
  * Contiene información consolidada de ventas, ingresos y cantidades.
  *
+ * MULTI-TENANT:
+ * - Esta entidad vive en el schema del tenant (ej: taco_bell_rd)
+ * - El ReportsRepository usa BaseRepository para queries con schema dinámico
+ * - La relación con Store (public.stores) cruza schemas
+ *
  * Relaciones:
- * - Pertenece a una Store (ManyToOne)
- * - Tiene múltiples SalesByOrderType (OneToMany)
- * - Tiene múltiples PaymentMethods (OneToMany)
- * - Tiene múltiples DynamicDiscounts (OneToMany)
- * - Tiene múltiples Adjustments (OneToMany)
- * - Tiene múltiples EffectiveOrders (OneToMany)
+ * - Pertenece a una Store (ManyToOne) - CROSS-SCHEMA a public.stores
+ * - Tiene múltiples SalesByOrderType (OneToMany) - MISMO SCHEMA
+ * - Tiene múltiples PaymentMethods (OneToMany) - MISMO SCHEMA
+ * - Tiene múltiples DynamicDiscounts (OneToMany) - MISMO SCHEMA
+ * - Tiene múltiples Adjustments (OneToMany) - MISMO SCHEMA
+ * - Tiene múltiples EffectiveOrders (OneToMany) - MISMO SCHEMA
  *
  * @example
  * ```typescript
- * const report = new ReportHeaderEntity();
- * report.store_id = 'uuid-store';
- * report.report_date = new Date('2025-01-16');
- * report.report_type = ReportTypeEnum.DAILY;
- * report.total_sales = 15000.50;
- * await reportRepo.save(report);
+ * // En ReportsRepository (extiende BaseRepository)
+ * // Las queries usan el schema del tenant automáticamente
+ * const reports = await this.withSchema(async (manager) => {
+ *   return manager.find(ReportHeaderEntity, {
+ *     where: { store_id: storeId }
+ *   });
+ * });
  * ```
  */
-@Entity({ name: 'report_headers', schema: 'public' })
+@Entity({ name: 'report_headers' })
 @Index(['store_id', 'report_date'], { unique: true })
 @Index(['report_date'])
 @Index(['report_type'])
@@ -50,6 +70,7 @@ export class ReportHeaderEntity {
 
   /**
    * ID de la tienda que generó el reporte
+   * FK a public.stores (cross-schema)
    */
   @Column({
     type: 'uuid',
@@ -205,6 +226,7 @@ export class ReportHeaderEntity {
 
   /**
    * Tienda que generó el reporte
+   * NOTA: Esta relación cruza schemas (tenant → public)
    */
   @ManyToOne('StoreEntity', 'reports', {
     onDelete: 'CASCADE',

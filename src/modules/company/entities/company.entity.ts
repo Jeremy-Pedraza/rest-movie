@@ -26,6 +26,10 @@ import type { UserEntity } from '@modules/user/entities';
  * company.name = 'Restaurante Valle';
  * company.schema = 'restaurant_valle_schema';
  * company.subdomain = 'valle';
+ * company.ruc = '1792345678001';
+ * company.email = 'contacto@valle.com';
+ * company.pais = 'Ecuador';
+ * company.ciudad = 'Quito';
  * await companyRepo.save(company);
  * ```
  */
@@ -43,7 +47,7 @@ export class CompanyEntity extends BaseEntity {
    *
    * @example 'company_a_schema', 'restaurant_valle_schema'
    */
-  @Column({ type: 'varchar', length: 100, unique: true, name: 'schema' })
+  @Column({ type: 'varchar', length: 100, unique: true, nullable: true, name: 'schema' })
   @Index('idx_company_schema')
   schema: string;
 
@@ -100,6 +104,90 @@ export class CompanyEntity extends BaseEntity {
   plan_expires_at: Date | null;
 
   // ============================================
+  // NUEVOS CAMPOS AGREGADOS
+  // ============================================
+
+  /**
+   * RUC/NIT de la empresa
+   * Identificación fiscal única
+   *
+   * @example '1792345678001' (Ecuador), '900123456-1' (Colombia)
+   */
+  @Column({
+    type: 'varchar',
+    length: 100,
+    unique: true,
+    nullable: false,
+    name: 'ruc',
+    comment: 'RUC/NIT de la empresa',
+  })
+  @Index('idx_company_ruc', { unique: true })
+  ruc: string;
+
+  /**
+   * Email corporativo de la empresa
+   */
+  @Column({
+    type: 'varchar',
+    length: 255,
+    nullable: false,
+    name: 'email',
+  })
+  @Index('idx_company_email')
+  email: string;
+
+  /**
+   * Teléfono corporativo
+   *
+   * @example '+593987654321', '0987654321'
+   */
+  @Column({
+    type: 'varchar',
+    length: 20,
+    nullable: true,
+    name: 'telefono',
+  })
+  telefono?: string;
+
+  /**
+   * Dirección fiscal de la empresa
+   */
+  @Column({
+    type: 'text',
+    nullable: true,
+    name: 'direccion',
+  })
+  direccion?: string;
+
+  /**
+   * País donde opera la empresa
+   *
+   * @example 'Ecuador', 'Colombia', 'Perú'
+   */
+  @Column({
+    type: 'varchar',
+    length: 100,
+    nullable: false,
+    name: 'pais',
+  })
+  @Index('idx_company_pais')
+  pais: string;
+
+  /**
+   * Ciudad principal de operación
+   *
+   * @example 'Quito', 'Guayaquil', 'Bogotá'
+   */
+  @Column({
+    type: 'varchar',
+    length: 100,
+    nullable: false,
+    name: 'ciudad',
+  })
+  @Index('idx_company_ciudad')
+  ciudad: string;
+
+  // ============================================
   // RELACIONES
   // ============================================
 
@@ -111,5 +199,15 @@ export class CompanyEntity extends BaseEntity {
    * para evitar imports circulares en runtime
    */
   @OneToMany('UserEntity', 'company')
-  users: UserEntity[];
+  users?: UserEntity[];
+
+  /**
+   * Tiendas que pertenecen a esta compañía
+   * Relación inversa: StoreEntity.company
+   *
+   * Una compañía puede tener múltiples tiendas/sucursales.
+   * Los reportes se generan a nivel de tienda.
+   */
+  @OneToMany('StoreEntity', 'company')
+  stores?: any[]; // Type-only import para evitar circular
 }

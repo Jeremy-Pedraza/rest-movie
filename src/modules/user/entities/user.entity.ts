@@ -207,6 +207,35 @@ export class UserEntity {
   @JoinColumn({ name: 'company_id' })
   company: CompanyEntity | null;
 
+  // ============================================
+  // RELACIÓN CON STORES (SOLO ROL USER)
+  // ============================================
+
+  /**
+   * Tiendas asignadas al usuario (solo para rol USER)
+   *
+   * @description
+   * Relación ManyToMany con StoreEntity usando tabla intermedia user_stores.
+   * Solo usuarios con rol USER tienen tiendas asignadas.
+   * Los usuarios asignados solo pueden ver reportes de sus tiendas.
+   *
+   * Permisos por rol:
+   * - SUPER_ADMIN/ADMIN: Acceso a todas las tiendas (no necesitan asignación)
+   * - MANAGER: Acceso a todas las tiendas de su compañía (no necesitan asignación)
+   * - USER: Solo acceso a tiendas asignadas en esta relación
+   *
+   * @example
+   * ```typescript
+   * const user = await userRepo.findOne({
+   *   where: { id: userId },
+   *   relations: ['assigned_stores'],
+   * });
+   * console.log(user.assigned_stores); // Array de StoreEntity
+   * ```
+   */
+  @ManyToMany('StoreEntity', 'assigned_users')
+  assigned_stores?: any[]; // Type-only import para evitar circular
+
   /**
    * Fecha de creación
    */

@@ -484,4 +484,29 @@ export class UserRepository extends BaseRepository<UserEntity> {
       password_reset_expires: null,
     });
   }
+  /**
+   * Busca un usuario por ID incluyendo tiendas asignadas
+   *
+   * @description
+   * Carga el usuario con todas sus tiendas asignadas (relación ManyToMany).
+   * Solo usuarios con rol USER tienen tiendas asignadas.
+   *
+   * @param id - ID del usuario
+   * @returns Usuario con tiendas asignadas o null
+   *
+   * @example
+   * ```typescript
+   * const user = await this.userRepository.findByIdWithStores('user-id');
+   * console.log(user.assigned_stores); // Array de StoreEntity
+   * ```
+   */
+  async findByIdWithStores(id: string): Promise<UserEntity | null> {
+    return this.createStaticQueryBuilder('user')
+      .leftJoinAndSelect('user.roles', 'roles')
+      .leftJoinAndSelect('user.assigned_stores', 'stores')
+      .leftJoinAndSelect('stores.company', 'company')
+      .where('user.id = :id', { id })
+      .andWhere('user.deleted_at IS NULL')
+      .getOne();
+  }
 }

@@ -13,7 +13,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { Roles } from '@decorators/roles.decorator';
 import { Cacheable } from '@decorators/cacheable.decorator';
 import { ROLES } from '@constants/roles.constant';
@@ -29,9 +29,17 @@ import { ICompanyResponse, ICompanyWithStoresResponse, ICompanyStatsResponse } f
  * Maneja todas las operaciones HTTP del módulo Company.
  * Endpoints protegidos con Guards de autenticación y roles.
  *
+ * @version 3.0.0 - FASE 7.2.C: Creación automática de schema multi-tenant
+ *
  * Permisos:
  * - SUPER_ADMIN, ADMIN: Acceso completo
  * - MANAGER: Solo lectura de su compañía
+ *
+ * Flujo de creación con multi-tenant:
+ * 1. POST /companies con campo `schema`
+ * 2. Se crea registro en public.companies
+ * 3. Se crea schema automáticamente (si schema != 'public')
+ * 4. Se clonan tablas desde template_tenant
  */
 @ApiTags('Companies')
 @ApiBearerAuth()
@@ -42,6 +50,10 @@ export class CompanyController {
   /**
    * Crear compañía
    *
+   * @description
+   * Crea una nueva compañía. Si se especifica un `schema` diferente de 'public',
+   * se creará automáticamente el schema de tenant con las tablas de reportes.
+   *
    * @permission SUPER_ADMIN, ADMIN
    */
   @Post()
@@ -49,18 +61,37 @@ export class CompanyController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Crear compañía',
-    description: 'Crea una nueva compañía en el sistema. Requiere rol SUPER_ADMIN o ADMIN.',
+    description: `Crea una nueva compañía en el sistema. Requiere rol SUPER_ADMIN o ADMIN.
+    
+**Multi-Tenant:** Si se especifica un \`schema\` diferente de 'public', se creará 
+automáticamente el schema de PostgreSQL con las tablas de reportes clonadas desde template_tenant.
+
+**Ejemplo con schema:**
+\`\`\`json
+{
+  "name": "Taco Bell RD",
+  "schema": "taco_bell_rd",
+  "ruc": "101234567",
+  "email": "admin@tacobell.do",
+  "pais": "República Dominicana",
+  "ciudad": "Santo Domingo",
+  "country_code": "DO",
+  "currency_code": "DOP"
+}
+\`\`\``,
   })
-  @ApiResponse({ status: 201, description: 'Compañía creada exitosamente' })
+  @ApiResponse({ status: 201, description: 'Compañía creada exitosamente (con schema si aplica)' })
   @ApiResponse({ status: 400, description: 'Datos de entrada inválidos' })
   @ApiResponse({ status: 401, description: 'No autorizado' })
   @ApiResponse({ status: 403, description: 'Sin permisos suficientes' })
-  @ApiResponse({ status: 409, description: 'RUC o email ya registrados' })
+  @ApiResponse({ status: 409, description: 'RUC, email o schema ya registrados' })
   async create(@Body() dto: CreateCompanyDto): Promise<IApiResponse<ICompanyResponse>> {
     const data = await this.companyService.create(dto);
     return {
       success: true,
-      message: 'Compañía creada exitosamente',
+      message: dto.schema && dto.schema !== 'public'
+        ? `Compañía creada exitosamente con schema '${dto.schema}'`
+        : 'Compañía creada exitosamente',
       data,
     };
   }
@@ -149,6 +180,7 @@ export class CompanyController {
     summary: 'Obtener compañía por ID',
     description: 'Obtiene información detallada de una compañía por su ID.',
   })
+  @ApiParam({ name: 'id', description: 'UUID de la compañía' })
   @ApiResponse({ status: 200, description: 'Compañía obtenida exitosamente' })
   @ApiResponse({ status: 401, description: 'No autorizado' })
   @ApiResponse({ status: 403, description: 'Sin permisos suficientes' })
@@ -173,6 +205,7 @@ export class CompanyController {
     summary: 'Obtener compañía con información de tiendas',
     description: 'Obtiene compañía con contadores de tiendas asociadas.',
   })
+  @ApiParam({ name: 'id', description: 'UUID de la compañía' })
   @ApiResponse({ status: 200, description: 'Compañía con tiendas obtenida exitosamente' })
   @ApiResponse({ status: 401, description: 'No autorizado' })
   @ApiResponse({ status: 403, description: 'Sin permisos suficientes' })
@@ -188,6 +221,73 @@ export class CompanyController {
     };
   }
 
+  // ============================================
+  // ENDPOINTS DE SCHEMA (FASE 7.2.C)
+  // ============================================
+
+  /**
+   * Obtener información del schema de una compañía
+   *
+   * @permission SUPER_ADMIN, ADMIN
+   */
+  @Get(':id/schema')
+  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN)
+  @ApiOperation({
+    summary: 'Obtener información del schema de tenant',
+    description: `Obtiene información detallada del schema de PostgreSQL asociado a la compañía.
+    
+Retorna:
+- Nombre del schema
+- Número de tablas
+- Tamaño en disco
+- Estado (active, creating, error)
+- Fecha de última sincronización`,
+  })
+  @ApiParam({ name: 'id', description: 'UUID de la compañía' })
+  @ApiResponse({ status: 200, description: 'Información del schema obtenida' })
+  @ApiResponse({ status: 404, description: 'Compañía no encontrada' })
+  async getSchemaInfo(@Param('id', ParseUUIDPipe) id: string): Promise<IApiResponse<any>> {
+    const data = await this.companyService.getSchemaInfo(id);
+    return {
+      success: true,
+      message: data ? 'Información del schema obtenida' : 'La compañía no tiene schema de tenant',
+      data,
+    };
+  }
+
+  /**
+   * Sincronizar schema con template
+   *
+   * @permission SUPER_ADMIN
+   */
+  @Post(':id/schema/sync')
+  @Roles(ROLES.SUPER_ADMIN)
+  @ApiOperation({
+    summary: 'Sincronizar schema con template',
+    description: `Sincroniza el schema de la compañía con el template_tenant.
+    
+Útil cuando:
+- Se agregaron nuevas tablas al template
+- Se necesita actualizar la estructura del schema
+
+**Solo crea tablas faltantes, NO modifica tablas existentes.**`,
+  })
+  @ApiParam({ name: 'id', description: 'UUID de la compañía' })
+  @ApiResponse({ status: 200, description: 'Schema sincronizado exitosamente' })
+  @ApiResponse({ status: 404, description: 'Compañía no encontrada' })
+  async syncSchema(@Param('id', ParseUUIDPipe) id: string): Promise<IApiResponse<any>> {
+    const result = await this.companyService.syncSchema(id);
+    return {
+      success: result.success,
+      message: result.message,
+      data: result,
+    };
+  }
+
+  // ============================================
+  // CRUD OPERATIONS
+  // ============================================
+
   /**
    * Actualizar compañía
    *
@@ -197,8 +297,11 @@ export class CompanyController {
   @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN)
   @ApiOperation({
     summary: 'Actualizar compañía',
-    description: 'Actualiza información de una compañía existente.',
+    description: `Actualiza información de una compañía existente.
+    
+**Nota:** El campo \`schema\` NO se puede modificar después de creado.`,
   })
+  @ApiParam({ name: 'id', description: 'UUID de la compañía' })
   @ApiResponse({ status: 200, description: 'Compañía actualizada exitosamente' })
   @ApiResponse({ status: 400, description: 'Datos de entrada inválidos' })
   @ApiResponse({ status: 401, description: 'No autorizado' })
@@ -220,6 +323,10 @@ export class CompanyController {
   /**
    * Eliminar compañía (soft delete)
    *
+   * @description
+   * Elimina lógicamente la compañía. El schema de tenant NO se elimina
+   * para preservar datos históricos.
+   *
    * @permission SUPER_ADMIN, ADMIN
    */
   @Delete(':id')
@@ -227,14 +334,50 @@ export class CompanyController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Eliminar compañía (soft delete)',
-    description: 'Elimina lógicamente una compañía del sistema.',
+    description: `Elimina lógicamente una compañía del sistema.
+    
+**Nota:** El schema de PostgreSQL NO se elimina para preservar datos históricos.
+Use el endpoint de eliminación permanente si necesita eliminar también el schema.`,
   })
+  @ApiParam({ name: 'id', description: 'UUID de la compañía' })
   @ApiResponse({ status: 204, description: 'Compañía eliminada exitosamente' })
   @ApiResponse({ status: 401, description: 'No autorizado' })
   @ApiResponse({ status: 403, description: 'Sin permisos suficientes' })
   @ApiResponse({ status: 404, description: 'Compañía no encontrada' })
   async delete(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.companyService.delete(id);
+  }
+
+  /**
+   * Eliminar compañía permanentemente (incluyendo schema)
+   *
+   * @permission SUPER_ADMIN
+   */
+  @Delete(':id/permanent')
+  @Roles(ROLES.SUPER_ADMIN)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Eliminar compañía permanentemente',
+    description: `⚠️ **OPERACIÓN DESTRUCTIVA E IRREVERSIBLE**
+    
+Elimina permanentemente la compañía Y su schema de PostgreSQL con todos los datos.
+
+**Esto eliminará:**
+- Registro de la compañía
+- Schema de PostgreSQL completo
+- Todas las tablas del schema (reportes, etc.)
+- Todos los datos contenidos
+
+**Use con extrema precaución.**`,
+  })
+  @ApiParam({ name: 'id', description: 'UUID de la compañía' })
+  @ApiResponse({ status: 204, description: 'Compañía y schema eliminados permanentemente' })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  @ApiResponse({ status: 403, description: 'Sin permisos suficientes' })
+  @ApiResponse({ status: 404, description: 'Compañía no encontrada' })
+  @ApiResponse({ status: 500, description: 'Error eliminando schema' })
+  async hardDelete(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    await this.companyService.hardDelete(id, true); // force = true
   }
 
   /**
@@ -246,8 +389,9 @@ export class CompanyController {
   @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN)
   @ApiOperation({
     summary: 'Restaurar compañía eliminada',
-    description: 'Restaura una compañía previamente eliminada.',
+    description: 'Restaura una compañía previamente eliminada (soft delete).',
   })
+  @ApiParam({ name: 'id', description: 'UUID de la compañía' })
   @ApiResponse({ status: 200, description: 'Compañía restaurada exitosamente' })
   @ApiResponse({ status: 401, description: 'No autorizado' })
   @ApiResponse({ status: 403, description: 'Sin permisos suficientes' })
@@ -272,6 +416,7 @@ export class CompanyController {
     summary: 'Activar compañía',
     description: 'Activa una compañía previamente desactivada.',
   })
+  @ApiParam({ name: 'id', description: 'UUID de la compañía' })
   @ApiResponse({ status: 200, description: 'Compañía activada exitosamente' })
   @ApiResponse({ status: 401, description: 'No autorizado' })
   @ApiResponse({ status: 403, description: 'Sin permisos suficientes' })
@@ -296,6 +441,7 @@ export class CompanyController {
     summary: 'Desactivar compañía',
     description: 'Desactiva una compañía, impidiendo su acceso al sistema.',
   })
+  @ApiParam({ name: 'id', description: 'UUID de la compañía' })
   @ApiResponse({ status: 200, description: 'Compañía desactivada exitosamente' })
   @ApiResponse({ status: 401, description: 'No autorizado' })
   @ApiResponse({ status: 403, description: 'Sin permisos suficientes' })

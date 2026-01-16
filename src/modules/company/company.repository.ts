@@ -16,12 +16,12 @@ import { BaseRepository, SchemaContext } from '@shared/database';
  * Extiende BaseRepository para soporte multi-tenant (FASE 3).
  * Utiliza createStaticQueryBuilder para entidades en schema public.
  *
- * @version 3.0.0 - Extiende BaseRepository para multi-tenant (FASE 3)
+ * @version 3.1.0 - FASE 7.2.C: Agregado existsBySchema y hardDelete
  *
  * Métodos disponibles:
- * - CRUD básico (create, findAll, findById, update, softDelete, restore)
+ * - CRUD básico (create, findAll, findById, update, softDelete, hardDelete, restore)
  * - Búsquedas específicas (findByRuc, findByEmail, findBySchema)
- * - Verificaciones (existsByRuc, existsByEmail)
+ * - Verificaciones (existsByRuc, existsByEmail, existsBySchema)
  * - Filtros (findActive, findByCountry, findByCountryCode, findByCurrency)
  * - Estadísticas (getStats)
  */
@@ -235,6 +235,26 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
   }
 
   /**
+   * Verificar si existe por schema (FASE 7.2.C)
+   *
+   * @param schema - Schema a verificar
+   * @param excludeId - ID a excluir de la búsqueda (para updates)
+   * @returns true si existe, false si no
+   */
+  async existsBySchema(schema: string, excludeId?: string): Promise<boolean> {
+    const qb = this.createStaticQueryBuilder('company')
+      .where('company.schema = :schema', { schema })
+      .andWhere('company.deleted_at IS NULL');
+
+    if (excludeId) {
+      qb.andWhere('company.id != :excludeId', { excludeId });
+    }
+
+    const count = await qb.getCount();
+    return count > 0;
+  }
+
+  /**
    * Actualizar compañía
    *
    * @param id - UUID de la compañía
@@ -258,6 +278,20 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
   }
 
   /**
+   * Hard delete (eliminación permanente) - FASE 7.2.C
+   *
+   * ⚠️ OPERACIÓN DESTRUCTIVA E IRREVERSIBLE
+   * Elimina la compañía permanentemente de la base de datos.
+   *
+   * @param id - UUID de la compañía
+   * @returns true si se eliminó, false si no
+   */
+  async hardDelete(id: string): Promise<boolean> {
+    const result = await this.repository.delete(id);
+    return (result.affected ?? 0) > 0;
+  }
+
+  /**
    * Restaurar compañía eliminada
    *
    * @param id - UUID de la compañía
@@ -276,6 +310,25 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
   async findActive(): Promise<CompanyEntity[]> {
     return await this.createStaticQueryBuilder('company')
       .where('company.is_active = :active', { active: true })
+      .andWhere('company.deleted_at IS NULL')
+      .orderBy('company.name', 'ASC')
+      .getMany();
+  }
+
+  /**
+   * Obtener compañías activas con schema de tenant (FASE 7.2.C)
+   *
+   * @description
+   * Útil para obtener compañías que tienen schema propio (multi-tenant).
+   * Excluye compañías con schema 'public' o sin schema.
+   *
+   * @returns Array de CompanyEntity con schema de tenant
+   */
+  async findActiveWithTenantSchema(): Promise<CompanyEntity[]> {
+    return await this.createStaticQueryBuilder('company')
+      .where('company.is_active = :active', { active: true })
+      .andWhere('company.schema IS NOT NULL')
+      .andWhere('company.schema != :publicSchema', { publicSchema: 'public' })
       .andWhere('company.deleted_at IS NULL')
       .orderBy('company.name', 'ASC')
       .getMany();

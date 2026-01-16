@@ -3,6 +3,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { CompanyRepository } from './company.repository';
 import { SanitizerService, HandleErrorService, IPaginatedResponse } from '@shared/common';
+import { TenantSchemaService } from '@shared/database';
 import { CreateCompanyDto, UpdateCompanyDto, QueryCompanyDto } from './dto';
 import {
   ICompanyResponse,
@@ -20,13 +21,14 @@ import { CompanyEntity } from './entities';
  * Maneja la lógica de negocio para el módulo Company.
  * Utiliza shared services para sanitización y manejo de errores.
  *
- * @version 2.0.0 - Agregados métodos de internacionalización (FASE 1)
+ * @version 3.0.0 - FASE 7.2.C: Creación automática de schema multi-tenant
  *
  * Responsabilidades:
  * - Validar reglas de negocio
  * - Sanitizar inputs
  * - Coordinar operaciones con el repository
  * - Transformar entidades a respuestas
+ * - **Crear schema de tenant automáticamente** (FASE 7.2.C)
  */
 @Injectable()
 export class CompanyService {
@@ -36,14 +38,26 @@ export class CompanyService {
     private readonly companyRepository: CompanyRepository,
     private readonly sanitizer: SanitizerService,
     private readonly handleError: HandleErrorService,
+    private readonly tenantSchemaService: TenantSchemaService, // ✅ FASE 7.2.C
   ) {}
 
   /**
    * Crear compañía
    *
+   * @description
+   * Crea una nueva compañía y, si tiene schema definido (diferente de 'public'),
+   * crea automáticamente el schema del tenant con todas las tablas de reportes.
+   *
+   * Proceso:
+   * 1. Validar RUC y email únicos
+   * 2. Validar schema único (si se proporciona)
+   * 3. Crear registro en public.companies
+   * 4. Si schema != 'public', crear schema de tenant
+   * 5. Retornar compañía creada
+   *
    * @param dto - Datos de la nueva compañía
    * @returns ICompanyResponse
-   * @throws ConflictException si RUC o email ya existen
+   * @throws ConflictException si RUC, email o schema ya existen
    */
   async create(dto: CreateCompanyDto): Promise<ICompanyResponse> {
     this.logger.log(`Creando compañía: ${dto.name}`);
@@ -60,17 +74,60 @@ export class CompanyService {
       this.handleError.conflict('El email ya está registrado', 'email');
     }
 
+    // ✅ FASE 7.2.C: Validar schema único (si se proporciona)
+    if (dto.schema && dto.schema !== 'public') {
+      const existsBySchema = await this.companyRepository.existsBySchema(dto.schema);
+      if (existsBySchema) {
+        this.handleError.conflict('El schema ya está registrado', 'schema');
+      }
+
+      // Verificar que no exista el schema en PostgreSQL
+      const schemaExists = await this.tenantSchemaService.schemaExists(dto.schema);
+      if (schemaExists) {
+        this.handleError.conflict(
+          `El schema '${dto.schema}' ya existe en la base de datos`,
+          'schema',
+        );
+      }
+    }
+
     // Sanitizar inputs
     const sanitizedData = this.sanitizeCreateDto(dto);
 
-    // Crear
+    // Crear compañía
+    let company: CompanyEntity;
     try {
-      const company = await this.companyRepository.create(sanitizedData);
-      this.logger.log(`Compañía creada: ${company.id}`);
-      return this.toResponse(company);
+      company = await this.companyRepository.create(sanitizedData);
+      this.logger.log(`Compañía creada: ${company.id} (${company.name})`);
     } catch (error) {
       throw this.handleError.handle(error, 'Error creando compañía');
     }
+
+    // ✅ FASE 7.2.C: Crear schema de tenant automáticamente
+    if (company.schema && company.schema !== 'public') {
+      this.logger.log(`Creando schema de tenant: ${company.schema}`);
+
+      const schemaResult = await this.tenantSchemaService.createTenantSchema(
+        company.schema,
+        company.id,
+      );
+
+      if (!schemaResult.success) {
+        // Si falla la creación del schema, eliminar la compañía y lanzar error
+        this.logger.error(`Error creando schema ${company.schema}: ${schemaResult.error}`);
+        await this.companyRepository.hardDelete(company.id);
+
+        this.handleError.internal(
+          `Compañía creada pero falló la creación del schema: ${schemaResult.error}`,
+        );
+      }
+
+      this.logger.log(
+        `Schema '${company.schema}' creado con ${schemaResult.tables_created} tablas`,
+      );
+    }
+
+    return this.toResponse(company);
   }
 
   /**
@@ -172,6 +229,9 @@ export class CompanyService {
       }
     }
 
+    // ✅ NOTA: No permitir cambiar el schema después de creado
+    // El schema es inmutable una vez creado (por seguridad de datos)
+
     // Sanitizar
     const sanitizedData = this.sanitizeUpdateDto(dto);
 
@@ -187,6 +247,11 @@ export class CompanyService {
   /**
    * Eliminar compañía (soft delete)
    *
+   * @description
+   * Elimina lógicamente la compañía. El schema del tenant NO se elimina
+   * automáticamente para preservar datos históricos. Use `hardDelete`
+   * para eliminar permanentemente incluyendo el schema.
+   *
    * @param id - UUID de la compañía
    * @throws NotFoundException si no existe
    */
@@ -197,7 +262,52 @@ export class CompanyService {
     }
 
     await this.companyRepository.softDelete(id);
-    this.logger.log(`Compañía eliminada: ${id}`);
+    this.logger.log(`Compañía eliminada (soft): ${id}`);
+
+    // ✅ NOTA: El schema NO se elimina en soft delete
+    // Esto preserva los datos históricos de reportes
+  }
+
+  /**
+   * Eliminar compañía permanentemente (incluyendo schema)
+   *
+   * @description
+   * ⚠️ OPERACIÓN DESTRUCTIVA E IRREVERSIBLE
+   * Elimina la compañía y su schema de tenant con todos los datos.
+   *
+   * @param id - UUID de la compañía
+   * @param forceDropSchema - Si true, elimina el schema aunque tenga datos
+   * @throws NotFoundException si no existe
+   */
+  async hardDelete(id: string, forceDropSchema = false): Promise<void> {
+    const company = await this.companyRepository.findById(id);
+    if (!company) {
+      this.handleError.notFound('Compañía', id);
+    }
+
+    // ✅ FASE 7.2.C: Eliminar schema de tenant
+    if (company.schema && company.schema !== 'public') {
+      this.logger.warn(`Eliminando schema de tenant: ${company.schema}`);
+
+      const dropResult = await this.tenantSchemaService.dropTenantSchema(
+        company.schema,
+        forceDropSchema,
+      );
+
+      if (!dropResult.success) {
+        this.logger.error(`Error eliminando schema ${company.schema}: ${dropResult.error}`);
+        // Si no se puede eliminar el schema, no eliminar la compañía
+        this.handleError.internal(
+          `No se pudo eliminar el schema: ${dropResult.error}. Use forceDropSchema=true para forzar.`,
+        );
+      }
+
+      this.logger.warn(`Schema '${company.schema}' eliminado`);
+    }
+
+    // Eliminar compañía permanentemente
+    await this.companyRepository.hardDelete(id);
+    this.logger.warn(`Compañía eliminada permanentemente: ${id}`);
   }
 
   /**
@@ -332,6 +442,55 @@ export class CompanyService {
   }
 
   // ============================================
+  // MÉTODOS DE GESTIÓN DE SCHEMA (FASE 7.2.C)
+  // ============================================
+
+  /**
+   * Obtener información del schema de una compañía
+   *
+   * @param id - UUID de la compañía
+   * @returns Información del schema o null
+   */
+  async getSchemaInfo(id: string) {
+    const company = await this.companyRepository.findById(id);
+    if (!company) {
+      this.handleError.notFound('Compañía', id);
+    }
+
+    if (!company.schema || company.schema === 'public') {
+      return null;
+    }
+
+    return await this.tenantSchemaService.getSchemaInfo(company.schema);
+  }
+
+  /**
+   * Sincronizar schema de una compañía con el template
+   *
+   * @description
+   * Útil cuando se agregan nuevas tablas al template y se quieren
+   * propagar a schemas existentes.
+   *
+   * @param id - UUID de la compañía
+   * @returns Resultado de la sincronización
+   */
+  async syncSchema(id: string) {
+    const company = await this.companyRepository.findById(id);
+    if (!company) {
+      this.handleError.notFound('Compañía', id);
+    }
+
+    if (!company.schema || company.schema === 'public') {
+      return {
+        success: false,
+        message: 'La compañía no tiene schema de tenant',
+      };
+    }
+
+    return await this.tenantSchemaService.syncSchemaWithTemplate(company.schema);
+  }
+
+  // ============================================
   // MÉTODOS PRIVADOS
   // ============================================
 
@@ -342,7 +501,7 @@ export class CompanyService {
     return {
       // Campos base
       name: this.sanitizer.sanitizeString(dto.name),
-      schema: dto.schema ? this.sanitizer.sanitizeString(dto.schema) : undefined,
+      schema: dto.schema ? this.sanitizer.sanitizeString(dto.schema).toLowerCase() : undefined,
       domain: dto.domain ? this.sanitizer.sanitizeString(dto.domain) : undefined,
       subdomain: dto.subdomain ? this.sanitizer.sanitizeString(dto.subdomain) : undefined,
       email: this.sanitizer.sanitizeEmail(dto.email),
@@ -358,9 +517,7 @@ export class CompanyService {
       // Campos de internacionalización (FASE 1)
       timezone: dto.timezone || 'America/Santo_Domingo',
       country_code: dto.country_code || 'DO',
-      departamento: dto.departamento
-        ? this.sanitizer.sanitizeString(dto.departamento)
-        : undefined,
+      departamento: dto.departamento ? this.sanitizer.sanitizeString(dto.departamento) : undefined,
       currency_code: dto.currency_code || 'DOP',
       currency_symbol: dto.currency_symbol || 'RD$',
       date_format: dto.date_format || 'DD/MM/YYYY',
@@ -387,6 +544,8 @@ export class CompanyService {
     if (dto.is_active !== undefined) sanitized.is_active = dto.is_active;
     if (dto.plan) sanitized.plan = this.sanitizer.sanitizeString(dto.plan);
     if (dto.settings) sanitized.settings = dto.settings;
+
+    // ✅ NOTA: schema NO se puede actualizar (inmutable)
 
     // Campos de internacionalización (FASE 1)
     if (dto.timezone) sanitized.timezone = dto.timezone;

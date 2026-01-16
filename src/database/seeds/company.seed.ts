@@ -63,15 +63,15 @@ export async function seedCompanies(dataSource: DataSource): Promise<void> {
   // 2. Taco Bell República Dominicana (Premium)
   // ============================================
   const tacoBellRDExists = await companyRepo.findOne({
-    where: { subdomain: 'taco_bell_rd' },
+    where: { subdomain: 'republica' },
   });
 
   if (!tacoBellRDExists) {
     const tacoBellRD: DeepPartial<CompanyEntity> = {
       name: 'Taco Bell Republica Dominicana',
-      subdomain: 'taco_bell_rd',
+      subdomain: 'republica',
       domain: 'republica.reports-tb.com',
-      schema: 'republica',
+      schema: 'taco_bell_rd',
       is_active: true,
       plan: 'premium',
       ruc: '101234567',
@@ -105,15 +105,15 @@ export async function seedCompanies(dataSource: DataSource): Promise<void> {
   // 3. Taco Bell Colombia (Basic)
   // ============================================
   const tacoBellCOExists = await companyRepo.findOne({
-    where: { subdomain: 'taco_bell_co' },
+    where: { subdomain: 'colombia' },
   });
 
   if (!tacoBellCOExists) {
     const tacoBellCO: DeepPartial<CompanyEntity> = {
       name: 'Taco Bell Colombia',
-      subdomain: 'taco_bell_co',
+      subdomain: 'colombia',
       domain: 'colombia.reports-tb.com',
-      schema: 'colombia',
+      schema: 'taco_bell_co',
       is_active: true,
       plan: 'basic',
       ruc: '900123456',
@@ -147,15 +147,15 @@ export async function seedCompanies(dataSource: DataSource): Promise<void> {
   // 4. Taco Bell Estados Unidos (Free - Inactiva)
   // ============================================
   const tacoBellUSExists = await companyRepo.findOne({
-    where: { subdomain: 'taco_bell_eu' },
+    where: { subdomain: 'unitstates' },
   });
 
   if (!tacoBellUSExists) {
     const tacoBellUS: DeepPartial<CompanyEntity> = {
       name: 'Taco Bell Estados Unidos',
-      subdomain: 'taco_bell_eu',
+      subdomain: 'unitstates',
       domain: 'unitstates.reports-tb.com',
-      schema: 'unitstates',
+      schema: 'taco_bell_eu',
       is_active: false, // ❌ Inactiva para testing
       plan: 'free',
       ruc: '123456789',

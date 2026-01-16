@@ -36,12 +36,7 @@ import { UserModule } from '@modules/user';
  * - StoreRepository: Para uso en otros módulos
  */
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([StoreEntity]),
-    CommonModule,
-    CompanyModule,
-    UserModule,
-  ],
+  imports: [TypeOrmModule.forFeature([StoreEntity]), CommonModule, CompanyModule, UserModule],
   controllers: [StoreController],
   providers: [StoreRepository, StoreService],
   exports: [StoreService, StoreRepository],

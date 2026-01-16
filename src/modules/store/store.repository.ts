@@ -209,7 +209,32 @@ export class StoreRepository {
    * @returns StoreEntity actualizada o null
    */
   async update(id: string, data: Partial<StoreEntity>): Promise<StoreEntity | null> {
-    await this.repo.update(id, data);
+    // Construir objeto solo con campos escalares (excluir relaciones)
+    const updateData: Record<string, unknown> = {};
+    const scalarFields = [
+      'company_id',
+      'nombre',
+      'codigo',
+      'direccion',
+      'ciudad',
+      'departamento',
+      'zona',
+      'telefono',
+      'email',
+      'activo',
+      'metadata',
+    ];
+
+    for (const field of scalarFields) {
+      if (field in data) {
+        updateData[field] = data[field as keyof StoreEntity];
+      }
+    }
+
+    if (Object.keys(updateData).length > 0) {
+      await this.repo.update(id, updateData);
+    }
+
     return await this.findById(id);
   }
 
@@ -258,7 +283,7 @@ export class StoreRepository {
     // Agregar solo los usuarios nuevos
     store.assigned_users = [
       ...(store.assigned_users || []),
-      ...newIds.map((id) => ({ id } as any)),
+      ...newIds.map((id) => ({ id }) as any),
     ];
 
     await this.repo.save(store);
@@ -278,8 +303,7 @@ export class StoreRepository {
 
     if (!store) return;
 
-    store.assigned_users =
-      store.assigned_users?.filter((user) => !userIds.includes(user.id)) || [];
+    store.assigned_users = store.assigned_users?.filter((user) => !userIds.includes(user.id)) || [];
 
     await this.repo.save(store);
   }

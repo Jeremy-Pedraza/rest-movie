@@ -26,11 +26,7 @@ import {
   AssignUsersToStoreDto,
   RemoveUsersFromStoreDto,
 } from './dto';
-import {
-  IStoreResponse,
-  IStoreWithUsersResponse,
-  IStoreStatsResponse,
-} from './interfaces';
+import { IStoreResponse, IStoreWithUsersResponse, IStoreStatsResponse } from './interfaces';
 
 /**
  * StoreController
@@ -140,9 +136,7 @@ export class StoreController {
   @ApiResponse({ status: 401, description: 'No autorizado' })
   @ApiResponse({ status: 403, description: 'Sin permisos suficientes' })
   @ApiResponse({ status: 404, description: 'Tienda no encontrada' })
-  async findById(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<IApiResponse<IStoreResponse>> {
+  async findById(@Param('id', ParseUUIDPipe) id: string): Promise<IApiResponse<IStoreResponse>> {
     const data = await this.storeService.findById(id);
     return {
       success: true,
@@ -240,9 +234,7 @@ export class StoreController {
   @ApiResponse({ status: 401, description: 'No autorizado' })
   @ApiResponse({ status: 403, description: 'Sin permisos suficientes' })
   @ApiResponse({ status: 404, description: 'Tienda no encontrada' })
-  async restore(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<IApiResponse<IStoreResponse>> {
+  async restore(@Param('id', ParseUUIDPipe) id: string): Promise<IApiResponse<IStoreResponse>> {
     const data = await this.storeService.restore(id);
     return {
       success: true,
@@ -266,9 +258,7 @@ export class StoreController {
   @ApiResponse({ status: 401, description: 'No autorizado' })
   @ApiResponse({ status: 403, description: 'Sin permisos suficientes' })
   @ApiResponse({ status: 404, description: 'Tienda no encontrada' })
-  async activate(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<IApiResponse<IStoreResponse>> {
+  async activate(@Param('id', ParseUUIDPipe) id: string): Promise<IApiResponse<IStoreResponse>> {
     const data = await this.storeService.activate(id);
     return {
       success: true,
@@ -292,9 +282,7 @@ export class StoreController {
   @ApiResponse({ status: 401, description: 'No autorizado' })
   @ApiResponse({ status: 403, description: 'Sin permisos suficientes' })
   @ApiResponse({ status: 404, description: 'Tienda no encontrada' })
-  async deactivate(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<IApiResponse<IStoreResponse>> {
+  async deactivate(@Param('id', ParseUUIDPipe) id: string): Promise<IApiResponse<IStoreResponse>> {
     const data = await this.storeService.deactivate(id);
     return {
       success: true,

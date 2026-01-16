@@ -3,7 +3,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { StoreRepository } from './store.repository';
 import { SanitizerService, HandleErrorService, IPaginatedResponse } from '@shared/common';
-import { CreateStoreDto, UpdateStoreDto, QueryStoreDto, AssignUsersToStoreDto, RemoveUsersFromStoreDto } from './dto';
+import {
+  CreateStoreDto,
+  UpdateStoreDto,
+  QueryStoreDto,
+  AssignUsersToStoreDto,
+  RemoveUsersFromStoreDto,
+} from './dto';
 import { IStoreResponse, IStoreWithUsersResponse, IStoreStatsResponse } from './interfaces';
 import { StoreEntity } from './entities';
 
@@ -86,7 +92,7 @@ export class StoreService {
         total,
         totalPages: Math.ceil(total / limit),
         hasNextPage: page * limit < total,
-        hasPreviousPage: page > 1,
+        hasPrevPage: page > 1,
       },
     };
   }
@@ -175,6 +181,10 @@ export class StoreService {
 
     try {
       const updated = await this.storeRepository.update(id, sanitizedData);
+      if (!updated) {
+        this.handleError.internal('Error al actualizar tienda');
+        throw new Error('Update failed'); // TypeScript guard
+      }
       this.logger.log(`Tienda actualizada: ${id}`);
       return this.toResponse(updated);
     } catch (error) {
@@ -228,6 +238,10 @@ export class StoreService {
     }
 
     const updated = await this.storeRepository.update(id, { activo: true });
+    if (!updated) {
+      this.handleError.internal('Error al activar tienda');
+      throw new Error('Update failed'); // TypeScript guard
+    }
     this.logger.log(`Tienda activada: ${id}`);
     return this.toResponse(updated);
   }
@@ -246,6 +260,10 @@ export class StoreService {
     }
 
     const updated = await this.storeRepository.update(id, { activo: false });
+    if (!updated) {
+      this.handleError.internal('Error al desactivar tienda');
+      throw new Error('Update failed'); // TypeScript guard
+    }
     this.logger.log(`Tienda desactivada: ${id}`);
     return this.toResponse(updated);
   }

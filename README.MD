@@ -1,6 +1,6 @@
 # 🚀 REST-Valdez Backend API
 
-NestJS Backend API - Production Ready with Multi-Tenant Architecture
+NestJS Backend API - Production Ready with Multi-Tenant Architecture & Reports System
 
 ---
 
@@ -33,17 +33,95 @@ NestJS Backend API - Production Ready with Multi-Tenant Architecture
 
 ## 📊 Estado del Proyecto
 
-| Fase | Descripción             | Estado          | Progreso |
-| ---- | ----------------------- | --------------- | -------- |
-| 1    | Configuración Base      | ✅ Completo     | 100%     |
-| 2    | Shared Modules          | ✅ Completo     | 100%     |
-| 3    | Feature Modules         | ✅ Completo     | 100%     |
-| 4    | Database & Seeds        | ✅ Completo     | 100%     |
-| 5    | **Multi-Tenant System** | ✅ **Completo** | **100%** |
-| 6    | Testing                 | ⏳ En Progreso  | 25%      |
+| Fase | Descripción                    | Estado          | Progreso |
+| ---- | ------------------------------ | --------------- | -------- |
+| 1    | Configuración Base             | ✅ Completo     | 100%     |
+| 2    | Shared Modules                 | ✅ Completo     | 100%     |
+| 3    | Feature Modules                | ✅ Completo     | 100%     |
+| 4    | Database & Seeds               | ✅ Completo     | 100%     |
+| 5    | Multi-Tenant System            | ✅ Completo     | 100%     |
+| 6    | **CompanyModule**              | ✅ Completo     | 100%     |
+| 7    | **StoreModule**                | ✅ Completo     | 100%     |
+| 8    | **UserModule (Modificaciones)**| ✅ Completo     | 100%     |
+| 9    | **ReportsModule**              | ✅ **Completo** | **100%** |
+| 10   | Testing                        | ⏳ En Progreso  | 25%      |
 
 > **Última actualización:** Enero 2025  
-> **Estado:** Sistema Multi-Tenant Schema-per-Tenant Operativo
+> **Estado:** Sistema de Reportes Multi-Nivel Completo + Multi-Tenant Operativo
+
+---
+
+## 🎯 Sistema de Reportes Multi-Nivel (NUEVO)
+
+### Arquitectura de Datos
+
+```
+Company (Compañía)
+    │
+    └── Store (Tienda/Sucursal)
+            │
+            └── Report (Reporte Diario)
+                    │
+                    ├── SalesByOrderType (Ventas por tipo de orden)
+                    ├── PaymentMethod (Métodos de pago)
+                    ├── DynamicDiscount (Descuentos)
+                    ├── Adjustment (Ajustes)
+                    └── EffectiveOrder (Órdenes individuales)
+```
+
+### Funcionalidades del ReportsModule
+
+| Categoría | Funcionalidad | Descripción |
+|-----------|---------------|-------------|
+| **CRUD** | Reportes | Crear, leer, actualizar, eliminar reportes |
+| **Consolidaciones** | Por tienda | Totales de una tienda en período |
+| | Por compañía | Totales de todas las tiendas de una compañía |
+| | Global | Totales de todas las compañías |
+| **Comparaciones** | Entre tiendas | Comparar métricas de múltiples tiendas |
+| | Entre períodos | Comparar período actual vs anterior |
+| | Año vs Año (YoY) | Comparación interanual |
+| | Mes vs Mes (MoM) | Comparación intermensual |
+| | Por día de semana | Análisis de patrones semanales |
+| **Rankings** | De tiendas | Top/Bottom por métrica seleccionada |
+| | De compañías | Ranking global de compañías |
+| **Estadísticas** | Globales | KPIs del sistema |
+| | Tendencias | Series temporales para gráficos |
+
+### Endpoints Principales
+
+```
+POST   /reports                    → Crear reporte
+GET    /reports                    → Listar con filtros
+GET    /reports/:id                → Obtener por ID
+GET    /reports/:id/details        → Obtener con detalles completos
+PUT    /reports/:id                → Actualizar
+DELETE /reports/:id                → Eliminar
+
+POST   /reports/consolidate        → Consolidar reportes
+GET    /reports/consolidate/quick  → Consolidación rápida
+
+POST   /reports/compare            → Comparar reportes
+GET    /reports/compare/quick      → Comparación rápida
+
+POST   /reports/ranking/stores     → Ranking de tiendas
+POST   /reports/ranking/companies  → Ranking de compañías
+GET    /reports/ranking/quick      → Ranking rápido (Top 3)
+
+GET    /reports/stats/global       → Estadísticas globales
+GET    /reports/trends             → Tendencias
+
+GET    /reports/store/:storeId                → Reportes de una tienda
+GET    /reports/company/:companyId            → Reportes de una compañía
+GET    /reports/company/:companyId/dashboard  → Dashboard de compañía
+```
+
+### Control de Acceso por Rol
+
+| Rol | Acceso |
+|-----|--------|
+| **SUPER_ADMIN / ADMIN** | Acceso completo a todo el sistema |
+| **MANAGER** | Solo datos de su compañía |
+| **USER** | Solo sus tiendas asignadas |
 
 ---
 
@@ -90,57 +168,6 @@ Request con JWT
     └── Response → SOLO datos del tenant actual
 ```
 
-### Uso Rápido
-
-#### 1. Entity Tenant (SIN schema explícito)
-
-```typescript
-// ✅ CORRECTO
-@Entity({ name: 'products' }) // Sin schema property
-export class ProductEntity extends BaseEntity {
-  @Column() name: string;
-  @Column() price: number;
-}
-```
-
-#### 2. Repository (Extiende BaseRepository)
-
-```typescript
-@Injectable()
-export class ProductsRepository extends BaseRepository<ProductEntity> {
-  constructor(
-    @InjectRepository(ProductEntity) repository: Repository<ProductEntity>,
-    schemaContext: SchemaContext,
-  ) {
-    super(repository, schemaContext);
-  }
-
-  async findAll(): Promise<ProductEntity[]> {
-    return await this.withSchema(async () => {
-      return await this.repository.find();
-    });
-  }
-}
-```
-
-#### 3. Service (Usa repository normalmente)
-
-```typescript
-@Injectable()
-export class ProductsService {
-  constructor(
-    private readonly repository: ProductsRepository,
-    private readonly sanitizer: SanitizerService,
-    private readonly handleError: HandleErrorService,
-  ) {}
-
-  async findAll(): Promise<ProductEntity[]> {
-    // El schema se aplica automáticamente
-    return await this.repository.findAll();
-  }
-}
-```
-
 **Documentación completa:** [docs/MULTI-TENANT.md](docs/MULTI-TENANT.md)
 
 ---
@@ -162,7 +189,7 @@ export class ProductsService {
 | [API-STANDARDS.md](docs/API-STANDARDS.md)             | Formato de responses y errores    |
 | [DATABASE-PATTERNS.md](docs/DATABASE-PATTERNS.md)     | Queries TypeORM y transacciones   |
 | [SECURITY-GUIDE.md](docs/SECURITY-GUIDE.md)           | JWT, guards, autenticación        |
-| [MULTI-TENANT.md](docs/MULTI-TENANT.md)               | **Sistema multi-tenant completo** |
+| [MULTI-TENANT.md](docs/MULTI-TENANT.md)               | Sistema multi-tenant completo     |
 | [QUEUE-MODULE.md](docs/QUEUE-MODULE.md)               | Sistema de colas asíncronas       |
 | [NOTIFICATION-MODULE.md](docs/NOTIFICATION-MODULE.md) | Notificaciones multi-canal        |
 | [INTEGRATION-STATUS.md](docs/INTEGRATION-STATUS.md)   | Componentes activos               |
@@ -181,11 +208,20 @@ export class ProductsService {
 
 ## 📦 Módulos Implementados
 
+### Core Modules
+
 | Módulo                 | Estado  | Descripción                                   |
 | ---------------------- | ------- | --------------------------------------------- |
 | **AuthModule**         | ✅ 100% | Autenticación JWT + Sesiones + Reset Password |
-| **UserModule**         | ✅ 100% | CRUD usuarios + Roles + Permisos              |
+| **UserModule**         | ✅ 100% | CRUD usuarios + Roles + Permisos + Asignación tiendas |
 | **CompanyModule**      | ✅ 100% | Gestión de tenants (multi-tenant)             |
+| **StoreModule**        | ✅ 100% | Gestión de tiendas/sucursales                 |
+| **ReportsModule**      | ✅ 100% | **Sistema de reportes multi-nivel**           |
+
+### Infrastructure Modules
+
+| Módulo                 | Estado  | Descripción                                   |
+| ---------------------- | ------- | --------------------------------------------- |
 | **QueueModule**        | ✅ 100% | Colas asíncronas (Bull) para emails/reportes  |
 | **NotificationModule** | ✅ 93%  | Notificaciones multi-canal (Email/SMS/Push)   |
 | **TasksModule**        | ✅ 100% | Tareas programadas (Cron) - 5 jobs            |
@@ -229,7 +265,7 @@ cp .env.example .env
 # Ejecutar migraciones
 yarn migration:run
 
-# Ejecutar seeds (30 permisos + 6 roles + 4 users + 4 companies)
+# Ejecutar seeds (permisos + roles + users + companies)
 yarn seed
 
 # Iniciar
@@ -269,15 +305,6 @@ yarn seed
 | system@rest.app  | System123!  | system      | Sistema (public) |
 | manager@rest.app | Manager123! | manager     | Sistema (public) |
 | user@rest.app    | User123!    | user        | Sistema (public) |
-
-### Companies Multi-Tenant
-
-| Company                 | Schema                    | Subdomain         | Estado   |
-| ----------------------- | ------------------------- | ----------------- | -------- |
-| Sistema - Public Schema | `public`                  | `public`          | Activa   |
-| Restaurante Valle Demo  | `restaurant_valle_schema` | `restaurant-demo` | Activa   |
-| Cafetería Bogotá Demo   | `cafe_bogota_schema`      | `cafe-demo`       | Activa   |
-| Tienda Cali Demo        | `tienda_cali_schema`      | `tienda-demo`     | Inactiva |
 
 ---
 
@@ -324,8 +351,7 @@ HTTP Request
     │
     ├── Controller (SIN try-catch)
     │   └── Service (SanitizerService + HandleErrorService)
-    │       └── Repository (BaseRepository.withSchema)
-    │           └── SET search_path TO {tenant_schema}
+    │       └── Repository (createQueryBuilder)
     │
     ├── Success → { success: true, data, message }
     └── Error → AllExceptionsFilter → { success: false, code, message, ... }
@@ -360,8 +386,6 @@ HTTP Request
 | **LogCleanupJob**     | 4 AM diario   | Elimina logs debug >7 días    |
 | **CacheWarmupJob**    | 6 AM diario   | Precalienta cache             |
 
-**Endpoints:** `GET/POST /api/v1/tasks/*` (requiere rol ADMIN)
-
 ---
 
 ## 📁 Estructura del Proyecto
@@ -370,7 +394,7 @@ HTTP Request
 rest-valdez/
 ├── docs/                       # 📚 DOCUMENTACIÓN CENTRALIZADA
 │   ├── MASTER.md               # ⭐ Arquitectura y reglas
-│   ├── MULTI-TENANT.md         # ⭐ Sistema multi-tenant completo
+│   ├── MULTI-TENANT.md         # ⭐ Sistema multi-tenant
 │   ├── QUICK-REFERENCE.md      # Referencia rápida
 │   ├── CODE-PATTERNS.md        # Templates
 │   ├── API-STANDARDS.md        # Responses
@@ -379,15 +403,10 @@ rest-valdez/
 │   ├── QUEUE-MODULE.md         # Colas
 │   ├── NOTIFICATION-MODULE.md  # Notificaciones
 │   ├── INTEGRATION-STATUS.md   # Estado
-│   ├── PROGRESS.md             # Historial
-│   ├── CLEANUP-INSTRUCTIONS.md # Limpieza de docs
-│   ├── EXAMPLES/               # Ejemplos completos
-│   └── archive/                # Archivos históricos
+│   └── EXAMPLES/               # Ejemplos completos
 │
 ├── src/
-│   ├── config/
-│   │   └── security/
-│   │       └── security-whitelist.json  # ⚠️ Schemas permitidos
+│   ├── config/                 # Configuraciones
 │   ├── constants/              # ERROR_CODES, ROLES
 │   ├── decorators/             # @Public, @Roles, @SkipTenant
 │   ├── filters/                # AllExceptionsFilter
@@ -398,19 +417,32 @@ rest-valdez/
 │   ├── database/
 │   │   ├── migrations/         # TypeORM migrations
 │   │   └── seeds/              # Datos iniciales
-│   ├── modules/                # Módulos de negocio
+│   │
+│   ├── modules/                # 📦 MÓDULOS DE NEGOCIO
 │   │   ├── auth/               # ✅ Autenticación
-│   │   ├── user/               # ✅ Usuarios
-│   │   ├── company/            # ✅ Tenants
+│   │   ├── user/               # ✅ Usuarios + Asignación tiendas
+│   │   ├── company/            # ✅ Compañías (Tenants)
+│   │   ├── store/              # ✅ Tiendas/Sucursales
+│   │   ├── reports/            # ✅ NUEVO - Sistema de Reportes
+│   │   │   ├── dto/            # 12 archivos
+│   │   │   ├── entities/       # 7 entidades
+│   │   │   ├── enums/          # 3 enums
+│   │   │   ├── guards/         # 2 guards
+│   │   │   ├── interfaces/     # 5 interfaces
+│   │   │   ├── reports.repository.ts
+│   │   │   ├── reports.service.ts
+│   │   │   ├── reports.controller.ts
+│   │   │   └── reports.module.ts
 │   │   ├── cache/              # ✅ Cache
 │   │   ├── queue/              # ✅ Colas
 │   │   ├── notification/       # ✅ Notificaciones
 │   │   ├── tasks/              # ✅ Cron jobs
 │   │   ├── logger/             # ✅ Logging
 │   │   └── health/             # ✅ Health
+│   │
 │   └── shared/                 # Módulos compartidos
 │       ├── common/             # SanitizerService, HandleErrorService
-│       ├── database/           # BaseRepository, SchemaContext, TransactionService
+│       ├── database/           # BaseRepository, TransactionService
 │       ├── redis/              # RedisService
 │       ├── router/             # HTTP Client
 │       └── utils/              # Helpers
@@ -433,46 +465,8 @@ rest-valdez/
 [ ] DTOs tienen @ApiProperty + validadores
 [ ] Entity tiene @Index + @DeleteDateColumn
 [ ] Swagger decorators en endpoints
-[ ] Schema agregado a security-whitelist.json (si es nuevo)
 [ ] yarn lint pasa
 ```
-
----
-
-## 🔐 Ejemplo de Endpoint Multi-Tenant
-
-```typescript
-// 1. Entity (SIN schema explícito)
-@Entity({ name: 'products' })
-export class ProductEntity extends BaseEntity {
-  @Column() name: string;
-}
-
-// 2. Repository (extends BaseRepository)
-@Injectable()
-export class ProductsRepository extends BaseRepository<ProductEntity> {
-  async findAll(): Promise<ProductEntity[]> {
-    return await this.withSchema(async () => {
-      return await this.repository.find();
-    });
-  }
-}
-
-// 3. Service (transparente)
-async findAll(): Promise<ProductEntity[]> {
-  return await this.repository.findAll();
-}
-
-// 4. Controller (sin cambios)
-@Get()
-@Roles(ROLES.USER)
-async findAll(): Promise<IApiResponse<ProductEntity[]>> {
-  const data = await this.service.findAll();
-  return { success: true, message: 'OK', data };
-}
-```
-
-**Resultado:** Cada tenant ve SOLO sus datos. Aislamiento garantizado a nivel PostgreSQL.
 
 ---
 
@@ -497,5 +491,5 @@ Softlogy Internal Use Only
 
 ---
 
-> **Última actualización:** Enero 2025
-> **Estado:** Multi-Tenant Schema-per-Tenant Operativo + Documentación Consolidada
+> **Última actualización:** Enero 2025 - Sesión 15 (ReportsModule Completado)
+> **Estado:** Sistema de Reportes Multi-Nivel + Multi-Tenant Operativo

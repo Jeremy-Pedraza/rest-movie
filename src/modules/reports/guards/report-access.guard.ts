@@ -46,10 +46,7 @@ export class ReportAccessGuard implements CanActivate {
     const userRoles = user.roles || [];
 
     // SUPER_ADMIN y ADMIN tienen acceso completo
-    if (
-      userRoles.includes(ROLES.SUPER_ADMIN) ||
-      userRoles.includes(ROLES.ADMIN)
-    ) {
+    if (userRoles.includes(ROLES.SUPER_ADMIN) || userRoles.includes(ROLES.ADMIN)) {
       return true;
     }
 
@@ -57,9 +54,7 @@ export class ReportAccessGuard implements CanActivate {
     if (userRoles.includes(ROLES.MANAGER)) {
       // Validar que solo acceda a su compañía
       if (company_id && company_id !== user.company_id) {
-        throw new ForbiddenException(
-          'No tiene permisos para acceder a reportes de otra compañía',
-        );
+        throw new ForbiddenException('No tiene permisos para acceder a reportes de otra compañía');
       }
 
       // MANAGER no puede acceder a nivel 'all_companies'
@@ -79,18 +74,14 @@ export class ReportAccessGuard implements CanActivate {
         level === ConsolidationLevelEnum.COMPANY ||
         level === ConsolidationLevelEnum.ALL_COMPANIES
       ) {
-        throw new ForbiddenException(
-          'No tiene permisos para acceder a reportes consolidados',
-        );
+        throw new ForbiddenException('No tiene permisos para acceder a reportes consolidados');
       }
 
       // Validar que solo acceda a sus tiendas asignadas
       if (store_id) {
         const userStoreIds = user.assigned_stores?.map((s: any) => s.id) || [];
         if (!userStoreIds.includes(store_id)) {
-          throw new ForbiddenException(
-            'No tiene permisos para acceder a reportes de esta tienda',
-          );
+          throw new ForbiddenException('No tiene permisos para acceder a reportes de esta tienda');
         }
       }
 

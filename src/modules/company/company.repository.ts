@@ -16,7 +16,7 @@ import { BaseRepository, SchemaContext } from '@shared/database';
  * Extiende BaseRepository para soporte multi-tenant (FASE 3).
  * Utiliza createStaticQueryBuilder para entidades en schema public.
  *
- * @version 3.1.0 - FASE 7.2.C: Agregado existsBySchema y hardDelete
+ * @version 3.2.0 - Sesión 19: Fix TypeScript error en update()
  *
  * Métodos disponibles:
  * - CRUD básico (create, findAll, findById, update, softDelete, hardDelete, restore)
@@ -37,9 +37,6 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
 
   /**
    * Crear compañía
-   *
-   * @param data - Datos parciales de la compañía
-   * @returns CompanyEntity creada
    */
   async create(data: Partial<CompanyEntity>): Promise<CompanyEntity> {
     const company = this.repository.create(data);
@@ -48,16 +45,9 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
 
   /**
    * Buscar todas con filtros y paginación
-   *
-   * @param query - Filtros y opciones de paginación
-   * @returns Tupla [compañías, total]
    */
   async findAll(query: QueryCompanyDto): Promise<[CompanyEntity[], number]> {
     const qb = this.createStaticQueryBuilder('company');
-
-    // ============================================
-    // FILTROS DE BÚSQUEDA
-    // ============================================
 
     if (query.search) {
       qb.andWhere(
@@ -65,10 +55,6 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
         { search: `%${query.search}%` },
       );
     }
-
-    // ============================================
-    // FILTROS DE UBICACIÓN
-    // ============================================
 
     if (query.pais) {
       qb.andWhere('company.pais = :pais', { pais: query.pais });
@@ -82,10 +68,6 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
       qb.andWhere('company.departamento = :departamento', { departamento: query.departamento });
     }
 
-    // ============================================
-    // FILTROS DE INTERNACIONALIZACIÓN (FASE 1)
-    // ============================================
-
     if (query.country_code) {
       qb.andWhere('company.country_code = :country_code', { country_code: query.country_code });
     }
@@ -98,10 +80,6 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
       qb.andWhere('company.timezone = :timezone', { timezone: query.timezone });
     }
 
-    // ============================================
-    // FILTROS DE CONFIGURACIÓN
-    // ============================================
-
     if (query.is_active !== undefined) {
       qb.andWhere('company.is_active = :is_active', { is_active: query.is_active });
     }
@@ -110,12 +88,7 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
       qb.andWhere('company.plan = :plan', { plan: query.plan });
     }
 
-    // Soft delete
     qb.andWhere('company.deleted_at IS NULL');
-
-    // ============================================
-    // ORDENAMIENTO Y PAGINACIÓN
-    // ============================================
 
     const sortBy = query.sort_by || 'created_at';
     const sortOrder = query.sort_order || 'DESC';
@@ -130,9 +103,6 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
 
   /**
    * Buscar por ID
-   *
-   * @param id - UUID de la compañía
-   * @returns CompanyEntity o null
    */
   async findById(id: string): Promise<CompanyEntity | null> {
     return await this.createStaticQueryBuilder('company')
@@ -143,9 +113,6 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
 
   /**
    * Buscar por ID con tiendas
-   *
-   * @param id - UUID de la compañía
-   * @returns CompanyEntity con tiendas cargadas o null
    */
   async findByIdWithStores(id: string): Promise<CompanyEntity | null> {
     return await this.createStaticQueryBuilder('company')
@@ -157,9 +124,6 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
 
   /**
    * Buscar por RUC
-   *
-   * @param ruc - RUC de la compañía
-   * @returns CompanyEntity o null
    */
   async findByRuc(ruc: string): Promise<CompanyEntity | null> {
     return await this.createStaticQueryBuilder('company')
@@ -170,9 +134,6 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
 
   /**
    * Buscar por email
-   *
-   * @param email - Email de la compañía
-   * @returns CompanyEntity o null
    */
   async findByEmail(email: string): Promise<CompanyEntity | null> {
     return await this.createStaticQueryBuilder('company')
@@ -183,9 +144,6 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
 
   /**
    * Buscar por schema
-   *
-   * @param schema - Schema de PostgreSQL
-   * @returns CompanyEntity o null
    */
   async findBySchema(schema: string): Promise<CompanyEntity | null> {
     return await this.createStaticQueryBuilder('company')
@@ -196,10 +154,6 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
 
   /**
    * Verificar si existe por RUC
-   *
-   * @param ruc - RUC a verificar
-   * @param excludeId - ID a excluir de la búsqueda (para updates)
-   * @returns true si existe, false si no
    */
   async existsByRuc(ruc: string, excludeId?: string): Promise<boolean> {
     const qb = this.createStaticQueryBuilder('company')
@@ -216,10 +170,6 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
 
   /**
    * Verificar si existe por email
-   *
-   * @param email - Email a verificar
-   * @param excludeId - ID a excluir de la búsqueda (para updates)
-   * @returns true si existe, false si no
    */
   async existsByEmail(email: string, excludeId?: string): Promise<boolean> {
     const qb = this.createStaticQueryBuilder('company')
@@ -235,11 +185,7 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
   }
 
   /**
-   * Verificar si existe por schema (FASE 7.2.C)
-   *
-   * @param schema - Schema a verificar
-   * @param excludeId - ID a excluir de la búsqueda (para updates)
-   * @returns true si existe, false si no
+   * Verificar si existe por schema
    */
   async existsBySchema(schema: string, excludeId?: string): Promise<boolean> {
     const qb = this.createStaticQueryBuilder('company')
@@ -257,20 +203,25 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
   /**
    * Actualizar compañía
    *
-   * @param id - UUID de la compañía
-   * @param data - Datos parciales a actualizar
-   * @returns CompanyEntity actualizada o null
+   * @description
+   * Excluye relaciones OneToMany antes de actualizar porque TypeORM
+   * update() solo acepta columnas de la tabla, no relaciones.
    */
   async update(id: string, data: Partial<CompanyEntity>): Promise<CompanyEntity | null> {
-    await this.repository.update(id, data);
+    // Extraer solo las columnas (excluir relaciones users y stores)
+    const dataAsRecord = data as Record<string, unknown>;
+    const { users: _u, stores: _s, ...updateData } = dataAsRecord;
+
+    if (Object.keys(updateData).length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await this.repository.update(id, updateData as any);
+    }
+
     return await this.findById(id);
   }
 
   /**
    * Soft delete
-   *
-   * @param id - UUID de la compañía
-   * @returns true si se eliminó, false si no
    */
   async softDelete(id: string): Promise<boolean> {
     const result = await this.repository.softDelete(id);
@@ -278,13 +229,7 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
   }
 
   /**
-   * Hard delete (eliminación permanente) - FASE 7.2.C
-   *
-   * ⚠️ OPERACIÓN DESTRUCTIVA E IRREVERSIBLE
-   * Elimina la compañía permanentemente de la base de datos.
-   *
-   * @param id - UUID de la compañía
-   * @returns true si se eliminó, false si no
+   * Hard delete (eliminación permanente)
    */
   async hardDelete(id: string): Promise<boolean> {
     const result = await this.repository.delete(id);
@@ -293,9 +238,6 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
 
   /**
    * Restaurar compañía eliminada
-   *
-   * @param id - UUID de la compañía
-   * @returns true si se restauró, false si no
    */
   async restore(id: string): Promise<boolean> {
     const result = await this.repository.restore(id);
@@ -304,8 +246,6 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
 
   /**
    * Obtener solo compañías activas
-   *
-   * @returns Array de CompanyEntity activas
    */
   async findActive(): Promise<CompanyEntity[]> {
     return await this.createStaticQueryBuilder('company')
@@ -316,13 +256,7 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
   }
 
   /**
-   * Obtener compañías activas con schema de tenant (FASE 7.2.C)
-   *
-   * @description
-   * Útil para obtener compañías que tienen schema propio (multi-tenant).
-   * Excluye compañías con schema 'public' o sin schema.
-   *
-   * @returns Array de CompanyEntity con schema de tenant
+   * Obtener compañías activas con schema de tenant
    */
   async findActiveWithTenantSchema(): Promise<CompanyEntity[]> {
     return await this.createStaticQueryBuilder('company')
@@ -336,9 +270,6 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
 
   /**
    * Obtener compañías por país (nombre completo)
-   *
-   * @param pais - Nombre del país
-   * @returns Array de CompanyEntity del país especificado
    */
   async findByCountry(pais: string): Promise<CompanyEntity[]> {
     return await this.createStaticQueryBuilder('company')
@@ -348,15 +279,8 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
       .getMany();
   }
 
-  // ============================================
-  // MÉTODOS DE INTERNACIONALIZACIÓN (FASE 1)
-  // ============================================
-
   /**
    * Obtener compañías por código de país ISO
-   *
-   * @param countryCode - Código ISO 3166-1 alpha-2 (ej: 'DO', 'GT')
-   * @returns Array de CompanyEntity del país
    */
   async findByCountryCode(countryCode: string): Promise<CompanyEntity[]> {
     return await this.createStaticQueryBuilder('company')
@@ -368,9 +292,6 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
 
   /**
    * Obtener compañías por código de moneda
-   *
-   * @param currencyCode - Código ISO 4217 (ej: 'DOP', 'GTQ', 'USD')
-   * @returns Array de CompanyEntity con esa moneda
    */
   async findByCurrency(currencyCode: string): Promise<CompanyEntity[]> {
     return await this.createStaticQueryBuilder('company')
@@ -382,9 +303,6 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
 
   /**
    * Obtener compañías por zona horaria
-   *
-   * @param timezone - Zona horaria IANA (ej: 'America/Santo_Domingo')
-   * @returns Array de CompanyEntity con esa zona horaria
    */
   async findByTimezone(timezone: string): Promise<CompanyEntity[]> {
     return await this.createStaticQueryBuilder('company')
@@ -396,8 +314,6 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
 
   /**
    * Obtener listado de países únicos con códigos
-   *
-   * @returns Array de { pais, country_code, count }
    */
   async getCountryCodes(): Promise<Array<{ pais: string; country_code: string; count: number }>> {
     return await this.createStaticQueryBuilder('company')
@@ -413,8 +329,6 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
 
   /**
    * Obtener listado de monedas únicas
-   *
-   * @returns Array de { currency_code, currency_symbol, count }
    */
   async getCurrencies(): Promise<
     Array<{ currency_code: string; currency_symbol: string; count: number }>
@@ -432,8 +346,6 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
 
   /**
    * Obtener estadísticas globales de compañías
-   *
-   * @returns Objeto con estadísticas incluyendo internacionalización
    */
   async getStats(): Promise<ICompanyStatsResponse> {
     const totalCompanies = await this.createStaticQueryBuilder('company')
@@ -445,7 +357,6 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
       .andWhere('company.deleted_at IS NULL')
       .getCount();
 
-    // Total de tiendas (si hay relación)
     const totalStores = await this.createStaticQueryBuilder('company')
       .leftJoin('company.stores', 'stores')
       .select('COUNT(DISTINCT stores.id)', 'count')
@@ -453,7 +364,6 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
       .getRawOne()
       .then((result) => parseInt(result?.count || '0', 10));
 
-    // Por país con código ISO
     const companiesByCountry = await this.createStaticQueryBuilder('company')
       .select('company.pais', 'pais')
       .addSelect('company.country_code', 'country_code')
@@ -464,7 +374,6 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
       .orderBy('count', 'DESC')
       .getRawMany();
 
-    // Por plan
     const companiesByPlan = await this.createStaticQueryBuilder('company')
       .select('company.plan', 'plan')
       .addSelect('COUNT(*)', 'count')
@@ -474,7 +383,6 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
       .orderBy('count', 'DESC')
       .getRawMany();
 
-    // Por moneda (FASE 1)
     const companiesByCurrency = await this.createStaticQueryBuilder('company')
       .select('company.currency_code', 'currency_code')
       .addSelect('company.currency_symbol', 'currency_symbol')

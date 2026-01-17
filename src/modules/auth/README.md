@@ -1,7 +1,35 @@
 # 🔐 Módulo Auth - Estado de Implementación
 
-> **Última actualización:** Enero 2025 - Sesión 9
+> **Última actualización:** Enero 2025 - Sesión 16 (Validación Documentación)
 > **Estado:** ✅ Implementación completa - Pendiente integración con UserService
+
+---
+
+## ℹ️ ACTUALIZACIÓN IMPORTANTE - Sesión 16
+
+**UserModule ya fue documentado completamente** en `src/modules/user/README.md` (Sesión 16).
+
+### Estado de Integración
+
+El **AuthModule** está implementado al 100% pero requiere **10 métodos específicos** en UserService que actualmente **NO existen** en el código:
+
+- Los métodos están listados en la sección [Dependencias Pendientes](#️-dependencias-pendientes) más abajo
+- **UserModule está documentado** pero estos métodos aún no están implementados
+- Ver documentación completa de UserModule en: `src/modules/user/README.md`
+
+### Opciones de Integración
+
+1. **Implementar los 10 métodos en UserService** (recomendado)
+   - Agregar métodos a `user.service.ts` y `user.repository.ts`
+   - Seguir el patrón existente documentado en UserModule
+
+2. **Crear AuthUserRepository separado**
+   - Implementar los métodos solo para AuthModule
+   - Mantener UserService sin cambios
+
+3. **Adaptar AuthService**
+   - Usar métodos existentes de UserService
+   - Adaptar código de AuthService para trabajar con la API actual
 
 ---
 
@@ -82,7 +110,9 @@
 
 ### Métodos requeridos en UserService
 
-El `AuthService` requiere los siguientes métodos en `UserService` que actualmente **NO existen**:
+⚠️ **IMPORTANTE:** UserModule está documentado en `src/modules/user/README.md` pero estos métodos **NO están implementados** aún.
+
+El `AuthService` requiere los siguientes métodos en `UserService`:
 
 ```typescript
 // 1. Buscar usuario con password (para login)
@@ -116,13 +146,74 @@ async savePasswordResetToken(userId: string, token: string): Promise<void>
 async invalidatePasswordResetToken(userId: string): Promise<void>
 ```
 
-### Alternativas
+### Alternativas de Implementación
 
-Si no quieres modificar `UserService`, puedes:
+#### Opción 1: Implementar en UserService (Recomendado)
 
-1. Implementar estos métodos directamente en `AuthService`
-2. Crear un `AuthUserRepository` separado
-3. Usar los métodos existentes de `UserService` y adaptar el código de `AuthService`
+Agregar estos métodos a `user.service.ts` y `user.repository.ts` siguiendo el patrón existente:
+
+```typescript
+// user.repository.ts
+async findByEmailWithPassword(email: string): Promise<UserEntity | null> {
+  return await this.repo
+    .createQueryBuilder('user')
+    .addSelect('user.password')  // password tiene { select: false }
+    .where('user.email = :email', { email })
+    .andWhere('user.deletedAt IS NULL')
+    .getOne();
+}
+
+// user.service.ts
+async findByEmailWithPassword(email: string): Promise<UserEntity | null> {
+  const sanitizedEmail = this.sanitizer.sanitizeEmail(email);
+  return await this.userRepository.findByEmailWithPassword(sanitizedEmail);
+}
+```
+
+#### Opción 2: AuthUserRepository Separado
+
+Crear un repository especializado solo para AuthModule:
+
+```typescript
+// auth/repositories/auth-user.repository.ts
+@Injectable()
+export class AuthUserRepository {
+  constructor(
+    @InjectRepository(UserEntity)
+    private readonly repo: Repository<UserEntity>,
+  ) {}
+
+  async findByEmailWithPassword(email: string): Promise<UserEntity | null> {
+    // Implementación aquí
+  }
+  // ... otros métodos
+}
+```
+
+#### Opción 3: Adaptar AuthService
+
+Modificar `auth.service.ts` para usar los métodos existentes de UserService:
+
+```typescript
+// Ejemplo: En lugar de findByEmailWithPassword
+const user = await this.userService.findByEmail(email);
+// Luego cargar password manualmente si es necesario
+```
+
+### Impacto en la Integración
+
+| Métodos | Endpoint Afectado | Prioridad |
+|---------|-------------------|-----------|
+| findByEmailWithPassword | POST /auth/login | 🔴 Alta |
+| findByIdWithPassword | POST /auth/change-password | 🔴 Alta |
+| findByIdWithRoles | GET /auth/me | 🟡 Media |
+| existsByEmail | POST /auth/register | 🔴 Alta |
+| incrementFailedAttempts | POST /auth/login (seguridad) | 🟡 Media |
+| resetFailedAttempts | POST /auth/login (seguridad) | 🟡 Media |
+| updateLastLogin | POST /auth/login | 🟡 Media |
+| updatePassword | POST /auth/change-password | 🔴 Alta |
+| savePasswordResetToken | POST /auth/forgot-password | 🔴 Alta |
+| invalidatePasswordResetToken | POST /auth/reset-password | 🔴 Alta |
 
 ---
 
@@ -239,11 +330,11 @@ Estructura:
 1. POST /auth/login { email, password }
 2. AuthService.login()
    ├─ Sanitizar email
-   ├─ Buscar usuario (UserService.findByEmailWithPassword)
+   ├─ Buscar usuario (UserService.findByEmailWithPassword) ⚠️ NO IMPLEMENTADO
    ├─ Validar estado (activo/suspendido/bloqueado)
    ├─ Verificar password con bcrypt
-   ├─ Resetear intentos fallidos
-   ├─ Actualizar último login
+   ├─ Resetear intentos fallidos ⚠️ NO IMPLEMENTADO
+   ├─ Actualizar último login ⚠️ NO IMPLEMENTADO
    ├─ Generar access + refresh tokens
    ├─ Crear sesión en BD
    └─ Retornar { user, accessToken, refreshToken }
@@ -295,7 +386,10 @@ Estructura:
 ## 📝 Próximos Pasos
 
 1. **Implementar métodos faltantes en UserService** (ver lista arriba)
-2. **Actualizar jwt.config.ts** con refresh y reset tokens
+   - Ver `src/modules/user/README.md` para documentación de UserModule
+   - Seguir patrón existente (SanitizerService + HandleErrorService)
+   - Usar createQueryBuilder en repository
+2. **Actualizar jwt.config.ts** con refresh y reset tokens (ya está documentado)
 3. **Crear migración** para tabla sessions
 4. **Registrar AuthModule** en app.module.ts
 5. **Probar endpoints** con Postman/Thunder Client
@@ -341,4 +435,14 @@ export class SomeService {
 
 ---
 
-> **Nota:** Este módulo está listo para ser integrado una vez que se implementen los métodos faltantes en UserService y se cree la migración de base de datos.
+## 🔗 Referencias
+
+| Documento | Ubicación | Contenido |
+|-----------|-----------|-----------|
+| UserModule README | `src/modules/user/README.md` | Documentación completa de UserModule |
+| JWT Configuration | `src/config/security/jwt.config.ts` | Configuración JWT |
+| Session Entity | `src/modules/auth/entities/session.entity.ts` | Entidad de sesiones |
+
+---
+
+> **Nota:** Este módulo está **100% implementado** pero requiere integración con UserService. Los 10 métodos necesarios están documentados arriba. Ver `src/modules/user/README.md` para la documentación completa de UserModule.

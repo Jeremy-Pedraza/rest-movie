@@ -12,6 +12,7 @@ import {
   ParseUUIDPipe,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -53,6 +54,7 @@ import {
 } from './interfaces';
 import { ConsolidationLevelEnum } from './enums';
 import { UserEntity } from '@modules/user/entities';
+import { ReportAccessGuard } from './guards/report-access.guard';
 
 /**
  * ReportsController
@@ -70,8 +72,22 @@ import { UserEntity } from '@modules/user/entities';
  *
  * Permisos:
  * - SUPER_ADMIN, ADMIN: Acceso completo
- * - MANAGER: Datos de su compañía
- * - USER: Solo sus tiendas asignadas
+ * - MANAGER: Datos de su compañía (validado por ReportAccessGuard)
+ * - USER: Solo sus tiendas asignadas (validado por ReportAccessGuard)
+ *
+ * Guards aplicados:
+ * - @Roles(): Validación de rol básico (global)
+ * - @UseGuards(ReportAccessGuard): Validación granular de permisos por nivel/tienda/compañía
+ *
+ * Endpoints SIN ReportAccessGuard (solo @Roles es suficiente):
+ * - PUT /:id → Solo ADMIN/MANAGER, validación en service
+ * - DELETE /:id → Solo ADMIN
+ * - POST /:id/status/:status → Solo ADMIN/MANAGER, validación en service
+ * - GET /stats/global → Solo ADMIN
+ * - POST /ranking/companies → Solo ADMIN
+ * - GET /trends → Validación en service
+ *
+ * @version 2.0.0 - ReportAccessGuard aplicado en 15 endpoints
  */
 @ApiTags('Reports')
 @ApiBearerAuth()
@@ -88,6 +104,7 @@ export class ReportsController {
    */
   @Post()
   @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @UseGuards(ReportAccessGuard)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Crear reporte',
@@ -116,6 +133,7 @@ export class ReportsController {
    */
   @Get()
   @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @UseGuards(ReportAccessGuard)
   @ApiOperation({
     summary: 'Listar reportes con filtros',
     description:
@@ -140,6 +158,7 @@ export class ReportsController {
    */
   @Get(':id')
   @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @UseGuards(ReportAccessGuard)
   @ApiOperation({
     summary: 'Obtener reporte por ID',
     description: 'Obtiene información de un reporte específico.',
@@ -166,6 +185,7 @@ export class ReportsController {
    */
   @Get(':id/details')
   @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @UseGuards(ReportAccessGuard)
   @ApiOperation({
     summary: 'Obtener reporte con detalles completos',
     description:
@@ -277,6 +297,7 @@ export class ReportsController {
    */
   @Post('consolidate')
   @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @UseGuards(ReportAccessGuard)
   @ApiOperation({
     summary: 'Consolidar reportes',
     description:
@@ -303,6 +324,7 @@ export class ReportsController {
    */
   @Get('consolidate/quick')
   @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @UseGuards(ReportAccessGuard)
   @Cacheable(60) // Cache 1 minuto
   @ApiOperation({
     summary: 'Consolidación rápida',
@@ -338,6 +360,7 @@ export class ReportsController {
    */
   @Post('compare')
   @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @UseGuards(ReportAccessGuard)
   @ApiOperation({
     summary: 'Comparar reportes',
     description:
@@ -364,6 +387,7 @@ export class ReportsController {
    */
   @Get('compare/quick')
   @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @UseGuards(ReportAccessGuard)
   @Cacheable(60) // Cache 1 minuto
   @ApiOperation({
     summary: 'Comparación rápida',
@@ -400,6 +424,7 @@ export class ReportsController {
    */
   @Post('ranking/stores')
   @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER)
+  @UseGuards(ReportAccessGuard)
   @ApiOperation({
     summary: 'Ranking de tiendas',
     description:
@@ -451,6 +476,7 @@ export class ReportsController {
    */
   @Get('ranking/quick')
   @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER)
+  @UseGuards(ReportAccessGuard)
   @Cacheable(60) // Cache 1 minuto
   @ApiOperation({
     summary: 'Ranking rápido',
@@ -563,6 +589,7 @@ export class ReportsController {
    */
   @Get('store/:storeId')
   @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @UseGuards(ReportAccessGuard)
   @ApiOperation({
     summary: 'Reportes de una tienda',
     description: 'Obtiene todos los reportes de una tienda específica.',
@@ -599,6 +626,7 @@ export class ReportsController {
    */
   @Get('company/:companyId')
   @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER)
+  @UseGuards(ReportAccessGuard)
   @ApiOperation({
     summary: 'Reportes de una compañía',
     description: 'Obtiene todos los reportes de una compañía (todas sus tiendas).',
@@ -635,6 +663,7 @@ export class ReportsController {
    */
   @Get('store/:storeId/today')
   @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @UseGuards(ReportAccessGuard)
   @Cacheable(60) // Cache 1 minuto
   @ApiOperation({
     summary: 'Reporte de hoy',
@@ -670,6 +699,7 @@ export class ReportsController {
    */
   @Get('store/:storeId/summary')
   @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @UseGuards(ReportAccessGuard)
   @Cacheable(300) // Cache 5 minutos
   @ApiOperation({
     summary: 'Resumen de tienda',
@@ -702,6 +732,7 @@ export class ReportsController {
    */
   @Get('company/:companyId/dashboard')
   @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER)
+  @UseGuards(ReportAccessGuard)
   @Cacheable(120) // Cache 2 minutos
   @ApiOperation({
     summary: 'Dashboard de compañía',

@@ -3,9 +3,15 @@
 /**
  * @fileoverview Base repository para queries multi-tenant
  * @module shared/database
+ * @version 2.0.0 - createTenantQueryBuilder() deprecated
  *
  * Proporciona métodos para ejecutar queries con SET search_path dinámico
  * según el tenant actual establecido en SchemaContext.
+ * 
+ * IMPORTANTE: Usar withSchema() + this.repository.createQueryBuilder()
+ * en lugar de createTenantQueryBuilder() (deprecated).
+ * 
+ * @see docs/BASE-REPOSITORY.md para documentación completa
  */
 
 import { Repository, SelectQueryBuilder, EntityManager, ObjectLiteral } from 'typeorm';
@@ -217,23 +223,29 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
   /**
    * Query builder con search_path dinámico (para entidades tenant)
    *
-   * Usa este método para queries en tablas del schema tenant
-   * como products, sales, inventory, etc.
+   * @deprecated Usar this.repository.createQueryBuilder() dentro de withSchema() en su lugar.
+   * 
+   * Este método usa manager.query() que NO es thread-safe en alta concurrencia.
+   * Es redundante con withSchema() que ya establece search_path de forma aislada.
+   * 
+   * Migración:
+   * ```typescript
+   * // ❌ ANTES (deprecated)
+   * const qb = await this.createTenantQueryBuilder('alias');
+   * return await qb.where(...).getOne();
+   * 
+   * // ✅ DESPUÉS (correcto)
+   * return await this.withSchema(async () => {
+   *   return await this.repository.createQueryBuilder('alias')
+   *     .where(...)
+   *     .getOne();
+   * });
+   * ```
+   * 
+   * @see docs/BASE-REPOSITORY.md para documentación completa
    *
    * @param alias - Alias de la tabla
    * @returns Promise<QueryBuilder>
-   *
-   * @example
-   * ```typescript
-   * // En ProductsRepository (entidad tenant)
-   * async findActive(): Promise<Product[]> {
-   *   return await this.withSchema(async () => {
-   *     return await (await this.createTenantQueryBuilder('product'))
-   *       .where('product.isActive = :active', { active: true })
-   *       .getMany();
-   *   });
-   * }
-   * ```
    */
   protected async createTenantQueryBuilder(alias: string): Promise<SelectQueryBuilder<T>> {
     const schema = this.schemaContext.getSchema();

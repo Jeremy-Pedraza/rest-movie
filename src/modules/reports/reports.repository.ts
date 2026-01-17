@@ -13,7 +13,7 @@
  *
  * Estado actual:
  * - Las 6 tablas de reportes viven en schemas POR TENANT
- * - Se usa createTenantQueryBuilder() para queries a schema tenant
+ * - Se usa this.repository.createQueryBuilder() dentro de withSchema() para queries tenant
  * - Se usa withSchema() para operaciones READ
  * - Se usa withSchemaTransaction() para operaciones WRITE
  * - Las relaciones con stores funcionan cross-schema (tenant → public)
@@ -22,40 +22,40 @@
  *
  * CRUD Básico (8):
  * - create() → withSchemaTransaction()
- * - findAll() → withSchema() + createTenantQueryBuilder()
- * - findById() → withSchema() + createTenantQueryBuilder()
- * - findByStoreAndDate() → withSchema() + createTenantQueryBuilder()
- * - exists() → withSchema() + createTenantQueryBuilder()
+ * - findAll() → withSchema() + this.repository.createQueryBuilder()
+ * - findById() → withSchema() + this.repository.createQueryBuilder()
+ * - findByStoreAndDate() → withSchema() + this.repository.createQueryBuilder()
+ * - exists() → withSchema() + this.repository.createQueryBuilder()
  * - update() → withSchemaTransaction()
  * - delete() → withSchemaTransaction()
- * - findByStore() → withSchema() + createTenantQueryBuilder()
+ * - findByStore() → withSchema() + this.repository.createQueryBuilder()
  *
  * Búsquedas Específicas (3):
- * - findByCompany() → withSchema() + createTenantQueryBuilder()
- * - findByDateRange() → withSchema() + createTenantQueryBuilder()
- * - getStoreIdsWithReports() → withSchema() + createTenantQueryBuilder()
+ * - findByCompany() → withSchema() + this.repository.createQueryBuilder()
+ * - findByDateRange() → withSchema() + this.repository.createQueryBuilder()
+ * - getStoreIdsWithReports() → withSchema() + this.repository.createQueryBuilder()
  *
  * Consolidaciones (6):
- * - consolidateByStore() → withSchema() + createTenantQueryBuilder()
- * - consolidateByCompany() → withSchema() + createTenantQueryBuilder()
- * - consolidateGlobal() → withSchema() + createTenantQueryBuilder()
+ * - consolidateByStore() → withSchema() + this.repository.createQueryBuilder()
+ * - consolidateByCompany() → withSchema() + this.repository.createQueryBuilder()
+ * - consolidateGlobal() → withSchema() + this.repository.createQueryBuilder()
  * - consolidateSalesByOrderType() → withSchema() + createSalesOrderTypeQB()
  * - consolidatePaymentMethods() → withSchema() + createPaymentMethodQB()
- * - getDailyBreakdown() → withSchema() + createTenantQueryBuilder()
+ * - getDailyBreakdown() → withSchema() + this.repository.createQueryBuilder()
  *
  * Rankings (2):
- * - getRankingByStores() → withSchema() + createTenantQueryBuilder()
- * - getRankingByCompanies() → withSchema() + createTenantQueryBuilder()
+ * - getRankingByStores() → withSchema() + this.repository.createQueryBuilder()
+ * - getRankingByCompanies() → withSchema() + this.repository.createQueryBuilder()
  *
  * Comparaciones (3):
- * - compareStores() → withSchema() + createTenantQueryBuilder()
- * - comparePeriods() → withSchema() + createTenantQueryBuilder()
- * - compareByDayOfWeek() → withSchema() + createTenantQueryBuilder()
+ * - compareStores() → withSchema() + this.repository.createQueryBuilder()
+ * - comparePeriods() → withSchema() + this.repository.createQueryBuilder()
+ * - compareByDayOfWeek() → withSchema() + this.repository.createQueryBuilder()
  *
  * Estadísticas (3):
- * - getGlobalStats() → withSchema() + createTenantQueryBuilder()
- * - getPeriodStats() → withSchema() + createTenantQueryBuilder()
- * - getTrends() → withSchema() + createTenantQueryBuilder()
+ * - getGlobalStats() → withSchema() + this.repository.createQueryBuilder()
+ * - getPeriodStats() → withSchema() + this.repository.createQueryBuilder()
+ * - getTrends() → withSchema() + this.repository.createQueryBuilder()
  *
  * Operaciones con Detalles (13):
  * - addSalesByOrderType() → withSchemaTransaction()
@@ -69,7 +69,7 @@
  * - getAdjustments() → withSchema() + adjustmentRepo.createQueryBuilder()
  * - getEffectiveOrders() → withSchema() + effectiveOrderRepo.createQueryBuilder()
  * - deleteAllDetails() → withSchemaTransaction()
- * - countByStatus() → withSchema() + createTenantQueryBuilder()
+ * - countByStatus() → withSchema() + this.repository.createQueryBuilder()
  * - getMetricColumn() → Helper privado (sin cambios)
  *
  * Patrón usado:
@@ -77,7 +77,7 @@
  * // READ operations
  * async findById(id: string): Promise<ReportHeaderEntity | null> {
  *   return this.withSchema(async () => {
- *     return this.createTenantQueryBuilder('report')
+ *     return this.repository.createQueryBuilder('report')
  *       .where('report.id = :id', { id })
  *       .getOne();
  *   });
@@ -256,99 +256,99 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Buscar reportes con filtros y paginación
    *
-   * MULTI-TENANT: Usa withSchema() + createTenantQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
    *
    * @param query - Filtros y opciones de paginación
    * @returns Tupla [reportes, total]
    */
   async findAll(query: QueryReportDto): Promise<[ReportHeaderEntity[], number]> {
     return this.withSchema(async () => {
-      const qb = this.createTenantQueryBuilder('report');
+      const qb = this.repository.createQueryBuilder('report');
 
-    // Joins opcionales
-    if (query.include_store || query.company_id) {
-      qb.leftJoinAndSelect('report.store', 'store');
-      if (query.company_id) {
-        qb.leftJoin('store.company', 'company');
+      // Joins opcionales
+      if (query.include_store || query.company_id) {
+        qb.leftJoinAndSelect('report.store', 'store');
+        if (query.company_id) {
+          qb.leftJoin('store.company', 'company');
+        }
       }
-    }
 
-    // Filtros por entidad
-    if (query.store_id) {
-      qb.andWhere('report.store_id = :store_id', { store_id: query.store_id });
-    }
+      // Filtros por entidad
+      if (query.store_id) {
+        qb.andWhere('report.store_id = :store_id', { store_id: query.store_id });
+      }
 
-    if (query.store_ids?.length) {
-      qb.andWhere('report.store_id IN (:...store_ids)', { store_ids: query.store_ids });
-    }
+      if (query.store_ids?.length) {
+        qb.andWhere('report.store_id IN (:...store_ids)', { store_ids: query.store_ids });
+      }
 
-    if (query.company_id) {
-      qb.andWhere('store.company_id = :company_id', { company_id: query.company_id });
-    }
+      if (query.company_id) {
+        qb.andWhere('store.company_id = :company_id', { company_id: query.company_id });
+      }
 
-    // Filtros por fecha
-    if (query.date_from && query.date_to) {
-      qb.andWhere('report.report_date BETWEEN :date_from AND :date_to', {
-        date_from: query.date_from,
-        date_to: query.date_to,
-      });
-    } else if (query.date_from) {
-      qb.andWhere('report.report_date >= :date_from', { date_from: query.date_from });
-    } else if (query.date_to) {
-      qb.andWhere('report.report_date <= :date_to', { date_to: query.date_to });
-    }
+      // Filtros por fecha
+      if (query.date_from && query.date_to) {
+        qb.andWhere('report.report_date BETWEEN :date_from AND :date_to', {
+          date_from: query.date_from,
+          date_to: query.date_to,
+        });
+      } else if (query.date_from) {
+        qb.andWhere('report.report_date >= :date_from', { date_from: query.date_from });
+      } else if (query.date_to) {
+        qb.andWhere('report.report_date <= :date_to', { date_to: query.date_to });
+      }
 
-    if (query.report_date) {
-      qb.andWhere('report.report_date = :report_date', { report_date: query.report_date });
-    }
+      if (query.report_date) {
+        qb.andWhere('report.report_date = :report_date', { report_date: query.report_date });
+      }
 
-    // Filtros por tipo y estado
-    if (query.report_type) {
-      qb.andWhere('report.report_type = :report_type', { report_type: query.report_type });
-    }
+      // Filtros por tipo y estado
+      if (query.report_type) {
+        qb.andWhere('report.report_type = :report_type', { report_type: query.report_type });
+      }
 
-    if (query.status) {
-      qb.andWhere('report.status = :status', { status: query.status });
-    }
+      if (query.status) {
+        qb.andWhere('report.status = :status', { status: query.status });
+      }
 
-    // Filtros por métricas
-    if (query.min_sales !== undefined) {
-      qb.andWhere('report.total_sales >= :min_sales', { min_sales: query.min_sales });
-    }
+      // Filtros por métricas
+      if (query.min_sales !== undefined) {
+        qb.andWhere('report.total_sales >= :min_sales', { min_sales: query.min_sales });
+      }
 
-    if (query.max_sales !== undefined) {
-      qb.andWhere('report.total_sales <= :max_sales', { max_sales: query.max_sales });
-    }
+      if (query.max_sales !== undefined) {
+        qb.andWhere('report.total_sales <= :max_sales', { max_sales: query.max_sales });
+      }
 
-    if (query.min_orders !== undefined) {
-      qb.andWhere('report.orders_count >= :min_orders', { min_orders: query.min_orders });
-    }
+      if (query.min_orders !== undefined) {
+        qb.andWhere('report.orders_count >= :min_orders', { min_orders: query.min_orders });
+      }
 
-    // Cargar relaciones opcionales
-    if (query.include_sales_by_order_type || query.include_all) {
-      qb.leftJoinAndSelect('report.sales_by_order_type', 'salesByOrderType');
-    }
+      // Cargar relaciones opcionales
+      if (query.include_sales_by_order_type || query.include_all) {
+        qb.leftJoinAndSelect('report.sales_by_order_type', 'salesByOrderType');
+      }
 
-    if (query.include_payment_methods || query.include_all) {
-      qb.leftJoinAndSelect('report.payment_methods', 'paymentMethods');
-    }
+      if (query.include_payment_methods || query.include_all) {
+        qb.leftJoinAndSelect('report.payment_methods', 'paymentMethods');
+      }
 
-    if (query.include_discounts || query.include_all) {
-      qb.leftJoinAndSelect('report.dynamic_discounts', 'discounts');
-    }
+      if (query.include_discounts || query.include_all) {
+        qb.leftJoinAndSelect('report.dynamic_discounts', 'discounts');
+      }
 
-    if (query.include_adjustments || query.include_all) {
-      qb.leftJoinAndSelect('report.adjustments', 'adjustments');
-    }
+      if (query.include_adjustments || query.include_all) {
+        qb.leftJoinAndSelect('report.adjustments', 'adjustments');
+      }
 
-    if (query.include_effective_orders || query.include_all) {
-      qb.leftJoinAndSelect('report.effective_orders', 'effectiveOrders');
-    }
+      if (query.include_effective_orders || query.include_all) {
+        qb.leftJoinAndSelect('report.effective_orders', 'effectiveOrders');
+      }
 
-    // Ordenamiento
-    const sortBy = query.sortBy || 'report_date';
-    const sortOrder = query.sortOrder || 'DESC';
-    qb.orderBy(`report.${sortBy}`, sortOrder);
+      // Ordenamiento
+      const sortBy = query.sortBy || 'report_date';
+      const sortOrder = query.sortOrder || 'DESC';
+      qb.orderBy(`report.${sortBy}`, sortOrder);
 
       // Paginación
       const page = query.page || 1;
@@ -362,7 +362,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Buscar reporte por ID
    *
-   * MULTI-TENANT: Usa withSchema() + createTenantQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
    *
    * @param id - UUID del reporte
    * @param includeDetails - Cargar entidades de detalle
@@ -370,7 +370,8 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
    */
   async findById(id: string, includeDetails = false): Promise<ReportHeaderEntity | null> {
     return this.withSchema(async () => {
-      const qb = this.createTenantQueryBuilder('report')
+      const qb = this.repository
+        .createQueryBuilder('report')
         .leftJoinAndSelect('report.store', 'store')
         .where('report.id = :id', { id });
 
@@ -389,7 +390,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Buscar reporte por tienda y fecha
    *
-   * MULTI-TENANT: Usa withSchema() + createTenantQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
    *
    * @param storeId - UUID de la tienda
    * @param reportDate - Fecha del reporte
@@ -402,7 +403,8 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
     reportType?: ReportTypeEnum,
   ): Promise<ReportHeaderEntity | null> {
     return this.withSchema(async () => {
-      const qb = this.createTenantQueryBuilder('report')
+      const qb = this.repository
+        .createQueryBuilder('report')
         .where('report.store_id = :storeId', { storeId })
         .andWhere('report.report_date = :reportDate', { reportDate });
 
@@ -417,7 +419,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Verificar si existe reporte
    *
-   * MULTI-TENANT: Usa withSchema() + createTenantQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
    *
    * @param storeId - UUID de la tienda
    * @param reportDate - Fecha del reporte
@@ -426,7 +428,8 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
    */
   async exists(storeId: string, reportDate: string, excludeId?: string): Promise<boolean> {
     return this.withSchema(async () => {
-      const qb = this.createTenantQueryBuilder('report')
+      const qb = this.repository
+        .createQueryBuilder('report')
         .where('report.store_id = :storeId', { storeId })
         .andWhere('report.report_date = :reportDate', { reportDate });
 
@@ -504,7 +507,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Buscar reportes por tienda
    *
-   * MULTI-TENANT: Usa withSchema() + createTenantQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
    *
    * @param storeId - UUID de la tienda
    * @param dateFrom - Fecha inicio (opcional)
@@ -517,7 +520,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
     dateTo?: string,
   ): Promise<ReportHeaderEntity[]> {
     return this.withSchema(async () => {
-      const qb = this.createTenantQueryBuilder('report').where('report.store_id = :storeId', {
+      const qb = this.repository.createQueryBuilder('report').where('report.store_id = :storeId', {
         storeId,
       });
 
@@ -532,7 +535,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Buscar reportes por compañía (todas sus tiendas)
    *
-   * MULTI-TENANT: Usa withSchema() + createTenantQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
    *
    * @param companyId - UUID de la compañía
    * @param dateFrom - Fecha inicio
@@ -545,7 +548,8 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
     dateTo: string,
   ): Promise<ReportHeaderEntity[]> {
     return this.withSchema(async () => {
-      return await this.createTenantQueryBuilder('report')
+      return await this.repository
+        .createQueryBuilder('report')
         .leftJoin('report.store', 'store')
         .leftJoinAndSelect('report.store', 'storeSelect')
         .where('store.company_id = :companyId', { companyId })
@@ -559,7 +563,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Buscar reportes por rango de fechas
    *
-   * MULTI-TENANT: Usa withSchema() + createTenantQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
    *
    * @param dateFrom - Fecha inicio
    * @param dateTo - Fecha fin
@@ -572,7 +576,8 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
     reportType?: ReportTypeEnum,
   ): Promise<ReportHeaderEntity[]> {
     return this.withSchema(async () => {
-      const qb = this.createTenantQueryBuilder('report')
+      const qb = this.repository
+        .createQueryBuilder('report')
         .leftJoinAndSelect('report.store', 'store')
         .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
 
@@ -587,7 +592,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Obtener IDs de tiendas con reportes en un período
    *
-   * MULTI-TENANT: Usa withSchema() + createTenantQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
    *
    * @param dateFrom - Fecha inicio
    * @param dateTo - Fecha fin
@@ -600,12 +605,15 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
     companyId?: string,
   ): Promise<string[]> {
     return this.withSchema(async () => {
-      const qb = this.createTenantQueryBuilder('report')
+      const qb = this.repository
+        .createQueryBuilder('report')
         .select('DISTINCT report.store_id', 'store_id')
         .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
 
       if (companyId) {
-        qb.leftJoin('report.store', 'store').andWhere('store.company_id = :companyId', { companyId });
+        qb.leftJoin('report.store', 'store').andWhere('store.company_id = :companyId', {
+          companyId,
+        });
       }
 
       const result = await qb.getRawMany();
@@ -620,7 +628,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Consolidar reportes de una tienda
    *
-   * MULTI-TENANT: Usa withSchema() + createTenantQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
    *
    * @param storeId - UUID de la tienda
    * @param dateFrom - Fecha inicio
@@ -642,36 +650,37 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
     days_count: number;
   }> {
     return this.withSchema(async () => {
-      const result = await this.createTenantQueryBuilder('report')
-      .select('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
-      .addSelect('COALESCE(SUM(report.total_revenue), 0)', 'total_revenue')
-      .addSelect('COALESCE(SUM(report.total_quantity), 0)', 'total_quantity')
-      .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
-      .addSelect('COALESCE(SUM(report.total_discounts), 0)', 'total_discounts')
-      .addSelect('COALESCE(SUM(report.total_adjustments), 0)', 'total_adjustments')
-      .addSelect('COUNT(*)', 'reports_count')
-      .addSelect('COUNT(DISTINCT report.report_date)', 'days_count')
-      .where('report.store_id = :storeId', { storeId })
-      .andWhere('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo })
-      .getRawOne();
+      const result = await this.repository
+        .createQueryBuilder('report')
+        .select('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
+        .addSelect('COALESCE(SUM(report.total_revenue), 0)', 'total_revenue')
+        .addSelect('COALESCE(SUM(report.total_quantity), 0)', 'total_quantity')
+        .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
+        .addSelect('COALESCE(SUM(report.total_discounts), 0)', 'total_discounts')
+        .addSelect('COALESCE(SUM(report.total_adjustments), 0)', 'total_adjustments')
+        .addSelect('COUNT(*)', 'reports_count')
+        .addSelect('COUNT(DISTINCT report.report_date)', 'days_count')
+        .where('report.store_id = :storeId', { storeId })
+        .andWhere('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo })
+        .getRawOne();
 
-    return {
-      total_sales: parseFloat(result.total_sales) || 0,
-      total_revenue: parseFloat(result.total_revenue) || 0,
-      total_quantity: parseInt(result.total_quantity) || 0,
-      total_orders: parseInt(result.total_orders) || 0,
-      total_discounts: parseFloat(result.total_discounts) || 0,
-      total_adjustments: parseFloat(result.total_adjustments) || 0,
-      reports_count: parseInt(result.reports_count) || 0,
-      days_count: parseInt(result.days_count) || 0,
-    };
+      return {
+        total_sales: parseFloat(result.total_sales) || 0,
+        total_revenue: parseFloat(result.total_revenue) || 0,
+        total_quantity: parseInt(result.total_quantity) || 0,
+        total_orders: parseInt(result.total_orders) || 0,
+        total_discounts: parseFloat(result.total_discounts) || 0,
+        total_adjustments: parseFloat(result.total_adjustments) || 0,
+        reports_count: parseInt(result.reports_count) || 0,
+        days_count: parseInt(result.days_count) || 0,
+      };
     });
   }
 
   /**
    * Consolidar reportes de una compañía
    *
-   * MULTI-TENANT: Usa withSchema() + createTenantQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
    *
    * @param companyId - UUID de la compañía
    * @param dateFrom - Fecha inicio
@@ -706,68 +715,70 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   }> {
     return this.withSchema(async () => {
       // Totales de la compañía
-      const totals = await this.createTenantQueryBuilder('report')
-      .leftJoin('report.store', 'store')
-      .select('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
-      .addSelect('COALESCE(SUM(report.total_revenue), 0)', 'total_revenue')
-      .addSelect('COALESCE(SUM(report.total_quantity), 0)', 'total_quantity')
-      .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
-      .addSelect('COALESCE(SUM(report.total_discounts), 0)', 'total_discounts')
-      .addSelect('COALESCE(SUM(report.total_adjustments), 0)', 'total_adjustments')
-      .addSelect('COUNT(*)', 'reports_count')
-      .addSelect('COUNT(DISTINCT report.store_id)', 'stores_count')
-      .addSelect('COUNT(DISTINCT report.report_date)', 'days_count')
-      .where('store.company_id = :companyId', { companyId })
-      .andWhere('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo })
-      .getRawOne();
+      const totals = await this.repository
+        .createQueryBuilder('report')
+        .leftJoin('report.store', 'store')
+        .select('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
+        .addSelect('COALESCE(SUM(report.total_revenue), 0)', 'total_revenue')
+        .addSelect('COALESCE(SUM(report.total_quantity), 0)', 'total_quantity')
+        .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
+        .addSelect('COALESCE(SUM(report.total_discounts), 0)', 'total_discounts')
+        .addSelect('COALESCE(SUM(report.total_adjustments), 0)', 'total_adjustments')
+        .addSelect('COUNT(*)', 'reports_count')
+        .addSelect('COUNT(DISTINCT report.store_id)', 'stores_count')
+        .addSelect('COUNT(DISTINCT report.report_date)', 'days_count')
+        .where('store.company_id = :companyId', { companyId })
+        .andWhere('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo })
+        .getRawOne();
 
       // Desglose por tienda
-      const storesBreakdown = await this.createTenantQueryBuilder('report')
-      .leftJoin('report.store', 'store')
-      .select('store.id', 'store_id')
-      .addSelect('store.nombre', 'store_name')
-      .addSelect('store.codigo', 'store_code')
-      .addSelect('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
-      .addSelect('COALESCE(SUM(report.total_revenue), 0)', 'total_revenue')
-      .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
-      .addSelect('COUNT(*)', 'reports_count')
-      .where('store.company_id = :companyId', { companyId })
-      .andWhere('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo })
-      .groupBy('store.id')
-      .addGroupBy('store.nombre')
-      .addGroupBy('store.codigo')
-      .orderBy('total_sales', 'DESC')
-      .getRawMany();
+      const storesBreakdown = await this.repository
+        .createQueryBuilder('report')
+        .leftJoin('report.store', 'store')
+        .select('store.id', 'store_id')
+        .addSelect('store.nombre', 'store_name')
+        .addSelect('store.codigo', 'store_code')
+        .addSelect('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
+        .addSelect('COALESCE(SUM(report.total_revenue), 0)', 'total_revenue')
+        .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
+        .addSelect('COUNT(*)', 'reports_count')
+        .where('store.company_id = :companyId', { companyId })
+        .andWhere('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo })
+        .groupBy('store.id')
+        .addGroupBy('store.nombre')
+        .addGroupBy('store.codigo')
+        .orderBy('total_sales', 'DESC')
+        .getRawMany();
 
-    return {
-      totals: {
-        total_sales: parseFloat(totals.total_sales) || 0,
-        total_revenue: parseFloat(totals.total_revenue) || 0,
-        total_quantity: parseInt(totals.total_quantity) || 0,
-        total_orders: parseInt(totals.total_orders) || 0,
-        total_discounts: parseFloat(totals.total_discounts) || 0,
-        total_adjustments: parseFloat(totals.total_adjustments) || 0,
-        reports_count: parseInt(totals.reports_count) || 0,
-        stores_count: parseInt(totals.stores_count) || 0,
-        days_count: parseInt(totals.days_count) || 0,
-      },
-      stores_breakdown: storesBreakdown.map((s) => ({
-        store_id: s.store_id,
-        store_name: s.store_name,
-        store_code: s.store_code,
-        total_sales: parseFloat(s.total_sales) || 0,
-        total_revenue: parseFloat(s.total_revenue) || 0,
-        total_orders: parseInt(s.total_orders) || 0,
-        reports_count: parseInt(s.reports_count) || 0,
-      })),
-    };
+      return {
+        totals: {
+          total_sales: parseFloat(totals.total_sales) || 0,
+          total_revenue: parseFloat(totals.total_revenue) || 0,
+          total_quantity: parseInt(totals.total_quantity) || 0,
+          total_orders: parseInt(totals.total_orders) || 0,
+          total_discounts: parseFloat(totals.total_discounts) || 0,
+          total_adjustments: parseFloat(totals.total_adjustments) || 0,
+          reports_count: parseInt(totals.reports_count) || 0,
+          stores_count: parseInt(totals.stores_count) || 0,
+          days_count: parseInt(totals.days_count) || 0,
+        },
+        stores_breakdown: storesBreakdown.map((s: any) => ({
+          store_id: s.store_id,
+          store_name: s.store_name,
+          store_code: s.store_code,
+          total_sales: parseFloat(s.total_sales) || 0,
+          total_revenue: parseFloat(s.total_revenue) || 0,
+          total_orders: parseInt(s.total_orders) || 0,
+          reports_count: parseInt(s.reports_count) || 0,
+        })),
+      };
     });
   }
 
   /**
    * Consolidar todas las compañías (global)
    *
-   * MULTI-TENANT: Usa withSchema() + createTenantQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
    *
    * @param dateFrom - Fecha inicio
    * @param dateTo - Fecha fin
@@ -800,60 +811,62 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   }> {
     return this.withSchema(async () => {
       // Totales globales
-      const totals = await this.createTenantQueryBuilder('report')
-      .leftJoin('report.store', 'store')
-      .leftJoin('store.company', 'company')
-      .select('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
-      .addSelect('COALESCE(SUM(report.total_revenue), 0)', 'total_revenue')
-      .addSelect('COALESCE(SUM(report.total_quantity), 0)', 'total_quantity')
-      .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
-      .addSelect('COALESCE(SUM(report.total_discounts), 0)', 'total_discounts')
-      .addSelect('COALESCE(SUM(report.total_adjustments), 0)', 'total_adjustments')
-      .addSelect('COUNT(*)', 'reports_count')
-      .addSelect('COUNT(DISTINCT store.id)', 'stores_count')
-      .addSelect('COUNT(DISTINCT company.id)', 'companies_count')
-      .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo })
-      .getRawOne();
+      const totals = await this.repository
+        .createQueryBuilder('report')
+        .leftJoin('report.store', 'store')
+        .leftJoin('store.company', 'company')
+        .select('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
+        .addSelect('COALESCE(SUM(report.total_revenue), 0)', 'total_revenue')
+        .addSelect('COALESCE(SUM(report.total_quantity), 0)', 'total_quantity')
+        .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
+        .addSelect('COALESCE(SUM(report.total_discounts), 0)', 'total_discounts')
+        .addSelect('COALESCE(SUM(report.total_adjustments), 0)', 'total_adjustments')
+        .addSelect('COUNT(*)', 'reports_count')
+        .addSelect('COUNT(DISTINCT store.id)', 'stores_count')
+        .addSelect('COUNT(DISTINCT company.id)', 'companies_count')
+        .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo })
+        .getRawOne();
 
       // Desglose por compañía
-      const companiesBreakdown = await this.createTenantQueryBuilder('report')
-      .leftJoin('report.store', 'store')
-      .leftJoin('store.company', 'company')
-      .select('company.id', 'company_id')
-      .addSelect('company.name', 'company_name')
-      .addSelect('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
-      .addSelect('COALESCE(SUM(report.total_revenue), 0)', 'total_revenue')
-      .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
-      .addSelect('COUNT(DISTINCT store.id)', 'stores_count')
-      .addSelect('COUNT(*)', 'reports_count')
-      .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo })
-      .groupBy('company.id')
-      .addGroupBy('company.name')
-      .orderBy('total_sales', 'DESC')
-      .getRawMany();
+      const companiesBreakdown = await this.repository
+        .createQueryBuilder('report')
+        .leftJoin('report.store', 'store')
+        .leftJoin('store.company', 'company')
+        .select('company.id', 'company_id')
+        .addSelect('company.name', 'company_name')
+        .addSelect('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
+        .addSelect('COALESCE(SUM(report.total_revenue), 0)', 'total_revenue')
+        .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
+        .addSelect('COUNT(DISTINCT store.id)', 'stores_count')
+        .addSelect('COUNT(*)', 'reports_count')
+        .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo })
+        .groupBy('company.id')
+        .addGroupBy('company.name')
+        .orderBy('total_sales', 'DESC')
+        .getRawMany();
 
-    return {
-      totals: {
-        total_sales: parseFloat(totals.total_sales) || 0,
-        total_revenue: parseFloat(totals.total_revenue) || 0,
-        total_quantity: parseInt(totals.total_quantity) || 0,
-        total_orders: parseInt(totals.total_orders) || 0,
-        total_discounts: parseFloat(totals.total_discounts) || 0,
-        total_adjustments: parseFloat(totals.total_adjustments) || 0,
-        reports_count: parseInt(totals.reports_count) || 0,
-        stores_count: parseInt(totals.stores_count) || 0,
-        companies_count: parseInt(totals.companies_count) || 0,
-      },
-      companies_breakdown: companiesBreakdown.map((c) => ({
-        company_id: c.company_id,
-        company_name: c.company_name,
-        total_sales: parseFloat(c.total_sales) || 0,
-        total_revenue: parseFloat(c.total_revenue) || 0,
-        total_orders: parseInt(c.total_orders) || 0,
-        stores_count: parseInt(c.stores_count) || 0,
-        reports_count: parseInt(c.reports_count) || 0,
-      })),
-    };
+      return {
+        totals: {
+          total_sales: parseFloat(totals.total_sales) || 0,
+          total_revenue: parseFloat(totals.total_revenue) || 0,
+          total_quantity: parseInt(totals.total_quantity) || 0,
+          total_orders: parseInt(totals.total_orders) || 0,
+          total_discounts: parseFloat(totals.total_discounts) || 0,
+          total_adjustments: parseFloat(totals.total_adjustments) || 0,
+          reports_count: parseInt(totals.reports_count) || 0,
+          stores_count: parseInt(totals.stores_count) || 0,
+          companies_count: parseInt(totals.companies_count) || 0,
+        },
+        companies_breakdown: companiesBreakdown.map((c: any) => ({
+          company_id: c.company_id,
+          company_name: c.company_name,
+          total_sales: parseFloat(c.total_sales) || 0,
+          total_revenue: parseFloat(c.total_revenue) || 0,
+          total_orders: parseInt(c.total_orders) || 0,
+          stores_count: parseInt(c.stores_count) || 0,
+          reports_count: parseInt(c.reports_count) || 0,
+        })),
+      };
     });
   }
 
@@ -882,31 +895,31 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   > {
     return this.withSchema(async () => {
       const qb = this.createSalesOrderTypeQB('sot')
-      .leftJoin('sot.report_header', 'report')
-      .select('sot.order_type', 'order_type')
-      .addSelect('COALESCE(SUM(sot.total_sales), 0)', 'total_sales')
-      .addSelect('COALESCE(SUM(sot.orders_count), 0)', 'total_orders')
-      .addSelect('COALESCE(SUM(sot.quantity), 0)', 'total_quantity')
-      .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
+        .leftJoin('sot.report_header', 'report')
+        .select('sot.order_type', 'order_type')
+        .addSelect('COALESCE(SUM(sot.total_sales), 0)', 'total_sales')
+        .addSelect('COALESCE(SUM(sot.orders_count), 0)', 'total_orders')
+        .addSelect('COALESCE(SUM(sot.quantity), 0)', 'total_quantity')
+        .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
 
-    if (storeIds.length > 0) {
-      qb.andWhere('report.store_id IN (:...storeIds)', { storeIds });
-    }
+      if (storeIds.length > 0) {
+        qb.andWhere('report.store_id IN (:...storeIds)', { storeIds });
+      }
 
-    qb.groupBy('sot.order_type').orderBy('total_sales', 'DESC');
+      qb.groupBy('sot.order_type').orderBy('total_sales', 'DESC');
 
-    const results = await qb.getRawMany();
+      const results = await qb.getRawMany();
 
-    // Calcular total para porcentajes
-    const totalSales = results.reduce((sum, r) => sum + parseFloat(r.total_sales), 0);
+      // Calcular total para porcentajes
+      const totalSales = results.reduce((sum, r) => sum + parseFloat(r.total_sales), 0);
 
-    return results.map((r) => ({
-      order_type: r.order_type,
-      total_sales: parseFloat(r.total_sales) || 0,
-      total_orders: parseInt(r.total_orders) || 0,
-      total_quantity: parseInt(r.total_quantity) || 0,
-      percentage_of_total: totalSales > 0 ? (parseFloat(r.total_sales) / totalSales) * 100 : 0,
-    }));
+      return results.map((r) => ({
+        order_type: r.order_type,
+        total_sales: parseFloat(r.total_sales) || 0,
+        total_orders: parseInt(r.total_orders) || 0,
+        total_quantity: parseInt(r.total_quantity) || 0,
+        percentage_of_total: totalSales > 0 ? (parseFloat(r.total_sales) / totalSales) * 100 : 0,
+      }));
     });
   }
 
@@ -934,36 +947,36 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   > {
     return this.withSchema(async () => {
       const qb = this.createPaymentMethodQB('pm')
-      .leftJoin('pm.report_header', 'report')
-      .select('pm.payment_method', 'payment_method')
-      .addSelect('COALESCE(SUM(pm.total_amount), 0)', 'total_amount')
-      .addSelect('COALESCE(SUM(pm.transactions_count), 0)', 'transactions_count')
-      .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
+        .leftJoin('pm.report_header', 'report')
+        .select('pm.payment_method', 'payment_method')
+        .addSelect('COALESCE(SUM(pm.total_amount), 0)', 'total_amount')
+        .addSelect('COALESCE(SUM(pm.transactions_count), 0)', 'transactions_count')
+        .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
 
-    if (storeIds.length > 0) {
-      qb.andWhere('report.store_id IN (:...storeIds)', { storeIds });
-    }
+      if (storeIds.length > 0) {
+        qb.andWhere('report.store_id IN (:...storeIds)', { storeIds });
+      }
 
-    qb.groupBy('pm.payment_method').orderBy('total_amount', 'DESC');
+      qb.groupBy('pm.payment_method').orderBy('total_amount', 'DESC');
 
-    const results = await qb.getRawMany();
+      const results = await qb.getRawMany();
 
-    // Calcular total para porcentajes
-    const totalAmount = results.reduce((sum, r) => sum + parseFloat(r.total_amount), 0);
+      // Calcular total para porcentajes
+      const totalAmount = results.reduce((sum, r) => sum + parseFloat(r.total_amount), 0);
 
-    return results.map((r) => ({
-      payment_method: r.payment_method,
-      total_amount: parseFloat(r.total_amount) || 0,
-      transactions_count: parseInt(r.transactions_count) || 0,
-      percentage_of_total: totalAmount > 0 ? (parseFloat(r.total_amount) / totalAmount) * 100 : 0,
+      return results.map((r) => ({
+        payment_method: r.payment_method,
+        total_amount: parseFloat(r.total_amount) || 0,
+        transactions_count: parseInt(r.transactions_count) || 0,
+        percentage_of_total: totalAmount > 0 ? (parseFloat(r.total_amount) / totalAmount) * 100 : 0,
       }));
-        });
+    });
   }
 
   /**
    * Obtener desglose diario
    *
-   * MULTI-TENANT: Usa withSchema() + createTenantQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
    *
    * @param storeIds - Array de IDs de tiendas
    * @param dateFrom - Fecha inicio
@@ -985,32 +998,33 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
     }>
   > {
     return this.withSchema(async () => {
-      const qb = this.createTenantQueryBuilder('report')
-      .select('report.report_date', 'date')
-      .addSelect('EXTRACT(DOW FROM report.report_date)', 'day_of_week')
-      .addSelect('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
-      .addSelect('COALESCE(SUM(report.total_revenue), 0)', 'total_revenue')
-      .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
-      .addSelect('COUNT(DISTINCT report.store_id)', 'stores_reported')
-      .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
+      const qb = this.repository
+        .createQueryBuilder('report')
+        .select('report.report_date', 'date')
+        .addSelect('EXTRACT(DOW FROM report.report_date)', 'day_of_week')
+        .addSelect('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
+        .addSelect('COALESCE(SUM(report.total_revenue), 0)', 'total_revenue')
+        .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
+        .addSelect('COUNT(DISTINCT report.store_id)', 'stores_reported')
+        .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
 
-    if (storeIds.length > 0) {
-      qb.andWhere('report.store_id IN (:...storeIds)', { storeIds });
-    }
+      if (storeIds.length > 0) {
+        qb.andWhere('report.store_id IN (:...storeIds)', { storeIds });
+      }
 
-    qb.groupBy('report.report_date').orderBy('report.report_date', 'ASC');
+      qb.groupBy('report.report_date').orderBy('report.report_date', 'ASC');
 
-    const results = await qb.getRawMany();
+      const results = await qb.getRawMany();
 
-    return results.map((r) => ({
-      date: r.date,
-      day_of_week: parseInt(r.day_of_week),
-      total_sales: parseFloat(r.total_sales) || 0,
-      total_revenue: parseFloat(r.total_revenue) || 0,
-      total_orders: parseInt(r.total_orders) || 0,
-      stores_reported: parseInt(r.stores_reported) || 0,
+      return results.map((r) => ({
+        date: r.date,
+        day_of_week: parseInt(r.day_of_week),
+        total_sales: parseFloat(r.total_sales) || 0,
+        total_revenue: parseFloat(r.total_revenue) || 0,
+        total_orders: parseInt(r.total_orders) || 0,
+        stores_reported: parseInt(r.stores_reported) || 0,
       }));
-        });
+    });
   }
 
   // ============================================
@@ -1020,7 +1034,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Ranking de tiendas por métrica
    *
-   * MULTI-TENANT: Usa withSchema() + createTenantQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
    */
   async getRankingByStores(dto: RankingStoresDto): Promise<
     Array<{
@@ -1043,94 +1057,95 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
       const metricColumn = this.getMetricColumn(dto.metric);
       const sortDirection = dto.direction === RankingDirectionEnum.BOTTOM ? 'ASC' : 'DESC';
 
-      const qb = this.createTenantQueryBuilder('report')
-      .leftJoin('report.store', 'store')
-      .leftJoin('store.company', 'company')
-      .select('store.id', 'store_id')
-      .addSelect('store.nombre', 'store_name')
-      .addSelect('store.codigo', 'store_code')
-      .addSelect('store.ciudad', 'store_city')
-      .addSelect('company.id', 'company_id')
-      .addSelect('company.name', 'company_name')
-      .addSelect('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
-      .addSelect('COALESCE(SUM(report.total_revenue), 0)', 'total_revenue')
-      .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
-      .addSelect('COUNT(*)', 'reports_count')
-      .where('report.report_date BETWEEN :dateFrom AND :dateTo', {
-        dateFrom: dto.date_from,
-        dateTo: dto.date_to,
-      });
+      const qb = this.repository
+        .createQueryBuilder('report')
+        .leftJoin('report.store', 'store')
+        .leftJoin('store.company', 'company')
+        .select('store.id', 'store_id')
+        .addSelect('store.nombre', 'store_name')
+        .addSelect('store.codigo', 'store_code')
+        .addSelect('store.ciudad', 'store_city')
+        .addSelect('company.id', 'company_id')
+        .addSelect('company.name', 'company_name')
+        .addSelect('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
+        .addSelect('COALESCE(SUM(report.total_revenue), 0)', 'total_revenue')
+        .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
+        .addSelect('COUNT(*)', 'reports_count')
+        .where('report.report_date BETWEEN :dateFrom AND :dateTo', {
+          dateFrom: dto.date_from,
+          dateTo: dto.date_to,
+        });
 
-    if (dto.company_id) {
-      qb.andWhere('store.company_id = :companyId', { companyId: dto.company_id });
-    }
-
-    if (dto.report_type) {
-      qb.andWhere('report.report_type = :reportType', { reportType: dto.report_type });
-    }
-
-    if (dto.only_active !== false) {
-      qb.andWhere('store.activo = :activo', { activo: true });
-      qb.andWhere('store.deleted_at IS NULL');
-    }
-
-    qb.groupBy('store.id')
-      .addGroupBy('store.nombre')
-      .addGroupBy('store.codigo')
-      .addGroupBy('store.ciudad')
-      .addGroupBy('company.id')
-      .addGroupBy('company.name')
-      .orderBy(metricColumn, sortDirection)
-      .limit(dto.limit || 10);
-
-    const results = await qb.getRawMany();
-
-    return results.map((r, index) => {
-      const totalSales = parseFloat(r.total_sales) || 0;
-      const totalOrders = parseInt(r.total_orders) || 0;
-      const averageTicket = totalOrders > 0 ? totalSales / totalOrders : 0;
-
-      let metricValue: number;
-      switch (dto.metric) {
-        case RankingMetricEnum.TOTAL_SALES:
-          metricValue = totalSales;
-          break;
-        case RankingMetricEnum.TOTAL_REVENUE:
-          metricValue = parseFloat(r.total_revenue) || 0;
-          break;
-        case RankingMetricEnum.ORDERS_COUNT:
-          metricValue = totalOrders;
-          break;
-        case RankingMetricEnum.AVERAGE_TICKET:
-          metricValue = averageTicket;
-          break;
-        default:
-          metricValue = totalSales;
+      if (dto.company_id) {
+        qb.andWhere('store.company_id = :companyId', { companyId: dto.company_id });
       }
 
-      return {
-        position: index + 1,
-        store_id: r.store_id,
-        store_name: r.store_name,
-        store_code: r.store_code,
-        store_city: r.store_city,
-        company_id: r.company_id,
-        company_name: r.company_name,
-        metric_value: metricValue,
-        total_sales: totalSales,
-        total_revenue: parseFloat(r.total_revenue) || 0,
-        total_orders: totalOrders,
-        average_ticket: averageTicket,
-        reports_count: parseInt(r.reports_count) || 0,
-      };
-    });
+      if (dto.report_type) {
+        qb.andWhere('report.report_type = :reportType', { reportType: dto.report_type });
+      }
+
+      if (dto.only_active !== false) {
+        qb.andWhere('store.activo = :activo', { activo: true });
+        qb.andWhere('store.deleted_at IS NULL');
+      }
+
+      qb.groupBy('store.id')
+        .addGroupBy('store.nombre')
+        .addGroupBy('store.codigo')
+        .addGroupBy('store.ciudad')
+        .addGroupBy('company.id')
+        .addGroupBy('company.name')
+        .orderBy(metricColumn, sortDirection)
+        .limit(dto.limit || 10);
+
+      const results = await qb.getRawMany();
+
+      return results.map((r: any, index: number) => {
+        const totalSales = parseFloat(r.total_sales) || 0;
+        const totalOrders = parseInt(r.total_orders) || 0;
+        const averageTicket = totalOrders > 0 ? totalSales / totalOrders : 0;
+
+        let metricValue: number;
+        switch (dto.metric) {
+          case RankingMetricEnum.TOTAL_SALES:
+            metricValue = totalSales;
+            break;
+          case RankingMetricEnum.TOTAL_REVENUE:
+            metricValue = parseFloat(r.total_revenue) || 0;
+            break;
+          case RankingMetricEnum.ORDERS_COUNT:
+            metricValue = totalOrders;
+            break;
+          case RankingMetricEnum.AVERAGE_TICKET:
+            metricValue = averageTicket;
+            break;
+          default:
+            metricValue = totalSales;
+        }
+
+        return {
+          position: index + 1,
+          store_id: r.store_id,
+          store_name: r.store_name,
+          store_code: r.store_code,
+          store_city: r.store_city,
+          company_id: r.company_id,
+          company_name: r.company_name,
+          metric_value: metricValue,
+          total_sales: totalSales,
+          total_revenue: parseFloat(r.total_revenue) || 0,
+          total_orders: totalOrders,
+          average_ticket: averageTicket,
+          reports_count: parseInt(r.reports_count) || 0,
+        };
+      });
     });
   }
 
   /**
    * Ranking de compañías por métrica
    *
-   * MULTI-TENANT: Usa withSchema() + createTenantQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
    */
   async getRankingByCompanies(
     dateFrom: string,
@@ -1155,57 +1170,58 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
       const metricColumn = this.getMetricColumn(metric);
       const sortDirection = direction === RankingDirectionEnum.BOTTOM ? 'ASC' : 'DESC';
 
-      const results = await this.createTenantQueryBuilder('report')
-      .leftJoin('report.store', 'store')
-      .leftJoin('store.company', 'company')
-      .select('company.id', 'company_id')
-      .addSelect('company.name', 'company_name')
-      .addSelect('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
-      .addSelect('COALESCE(SUM(report.total_revenue), 0)', 'total_revenue')
-      .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
-      .addSelect('COUNT(DISTINCT store.id)', 'stores_count')
-      .addSelect('COUNT(*)', 'reports_count')
-      .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo })
-      .groupBy('company.id')
-      .addGroupBy('company.name')
-      .orderBy(metricColumn, sortDirection)
-      .limit(limit)
-      .getRawMany();
+      const results = await this.repository
+        .createQueryBuilder('report')
+        .leftJoin('report.store', 'store')
+        .leftJoin('store.company', 'company')
+        .select('company.id', 'company_id')
+        .addSelect('company.name', 'company_name')
+        .addSelect('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
+        .addSelect('COALESCE(SUM(report.total_revenue), 0)', 'total_revenue')
+        .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
+        .addSelect('COUNT(DISTINCT store.id)', 'stores_count')
+        .addSelect('COUNT(*)', 'reports_count')
+        .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo })
+        .groupBy('company.id')
+        .addGroupBy('company.name')
+        .orderBy(metricColumn, sortDirection)
+        .limit(limit)
+        .getRawMany();
 
-    return results.map((r, index) => {
-      const totalSales = parseFloat(r.total_sales) || 0;
-      const totalOrders = parseInt(r.total_orders) || 0;
+      return results.map((r: any, index: number) => {
+        const totalSales = parseFloat(r.total_sales) || 0;
+        const totalOrders = parseInt(r.total_orders) || 0;
 
-      let metricValue: number;
-      switch (metric) {
-        case RankingMetricEnum.TOTAL_SALES:
-          metricValue = totalSales;
-          break;
-        case RankingMetricEnum.TOTAL_REVENUE:
-          metricValue = parseFloat(r.total_revenue) || 0;
-          break;
-        case RankingMetricEnum.ORDERS_COUNT:
-          metricValue = totalOrders;
-          break;
-        case RankingMetricEnum.AVERAGE_TICKET:
-          metricValue = totalOrders > 0 ? totalSales / totalOrders : 0;
-          break;
-        default:
-          metricValue = totalSales;
-      }
+        let metricValue: number;
+        switch (metric) {
+          case RankingMetricEnum.TOTAL_SALES:
+            metricValue = totalSales;
+            break;
+          case RankingMetricEnum.TOTAL_REVENUE:
+            metricValue = parseFloat(r.total_revenue) || 0;
+            break;
+          case RankingMetricEnum.ORDERS_COUNT:
+            metricValue = totalOrders;
+            break;
+          case RankingMetricEnum.AVERAGE_TICKET:
+            metricValue = totalOrders > 0 ? totalSales / totalOrders : 0;
+            break;
+          default:
+            metricValue = totalSales;
+        }
 
-      return {
-        position: index + 1,
-        company_id: r.company_id,
-        company_name: r.company_name,
-        metric_value: metricValue,
-        total_sales: totalSales,
-        total_revenue: parseFloat(r.total_revenue) || 0,
-        total_orders: totalOrders,
-        stores_count: parseInt(r.stores_count) || 0,
-        reports_count: parseInt(r.reports_count) || 0,
-      };
-    });
+        return {
+          position: index + 1,
+          company_id: r.company_id,
+          company_name: r.company_name,
+          metric_value: metricValue,
+          total_sales: totalSales,
+          total_revenue: parseFloat(r.total_revenue) || 0,
+          total_orders: totalOrders,
+          stores_count: parseInt(r.stores_count) || 0,
+          reports_count: parseInt(r.reports_count) || 0,
+        };
+      });
     });
   }
 
@@ -1231,7 +1247,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Comparar tiendas
    *
-   * MULTI-TENANT: Usa withSchema() + createTenantQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
    */
   async compareStores(
     storeIds: string[],
@@ -1250,41 +1266,42 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
     }>
   > {
     return this.withSchema(async () => {
-      const results = await this.createTenantQueryBuilder('report')
-      .leftJoin('report.store', 'store')
-      .select('store.id', 'store_id')
-      .addSelect('store.nombre', 'store_name')
-      .addSelect('store.codigo', 'store_code')
-      .addSelect('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
-      .addSelect('COALESCE(SUM(report.total_revenue), 0)', 'total_revenue')
-      .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
-      .addSelect('COUNT(*)', 'reports_count')
-      .where('report.store_id IN (:...storeIds)', { storeIds })
-      .andWhere('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo })
-      .groupBy('store.id')
-      .addGroupBy('store.nombre')
-      .addGroupBy('store.codigo')
-      .orderBy('total_sales', 'DESC')
-      .getRawMany();
+      const results = await this.repository
+        .createQueryBuilder('report')
+        .leftJoin('report.store', 'store')
+        .select('store.id', 'store_id')
+        .addSelect('store.nombre', 'store_name')
+        .addSelect('store.codigo', 'store_code')
+        .addSelect('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
+        .addSelect('COALESCE(SUM(report.total_revenue), 0)', 'total_revenue')
+        .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
+        .addSelect('COUNT(*)', 'reports_count')
+        .where('report.store_id IN (:...storeIds)', { storeIds })
+        .andWhere('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo })
+        .groupBy('store.id')
+        .addGroupBy('store.nombre')
+        .addGroupBy('store.codigo')
+        .orderBy('total_sales', 'DESC')
+        .getRawMany();
 
-    return results.map((r) => ({
-      store_id: r.store_id,
-      store_name: r.store_name,
-      store_code: r.store_code,
-      total_sales: parseFloat(r.total_sales) || 0,
-      total_revenue: parseFloat(r.total_revenue) || 0,
-      total_orders: parseInt(r.total_orders) || 0,
-      average_ticket:
-        parseInt(r.total_orders) > 0 ? parseFloat(r.total_sales) / parseInt(r.total_orders) : 0,
-      reports_count: parseInt(r.reports_count) || 0,
-    }));
+      return results.map((r: any) => ({
+        store_id: r.store_id,
+        store_name: r.store_name,
+        store_code: r.store_code,
+        total_sales: parseFloat(r.total_sales) || 0,
+        total_revenue: parseFloat(r.total_revenue) || 0,
+        total_orders: parseInt(r.total_orders) || 0,
+        average_ticket:
+          parseInt(r.total_orders) > 0 ? parseFloat(r.total_sales) / parseInt(r.total_orders) : 0,
+        reports_count: parseInt(r.reports_count) || 0,
+      }));
     });
   }
 
   /**
    * Comparar períodos
    *
-   * MULTI-TENANT: Usa withSchema() + createTenantQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
    */
   async comparePeriods(
     storeIds: string[],
@@ -1308,44 +1325,45 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   }> {
     return this.withSchema(async () => {
       const buildQuery = (dateFrom: string, dateTo: string) => {
-        const qb = this.createTenantQueryBuilder('report')
-        .select('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
-        .addSelect('COALESCE(SUM(report.total_revenue), 0)', 'total_revenue')
-        .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
-        .addSelect('COUNT(*)', 'reports_count')
-        .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
+        const qb = this.repository
+          .createQueryBuilder('report')
+          .select('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
+          .addSelect('COALESCE(SUM(report.total_revenue), 0)', 'total_revenue')
+          .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
+          .addSelect('COUNT(*)', 'reports_count')
+          .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
 
-      if (storeIds.length > 0) {
-        qb.andWhere('report.store_id IN (:...storeIds)', { storeIds });
-      }
-      return qb;
-    };
-
-    const [currentResult, previousResult] = await Promise.all([
-      buildQuery(currentPeriod.dateFrom, currentPeriod.dateTo).getRawOne(),
-      buildQuery(previousPeriod.dateFrom, previousPeriod.dateTo).getRawOne(),
-    ]);
-
-    const parseMetrics = (result: any) => {
-      const totalSales = parseFloat(result.total_sales) || 0;
-      const totalOrders = parseInt(result.total_orders) || 0;
-      return {
-        total_sales: totalSales,
-        total_revenue: parseFloat(result.total_revenue) || 0,
-        total_orders: totalOrders,
-        average_ticket: totalOrders > 0 ? totalSales / totalOrders : 0,
-        reports_count: parseInt(result.reports_count) || 0,
+        if (storeIds.length > 0) {
+          qb.andWhere('report.store_id IN (:...storeIds)', { storeIds });
+        }
+        return qb;
       };
-    };
 
-    return { current: parseMetrics(currentResult), previous: parseMetrics(previousResult) };
+      const [currentResult, previousResult] = await Promise.all([
+        buildQuery(currentPeriod.dateFrom, currentPeriod.dateTo).getRawOne(),
+        buildQuery(previousPeriod.dateFrom, previousPeriod.dateTo).getRawOne(),
+      ]);
+
+      const parseMetrics = (result: any) => {
+        const totalSales = parseFloat(result.total_sales) || 0;
+        const totalOrders = parseInt(result.total_orders) || 0;
+        return {
+          total_sales: totalSales,
+          total_revenue: parseFloat(result.total_revenue) || 0,
+          total_orders: totalOrders,
+          average_ticket: totalOrders > 0 ? totalSales / totalOrders : 0,
+          reports_count: parseInt(result.reports_count) || 0,
+        };
+      };
+
+      return { current: parseMetrics(currentResult), previous: parseMetrics(previousResult) };
     });
   }
 
   /**
    * Comparar por día de la semana
    *
-   * MULTI-TENANT: Usa withSchema() + createTenantQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
    */
   async compareByDayOfWeek(
     storeIds: string[],
@@ -1364,33 +1382,34 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
     return this.withSchema(async () => {
       const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
-      const qb = this.createTenantQueryBuilder('report')
-      .select('EXTRACT(DOW FROM report.report_date)', 'day_of_week')
-      .addSelect('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
-      .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
-      .addSelect('COUNT(DISTINCT report.report_date)', 'occurrences')
-      .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
+      const qb = this.repository
+        .createQueryBuilder('report')
+        .select('EXTRACT(DOW FROM report.report_date)', 'day_of_week')
+        .addSelect('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
+        .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
+        .addSelect('COUNT(DISTINCT report.report_date)', 'occurrences')
+        .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
 
-    if (storeIds.length > 0) {
-      qb.andWhere('report.store_id IN (:...storeIds)', { storeIds });
-    }
+      if (storeIds.length > 0) {
+        qb.andWhere('report.store_id IN (:...storeIds)', { storeIds });
+      }
 
-    qb.groupBy('EXTRACT(DOW FROM report.report_date)').orderBy('day_of_week', 'ASC');
-    const results = await qb.getRawMany();
+      qb.groupBy('EXTRACT(DOW FROM report.report_date)').orderBy('day_of_week', 'ASC');
+      const results = await qb.getRawMany();
 
-    return results.map((r) => {
-      const dayOfWeek = parseInt(r.day_of_week);
-      const totalSales = parseFloat(r.total_sales) || 0;
-      const occurrences = parseInt(r.occurrences) || 1;
-      return {
-        day_of_week: dayOfWeek,
-        day_name: dayNames[dayOfWeek],
-        total_sales: totalSales,
-        total_orders: parseInt(r.total_orders) || 0,
-        average_sales: totalSales / occurrences,
-        occurrences,
-      };
-    });
+      return results.map((r: any) => {
+        const dayOfWeek = parseInt(r.day_of_week);
+        const totalSales = parseFloat(r.total_sales) || 0;
+        const occurrences = parseInt(r.occurrences) || 1;
+        return {
+          day_of_week: dayOfWeek,
+          day_name: dayNames[dayOfWeek],
+          total_sales: totalSales,
+          total_orders: parseInt(r.total_orders) || 0,
+          average_sales: totalSales / occurrences,
+          occurrences,
+        };
+      });
     });
   }
 
@@ -1401,7 +1420,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Estadísticas globales
    *
-   * MULTI-TENANT: Usa withSchema() + createTenantQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
    */
   async getGlobalStats(): Promise<{
     total_reports: number;
@@ -1420,40 +1439,45 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
 
       const [total, reportsToday, reportsThisWeek, reportsThisMonth, stores, companies] =
         await Promise.all([
-          this.createTenantQueryBuilder('report').getCount(),
-          this.createTenantQueryBuilder('report')
+          this.repository.createQueryBuilder('report').getCount(),
+          this.repository
+            .createQueryBuilder('report')
             .where('report.report_date = :today', { today })
             .getCount(),
-          this.createTenantQueryBuilder('report')
+          this.repository
+            .createQueryBuilder('report')
             .where('report.report_date >= :weekAgo', { weekAgo })
             .getCount(),
-          this.createTenantQueryBuilder('report')
+          this.repository
+            .createQueryBuilder('report')
             .where('report.report_date >= :monthStart', { monthStart })
             .getCount(),
-          this.createTenantQueryBuilder('report')
+          this.repository
+            .createQueryBuilder('report')
             .select('COUNT(DISTINCT report.store_id)', 'count')
             .getRawOne(),
-          this.createTenantQueryBuilder('report')
-          .leftJoin('report.store', 'store')
-          .select('COUNT(DISTINCT store.company_id)', 'count')
-          .getRawOne(),
-      ]);
+          this.repository
+            .createQueryBuilder('report')
+            .leftJoin('report.store', 'store')
+            .select('COUNT(DISTINCT store.company_id)', 'count')
+            .getRawOne(),
+        ]);
 
-    return {
-      total_reports: total,
-      reports_today: reportsToday,
-      reports_this_week: reportsThisWeek,
-      reports_this_month: reportsThisMonth,
-      stores_with_reports: parseInt(stores?.count) || 0,
-      companies_with_reports: parseInt(companies?.count) || 0,
-    };
+      return {
+        total_reports: total,
+        reports_today: reportsToday,
+        reports_this_week: reportsThisWeek,
+        reports_this_month: reportsThisMonth,
+        stores_with_reports: parseInt(stores?.count) || 0,
+        companies_with_reports: parseInt(companies?.count) || 0,
+      };
     });
   }
 
   /**
    * Estadísticas de período
    *
-   * MULTI-TENANT: Usa withSchema() + createTenantQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
    */
   async getPeriodStats(
     dateFrom: string,
@@ -1472,45 +1496,48 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
     average_daily_sales: number;
   }> {
     return this.withSchema(async () => {
-      const qb = this.createTenantQueryBuilder('report')
-      .select('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
-      .addSelect('COALESCE(SUM(report.total_revenue), 0)', 'total_revenue')
-      .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
-      .addSelect('COALESCE(SUM(report.total_discounts), 0)', 'total_discounts')
-      .addSelect('COALESCE(SUM(report.total_adjustments), 0)', 'total_adjustments')
-      .addSelect('COUNT(*)', 'reports_count')
-      .addSelect('COUNT(DISTINCT report.store_id)', 'stores_count')
-      .addSelect('COUNT(DISTINCT report.report_date)', 'days_with_reports')
-      .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
+      const qb = this.repository
+        .createQueryBuilder('report')
+        .select('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
+        .addSelect('COALESCE(SUM(report.total_revenue), 0)', 'total_revenue')
+        .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
+        .addSelect('COALESCE(SUM(report.total_discounts), 0)', 'total_discounts')
+        .addSelect('COALESCE(SUM(report.total_adjustments), 0)', 'total_adjustments')
+        .addSelect('COUNT(*)', 'reports_count')
+        .addSelect('COUNT(DISTINCT report.store_id)', 'stores_count')
+        .addSelect('COUNT(DISTINCT report.report_date)', 'days_with_reports')
+        .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
 
-    if (companyId) {
-      qb.leftJoin('report.store', 'store').andWhere('store.company_id = :companyId', { companyId });
-    }
+      if (companyId) {
+        qb.leftJoin('report.store', 'store').andWhere('store.company_id = :companyId', {
+          companyId,
+        });
+      }
 
-    const result = await qb.getRawOne();
-    const totalSales = parseFloat(result.total_sales) || 0;
-    const totalOrders = parseInt(result.total_orders) || 0;
-    const daysWithReports = parseInt(result.days_with_reports) || 1;
+      const result = await qb.getRawOne();
+      const totalSales = parseFloat(result.total_sales) || 0;
+      const totalOrders = parseInt(result.total_orders) || 0;
+      const daysWithReports = parseInt(result.days_with_reports) || 1;
 
-    return {
-      total_sales: totalSales,
-      total_revenue: parseFloat(result.total_revenue) || 0,
-      total_orders: totalOrders,
-      average_ticket: totalOrders > 0 ? totalSales / totalOrders : 0,
-      total_discounts: parseFloat(result.total_discounts) || 0,
-      total_adjustments: parseFloat(result.total_adjustments) || 0,
-      reports_count: parseInt(result.reports_count) || 0,
-      stores_count: parseInt(result.stores_count) || 0,
-      days_with_reports: daysWithReports,
-      average_daily_sales: totalSales / daysWithReports,
-    };
+      return {
+        total_sales: totalSales,
+        total_revenue: parseFloat(result.total_revenue) || 0,
+        total_orders: totalOrders,
+        average_ticket: totalOrders > 0 ? totalSales / totalOrders : 0,
+        total_discounts: parseFloat(result.total_discounts) || 0,
+        total_adjustments: parseFloat(result.total_adjustments) || 0,
+        reports_count: parseInt(result.reports_count) || 0,
+        stores_count: parseInt(result.stores_count) || 0,
+        days_with_reports: daysWithReports,
+        average_daily_sales: totalSales / daysWithReports,
+      };
     });
   }
 
   /**
    * Tendencias temporales
    *
-   * MULTI-TENANT: Usa withSchema() + createTenantQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
    */
   async getTrends(
     storeIds: string[],
@@ -1544,31 +1571,32 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
           groupByClause = 'report.report_date';
       }
 
-      const qb = this.createTenantQueryBuilder('report')
-      .select(dateSelector, 'period')
-      .addSelect('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
-      .addSelect('COALESCE(SUM(report.total_revenue), 0)', 'total_revenue')
-      .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
-      .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
+      const qb = this.repository
+        .createQueryBuilder('report')
+        .select(dateSelector, 'period')
+        .addSelect('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
+        .addSelect('COALESCE(SUM(report.total_revenue), 0)', 'total_revenue')
+        .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
+        .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
 
-    if (storeIds.length > 0) {
-      qb.andWhere('report.store_id IN (:...storeIds)', { storeIds });
-    }
+      if (storeIds.length > 0) {
+        qb.andWhere('report.store_id IN (:...storeIds)', { storeIds });
+      }
 
-    qb.groupBy(groupByClause).orderBy('period', 'ASC');
-    const results = await qb.getRawMany();
+      qb.groupBy(groupByClause).orderBy('period', 'ASC');
+      const results = await qb.getRawMany();
 
-    return results.map((r) => {
-      const totalSales = parseFloat(r.total_sales) || 0;
-      const totalOrders = parseInt(r.total_orders) || 0;
-      return {
-        period: r.period,
-        total_sales: totalSales,
-        total_revenue: parseFloat(r.total_revenue) || 0,
-        total_orders: totalOrders,
-        average_ticket: totalOrders > 0 ? totalSales / totalOrders : 0,
-      };
-    });
+      return results.map((r: any) => {
+        const totalSales = parseFloat(r.total_sales) || 0;
+        const totalOrders = parseInt(r.total_orders) || 0;
+        return {
+          period: r.period,
+          total_sales: totalSales,
+          total_revenue: parseFloat(r.total_revenue) || 0,
+          total_orders: totalOrders,
+          average_ticket: totalOrders > 0 ? totalSales / totalOrders : 0,
+        };
+      });
     });
   }
 
@@ -1586,7 +1614,10 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
     data: Partial<SalesByOrderTypeEntity>,
   ): Promise<SalesByOrderTypeEntity> {
     return this.withSchemaTransaction(async (manager) => {
-      const entity = manager.create(SalesByOrderTypeEntity, { ...data, report_header_id: reportId });
+      const entity = manager.create(SalesByOrderTypeEntity, {
+        ...data,
+        report_header_id: reportId,
+      });
       return await manager.save(SalesByOrderTypeEntity, entity);
     });
   }
@@ -1745,23 +1776,24 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Contar reportes por estado
    *
-   * MULTI-TENANT: Usa withSchema() + createTenantQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
    */
   async countByStatus(companyId?: string): Promise<Record<string, number>> {
     return this.withSchema(async () => {
-      const qb = this.createTenantQueryBuilder('report')
+      const qb = this.repository
+        .createQueryBuilder('report')
         .select('report.status', 'status')
         .addSelect('COUNT(*)', 'count');
-      
+
       if (companyId) {
         qb.leftJoin('report.store', 'store').where('store.company_id = :companyId', { companyId });
       }
-      
+
       qb.groupBy('report.status');
       const results = await qb.getRawMany();
-      
+
       return results.reduce(
-        (acc, r) => {
+        (acc: any, r: any) => {
           acc[r.status] = parseInt(r.count);
           return acc;
         },

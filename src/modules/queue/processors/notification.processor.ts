@@ -32,22 +32,22 @@ export class NotificationProcessor {
 
     try {
       // Progreso 10%
-      await job.progress(10);
+      await job.updateProgress(10);
       this.logger.debug(`🔔 [${job.id}] Validando destinatario...`);
 
       // Simular validación de destinatario (500ms)
       await this.delay(500);
-      await job.progress(30);
+      await job.updateProgress(30);
 
       // Simular preparación de notificación (1 segundo)
       this.logger.debug(`🔔 [${job.id}] Preparando notificación...`);
       await this.delay(1000);
-      await job.progress(60);
+      await job.updateProgress(60);
 
       // Simular envío (1 segundo)
       this.logger.debug(`🔔 [${job.id}] Enviando notificación...`);
       await this.delay(1000);
-      await job.progress(100);
+      await job.updateProgress(100);
 
       const result = {
         success: true,
@@ -105,7 +105,7 @@ export class NotificationProcessor {
 
         processed++;
         const progress = Math.floor((processed / totalChannels) * 100);
-        await job.progress(progress);
+        await job.updateProgress(progress);
       }
 
       this.logger.log(
@@ -162,7 +162,7 @@ export class NotificationProcessor {
 
         processed++;
         const progress = Math.floor((processed / totalNotifications) * 100);
-        await job.progress(progress);
+        await job.updateProgress(progress);
       }
 
       this.logger.log(

@@ -30,27 +30,27 @@ export class EmailProcessor {
 
     try {
       // Progreso 10%
-      await job.progress(10);
+      await job.updateProgress(10);
       this.logger.debug(`📧 [${job.id}] Validando datos del email...`);
 
       // Simular validación (1 segundo)
       await this.delay(1000);
-      await job.progress(30);
+      await job.updateProgress(30);
 
       // Simular conexión SMTP (2 segundos)
       this.logger.debug(`📧 [${job.id}] Conectando al servidor SMTP...`);
       await this.delay(2000);
-      await job.progress(50);
+      await job.updateProgress(50);
 
       // Simular envío (2 segundos)
       this.logger.debug(`📧 [${job.id}] Enviando email...`);
       await this.delay(2000);
-      await job.progress(80);
+      await job.updateProgress(80);
 
       // Simular confirmación (1 segundo)
       this.logger.debug(`📧 [${job.id}] Confirmando envío...`);
       await this.delay(1000);
-      await job.progress(100);
+      await job.updateProgress(100);
 
       const result = {
         success: true,
@@ -99,7 +99,7 @@ export class EmailProcessor {
 
         processed++;
         const progress = Math.floor((processed / totalEmails) * 100);
-        await job.progress(progress);
+        await job.updateProgress(progress);
       }
 
       this.logger.log(
@@ -137,22 +137,22 @@ export class EmailProcessor {
 
     try {
       // Progreso 10%
-      await job.progress(10);
+      await job.updateProgress(10);
       this.logger.debug(`📧 [${job.id}] Cargando template '${job.data.templateName}'...`);
 
       // Simular carga de template (1 segundo)
       await this.delay(1000);
-      await job.progress(30);
+      await job.updateProgress(30);
 
       // Simular renderizado de template (2 segundos)
       this.logger.debug(`📧 [${job.id}] Renderizando template con datos...`);
       await this.delay(2000);
-      await job.progress(60);
+      await job.updateProgress(60);
 
       // Simular envío (2 segundos)
       this.logger.debug(`📧 [${job.id}] Enviando email...`);
       await this.delay(2000);
-      await job.progress(100);
+      await job.updateProgress(100);
 
       const result = {
         success: true,

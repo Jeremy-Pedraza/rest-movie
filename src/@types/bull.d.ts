@@ -69,11 +69,13 @@ declare module 'bull' {
   }
 
   export interface Job<T = unknown> {
-    id: string;
+    id: string | number;
     name: string;
     data: T;
     opts: JobOptions;
-    progress(): number;
+    progress(): Promise<number>;
+    updateProgress(progress: number | object): Promise<void>;
+    getState(): Promise<JobStatus>;
     log(row: string): Promise<void>;
     update(data: T): Promise<void>;
     remove(): Promise<void>;
@@ -101,6 +103,7 @@ declare module 'bull' {
     name: string;
     token: string;
     keyPrefix: string;
+    client: Redis;
     clients: Redis[];
     opts: QueueOptions;
     
@@ -119,8 +122,15 @@ declare module 'bull' {
     count(): Promise<number>;
     empty(): Promise<void>;
     close(): Promise<void>;
+
+    getWaitingCount(): Promise<number>;
+    getActiveCount(): Promise<number>;
+    getCompletedCount(): Promise<number>;
+    getFailedCount(): Promise<number>;
+    getDelayedCount(): Promise<number>;
+    getPausedCount(): Promise<number>;
     
-    getJob(jobId: string): Promise<Job<T> | null>;
+    getJob(jobId: string | number): Promise<Job<T> | null>;
     getJobs(types: string[], start?: number, end?: number, asc?: boolean): Promise<Job<T>[]>;
     getJobCounts(): Promise<JobCounts>;
     getJobLogs(jobId: string, start?: number, end?: number): Promise<{ logs: string[]; count: number }>;
@@ -128,7 +138,7 @@ declare module 'bull' {
     getRepeatableJobs(start?: number, end?: number, asc?: boolean): Promise<RepeatableJob[]>;
     removeRepeatableByKey(key: string): Promise<void>;
     
-    clean(grace: number, status?: JobStatus, limit?: number): Promise<Job<T>[]>;
+    clean(grace: number, status?: JobStatusClean, limit?: number): Promise<Job<T>[]>;
     obliterate(opts?: { force?: boolean }): Promise<void>;
     
     on(event: 'error', callback: (error: Error) => void): this;
@@ -150,6 +160,7 @@ declare module 'bull' {
   export type DoneCallback = (err?: Error | null, result?: unknown) => void;
   
   export type JobStatus = 'completed' | 'waiting' | 'active' | 'delayed' | 'failed' | 'paused';
+  export type JobStatusClean = 'completed' | 'wait' | 'active' | 'delayed' | 'failed' | 'paused';
 
   export interface JobCounts {
     waiting: number;

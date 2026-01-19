@@ -33,32 +33,32 @@ export class ReportProcessor {
 
     try {
       // Progreso 5%
-      await job.progress(5);
+      await job.updateProgress(5);
       this.logger.debug(`📊 [${job.id}] Validando parámetros del reporte...`);
 
       // Simular validación de parámetros (1 segundo)
       await this.delay(1000);
-      await job.progress(10);
+      await job.updateProgress(10);
 
       // Simular consulta a base de datos (5 segundos)
       this.logger.debug(`📊 [${job.id}] Consultando datos...`);
       await this.delay(5000);
-      await job.progress(40);
+      await job.updateProgress(40);
 
       // Simular procesamiento de datos (5 segundos)
       this.logger.debug(`📊 [${job.id}] Procesando datos del reporte...`);
       await this.delay(5000);
-      await job.progress(70);
+      await job.updateProgress(70);
 
       // Simular generación de documento (3 segundos)
       this.logger.debug(`📊 [${job.id}] Generando documento...`);
       await this.delay(3000);
-      await job.progress(90);
+      await job.updateProgress(90);
 
       // Simular guardado y envío (2 segundos)
       this.logger.debug(`📊 [${job.id}] Guardando y enviando reporte...`);
       await this.delay(2000);
-      await job.progress(100);
+      await job.updateProgress(100);
 
       const result: Record<string, any> = {
         success: true,
@@ -105,22 +105,22 @@ export class ReportProcessor {
 
     try {
       // Progreso 10%
-      await job.progress(10);
+      await job.updateProgress(10);
       this.logger.debug(`📊 [${job.id}] Validando configuración de programación...`);
 
       // Simular validación (1 segundo)
       await this.delay(1000);
-      await job.progress(40);
+      await job.updateProgress(40);
 
       // Simular creación de schedule en sistema (2 segundos)
       this.logger.debug(`📊 [${job.id}] Creando programación en sistema...`);
       await this.delay(2000);
-      await job.progress(80);
+      await job.updateProgress(80);
 
       // Simular confirmación (1 segundo)
       this.logger.debug(`📊 [${job.id}] Confirmando programación...`);
       await this.delay(1000);
-      await job.progress(100);
+      await job.updateProgress(100);
 
       const result = {
         success: true,
@@ -159,22 +159,22 @@ export class ReportProcessor {
 
     try {
       // Progreso 10%
-      await job.progress(10);
+      await job.updateProgress(10);
       this.logger.debug(`📊 [${job.id}] Cargando reporte original...`);
 
       // Simular carga de reporte (2 segundos)
       await this.delay(2000);
-      await job.progress(30);
+      await job.updateProgress(30);
 
       // Simular conversión de formato (4 segundos)
       this.logger.debug(`📊 [${job.id}] Convirtiendo a formato ${job.data.format}...`);
       await this.delay(4000);
-      await job.progress(70);
+      await job.updateProgress(70);
 
       // Simular optimización y guardado (2 segundos)
       this.logger.debug(`📊 [${job.id}] Optimizando y guardando...`);
       await this.delay(2000);
-      await job.progress(100);
+      await job.updateProgress(100);
 
       const result = {
         success: true,

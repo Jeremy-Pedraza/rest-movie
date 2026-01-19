@@ -155,7 +155,7 @@ export class CompanyService {
         total,
         totalPages: Math.ceil(total / limit),
         hasNextPage: page * limit < total,
-        hasPreviousPage: page > 1,
+        hasPrevPage: page > 1,
       },
     };
   }
@@ -237,6 +237,9 @@ export class CompanyService {
 
     try {
       const updated = await this.companyRepository.update(id, sanitizedData);
+      if (!updated) {
+        this.handleError.notFound('Compañía', id);
+      }
       this.logger.log(`Compañía actualizada: ${id}`);
       return this.toResponse(updated);
     } catch (error) {
@@ -340,6 +343,9 @@ export class CompanyService {
     }
 
     const updated = await this.companyRepository.update(id, { is_active: true });
+    if (!updated) {
+      this.handleError.notFound('Compañía', id);
+    }
     this.logger.log(`Compañía activada: ${id}`);
     return this.toResponse(updated);
   }
@@ -358,6 +364,9 @@ export class CompanyService {
     }
 
     const updated = await this.companyRepository.update(id, { is_active: false });
+    if (!updated) {
+      this.handleError.notFound('Compañía', id);
+    }
     this.logger.log(`Compañía desactivada: ${id}`);
     return this.toResponse(updated);
   }
@@ -577,7 +586,7 @@ export class CompanyService {
       ruc: company.ruc,
       is_active: company.is_active,
       plan: company.plan,
-      plan_expires_at: company.plan_expires_at,
+      plan_expires_at: company.plan_expires_at ?? undefined,
       settings: company.settings,
 
       // Campos de internacionalización (FASE 1)
@@ -590,8 +599,8 @@ export class CompanyService {
       tax_config: company.tax_config,
 
       // Timestamps
-      created_at: company.created_at,
-      updated_at: company.updated_at,
+      created_at: company.createdAt,
+      updated_at: company.updatedAt,
     };
   }
 

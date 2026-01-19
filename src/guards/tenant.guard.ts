@@ -20,19 +20,25 @@ import { TenantExtractorService, ITenantContext } from '@shared/database';
 export const SKIP_TENANT_KEY = 'skipTenant';
 
 /**
+ * Interfaz para el usuario en el request
+ * Definida localmente para evitar dependencias de archivos .d.ts globales
+ */
+interface RequestUser {
+  id: string;
+  email: string;
+  companyId?: string | null;
+  schema?: string | null;
+  roles?: string[];
+  [key: string]: unknown;
+}
+
+/**
  * Interfaz extendida de Request con propiedades de tenant y user
  * Esta interfaz evita dependencias de archivos .d.ts globales
  */
-interface RequestWithTenant extends Request {
+interface RequestWithTenant extends Omit<Request, 'user'> {
   tenant?: ITenantContext;
-  user?: {
-    id: string;
-    email: string;
-    companyId?: string | null;
-    schema?: string | null;
-    roles?: string[];
-    [key: string]: unknown;
-  };
+  user?: RequestUser;
 }
 
 /**

@@ -108,9 +108,7 @@ export class TenantGuard implements CanActivate {
     // Validar que el usuario tenga company asignada
     if (!user.companyId && !user.company?.id) {
       this.logger.warn(`TenantGuard: Usuario ${user.id} no tiene company asignada`);
-      throw new ForbiddenException(
-        'Acceso denegado: Usuario no pertenece a ninguna compañía',
-      );
+      throw new ForbiddenException('Acceso denegado: Usuario no pertenece a ninguna compañía');
     }
 
     // Validar que el schema del contexto coincida

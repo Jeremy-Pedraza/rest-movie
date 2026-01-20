@@ -37,8 +37,9 @@ import {
   IValueDifference,
 } from './interfaces';
 import { ReportHeaderEntity } from './entities';
-import { UserEntity } from '@modules/user/entities';
+import { UserSessionDto } from '@modules/auth/interfaces';
 import { ROLES } from '@constants';
+import { hasRole, hasAnyRole } from '@shared/utils/helpers';
 
 /**
  * ReportsService
@@ -77,7 +78,7 @@ export class ReportsService {
    * @param user - Usuario que crea
    * @returns IReportWithDetailsResponse
    */
-  async create(dto: CreateReportDto, user: UserEntity): Promise<IReportWithDetailsResponse> {
+  async create(dto: CreateReportDto, user: UserSessionDto): Promise<IReportWithDetailsResponse> {
     this.logger.log(`Creando reporte para tienda ${dto.store_id} fecha ${dto.report_date}`);
 
     // Validar acceso a la tienda
@@ -115,7 +116,7 @@ export class ReportsService {
    */
   async findAll(
     query: QueryReportDto,
-    user: UserEntity,
+    user: UserSessionDto,
   ): Promise<IPaginatedResponse<IReportWithStoreResponse>> {
     // Aplicar filtros según rol
     const filteredQuery = await this.applyRoleFilters(query, user);
@@ -145,11 +146,10 @@ export class ReportsService {
    * @param user - Usuario que consulta
    * @returns IReportWithStoreResponse
    */
-  async findById(id: string, user: UserEntity): Promise<IReportWithStoreResponse> {
+  async findById(id: string, user: UserSessionDto): Promise<IReportWithStoreResponse> {
     const report = await this.reportsRepository.findById(id);
     if (!report) {
       this.handleError.notFound('Reporte', id);
-      throw new Error('Report not found'); // TypeScript guard
     }
 
     // Validar acceso
@@ -165,11 +165,10 @@ export class ReportsService {
    * @param user - Usuario que consulta
    * @returns IReportWithDetailsResponse
    */
-  async findByIdWithDetails(id: string, user: UserEntity): Promise<IReportWithDetailsResponse> {
+  async findByIdWithDetails(id: string, user: UserSessionDto): Promise<IReportWithDetailsResponse> {
     const report = await this.reportsRepository.findById(id, true);
     if (!report) {
       this.handleError.notFound('Reporte', id);
-      throw new Error('Report not found'); // TypeScript guard
     }
 
     // Validar acceso
@@ -189,12 +188,11 @@ export class ReportsService {
   async update(
     id: string,
     dto: UpdateReportDto,
-    user: UserEntity,
+    user: UserSessionDto,
   ): Promise<IReportWithStoreResponse> {
     const report = await this.reportsRepository.findById(id);
     if (!report) {
       this.handleError.notFound('Reporte', id);
-      throw new Error('Report not found'); // TypeScript guard
     }
 
     // Validar acceso
@@ -218,7 +216,6 @@ export class ReportsService {
       const updated = await this.reportsRepository.update(id, updateData);
       if (!updated) {
         this.handleError.internal('Error al actualizar reporte');
-        throw new Error('Update failed'); // TypeScript guard
       }
       this.logger.log(`Reporte actualizado: ${id}`);
       return this.toResponseWithStore(updated);
@@ -233,18 +230,17 @@ export class ReportsService {
    * @param id - UUID del reporte
    * @param user - Usuario que elimina
    */
-  async delete(id: string, user: UserEntity): Promise<void> {
+  async delete(id: string, user: UserSessionDto): Promise<void> {
     const report = await this.reportsRepository.findById(id);
     if (!report) {
       this.handleError.notFound('Reporte', id);
-      throw new Error('Report not found'); // TypeScript guard
     }
 
     // Validar acceso
     await this.validateStoreAccess(report.store_id, user);
 
     // Solo ADMIN y SUPER_ADMIN pueden eliminar
-    if (!user.hasAnyRole([ROLES.SUPER_ADMIN, ROLES.ADMIN])) {
+    if (!hasAnyRole(user.roles, [ROLES.SUPER_ADMIN, ROLES.ADMIN])) {
       this.handleError.forbidden('No tiene permisos para eliminar reportes');
     }
 
@@ -263,12 +259,11 @@ export class ReportsService {
   async changeStatus(
     id: string,
     status: ReportStatusEnum,
-    user: UserEntity,
+    user: UserSessionDto,
   ): Promise<IReportWithStoreResponse> {
     const report = await this.reportsRepository.findById(id);
     if (!report) {
       this.handleError.notFound('Reporte', id);
-      throw new Error('Report not found'); // TypeScript guard
     }
 
     await this.validateStoreAccess(report.store_id, user);
@@ -276,7 +271,6 @@ export class ReportsService {
     const updated = await this.reportsRepository.update(id, { status });
     if (!updated) {
       this.handleError.internal('Error al actualizar estado del reporte');
-      throw new Error('Update failed'); // TypeScript guard
     }
     this.logger.log(`Estado de reporte ${id} cambiado a ${status}`);
     return this.toResponseWithStore(updated);
@@ -295,7 +289,7 @@ export class ReportsService {
    */
   async consolidate(
     dto: ConsolidateReportsDto,
-    user: UserEntity,
+    user: UserSessionDto,
   ): Promise<IConsolidatedReportResponse> {
     this.logger.log(`Consolidando reportes: nivel=${dto.consolidation_level}`);
 
@@ -330,18 +324,18 @@ export class ReportsService {
    */
   async quickConsolidate(
     dto: QuickConsolidateDto,
-    user: UserEntity,
+    user: UserSessionDto,
   ): Promise<IQuickConsolidatedResponse> {
     const { dateFrom, dateTo, label } = this.getPeriodDates(dto.period);
 
     // Determinar nivel y filtros según rol
     let consolidationLevel = ConsolidationLevelEnum.STORE;
 
-    if (user.hasAnyRole([ROLES.SUPER_ADMIN, ROLES.ADMIN])) {
+    if (hasAnyRole(user.roles, [ROLES.SUPER_ADMIN, ROLES.ADMIN])) {
       consolidationLevel = dto.company_id
         ? ConsolidationLevelEnum.COMPANY
         : ConsolidationLevelEnum.ALL_COMPANIES;
-    } else if (user.hasRole(ROLES.MANAGER)) {
+    } else if (hasRole(user.roles, ROLES.MANAGER)) {
       consolidationLevel = ConsolidationLevelEnum.COMPANY;
     }
     // Nota: Para USER, el filtrado por tiendas asignadas se aplica en getPeriodStats
@@ -385,7 +379,7 @@ export class ReportsService {
 
   private async consolidateByStore(
     dto: ConsolidateReportsDto,
-    user: UserEntity,
+    user: UserSessionDto,
   ): Promise<IConsolidatedReportResponse> {
     if (!dto.store_id) {
       this.handleError.badRequest('store_id es requerido para consolidación a nivel de tienda');
@@ -469,7 +463,7 @@ export class ReportsService {
 
   private async consolidateByCompany(
     dto: ConsolidateReportsDto,
-    user: UserEntity,
+    user: UserSessionDto,
   ): Promise<IConsolidatedReportResponse> {
     if (!dto.company_id) {
       this.handleError.badRequest('company_id es requerido para consolidación a nivel de compañía');
@@ -562,7 +556,7 @@ export class ReportsService {
    * @param user - Usuario que consulta
    * @returns Respuesta de comparación
    */
-  async compare(dto: CompareReportsDto, user: UserEntity): Promise<any> {
+  async compare(dto: CompareReportsDto, user: UserSessionDto): Promise<any> {
     this.logger.log(`Comparando reportes: tipo=${dto.comparison_type}`);
 
     switch (dto.comparison_type) {
@@ -588,7 +582,10 @@ export class ReportsService {
    * @param user - Usuario que consulta
    * @returns IQuickComparisonResponse
    */
-  async quickCompare(dto: QuickCompareDto, user: UserEntity): Promise<IQuickComparisonResponse> {
+  async quickCompare(
+    dto: QuickCompareDto,
+    user: UserSessionDto,
+  ): Promise<IQuickComparisonResponse> {
     const { current, previous, currentLabel, previousLabel } = this.getQuickComparePeriods(
       dto.quick_compare_type,
     );
@@ -602,7 +599,7 @@ export class ReportsService {
       this.validateCompanyAccess(dto.company_id, user);
       const stores = await this.storeRepository.findByCompany(dto.company_id);
       storeIds = stores.map((s) => s.id);
-    } else if (user.hasRole(ROLES.USER)) {
+    } else if (hasRole(user.roles, ROLES.USER)) {
       const stores = await this.storeRepository.findByUserId(user.id);
       storeIds = stores.map((s) => s.id);
     }
@@ -650,7 +647,7 @@ export class ReportsService {
 
   private async compareStores(
     dto: CompareReportsDto,
-    user: UserEntity,
+    user: UserSessionDto,
   ): Promise<IStoresComparisonResponse> {
     if (!dto.store_ids || dto.store_ids.length < 2) {
       this.handleError.badRequest('Se requieren al menos 2 tiendas para comparar');
@@ -731,7 +728,7 @@ export class ReportsService {
     };
   }
 
-  private async comparePeriods(dto: CompareReportsDto, user: UserEntity): Promise<any> {
+  private async comparePeriods(dto: CompareReportsDto, user: UserSessionDto): Promise<any> {
     let storeIds: string[] = [];
 
     if (dto.store_id) {
@@ -794,7 +791,7 @@ export class ReportsService {
     };
   }
 
-  private async compareDaysOfWeek(dto: CompareReportsDto, user: UserEntity): Promise<any> {
+  private async compareDaysOfWeek(dto: CompareReportsDto, user: UserSessionDto): Promise<any> {
     let storeIds: string[] = [];
 
     if (dto.store_id) {
@@ -864,7 +861,7 @@ export class ReportsService {
     };
   }
 
-  private async compareYearOverYear(dto: CompareReportsDto, user: UserEntity): Promise<any> {
+  private async compareYearOverYear(dto: CompareReportsDto, user: UserSessionDto): Promise<any> {
     // Calcular fechas del año anterior
     const currentYear = new Date(dto.date_from).getFullYear();
     const previousYearFrom = dto.date_from.replace(String(currentYear), String(currentYear - 1));
@@ -881,7 +878,7 @@ export class ReportsService {
     );
   }
 
-  private async compareMonthOverMonth(dto: CompareReportsDto, user: UserEntity): Promise<any> {
+  private async compareMonthOverMonth(dto: CompareReportsDto, user: UserSessionDto): Promise<any> {
     // Calcular fechas del mes anterior
     const currentDate = new Date(dto.date_from);
     currentDate.setMonth(currentDate.getMonth() - 1);
@@ -913,16 +910,19 @@ export class ReportsService {
    * @param user - Usuario que consulta
    * @returns IStoreRankingResponse
    */
-  async getRankingStores(dto: RankingStoresDto, user: UserEntity): Promise<IStoreRankingResponse> {
+  async getRankingStores(
+    dto: RankingStoresDto,
+    user: UserSessionDto,
+  ): Promise<IStoreRankingResponse> {
     this.logger.log(`Obteniendo ranking de tiendas: métrica=${dto.metric}`);
 
     // Validar acceso según rol
     if (dto.company_id) {
       this.validateCompanyAccess(dto.company_id, user);
-    } else if (!user.hasAnyRole([ROLES.SUPER_ADMIN, ROLES.ADMIN])) {
+    } else if (!hasAnyRole(user.roles, [ROLES.SUPER_ADMIN, ROLES.ADMIN])) {
       // Si no es admin, forzar filtro por su compañía
-      if (user.hasRole(ROLES.MANAGER) && user.company_id) {
-        dto.company_id = user.company_id;
+      if (hasRole(user.roles, ROLES.MANAGER) && user.companyId) {
+        dto.company_id = user.companyId;
       } else {
         this.handleError.forbidden('No tiene permisos para ver ranking global');
       }
@@ -988,10 +988,10 @@ export class ReportsService {
    */
   async getRankingCompanies(
     dto: RankingCompaniesDto,
-    user: UserEntity,
+    user: UserSessionDto,
   ): Promise<ICompanyRankingResponse> {
     // Solo SUPER_ADMIN y ADMIN pueden ver ranking de compañías
-    if (!user.hasAnyRole([ROLES.SUPER_ADMIN, ROLES.ADMIN])) {
+    if (!hasAnyRole(user.roles, [ROLES.SUPER_ADMIN, ROLES.ADMIN])) {
       this.handleError.forbidden('No tiene permisos para ver ranking de compañías');
     }
 
@@ -1050,7 +1050,10 @@ export class ReportsService {
    * @param user - Usuario que consulta
    * @returns IQuickStoreRankingResponse
    */
-  async quickRanking(dto: QuickRankingDto, user: UserEntity): Promise<IQuickStoreRankingResponse> {
+  async quickRanking(
+    dto: QuickRankingDto,
+    user: UserSessionDto,
+  ): Promise<IQuickStoreRankingResponse> {
     const { dateFrom, dateTo, label } = this.getPeriodDates(dto.period);
 
     const rankingDto: RankingStoresDto = {
@@ -1092,9 +1095,9 @@ export class ReportsService {
    * @param user - Usuario que consulta
    * @returns IReportStatsResponse
    */
-  async getGlobalStats(user: UserEntity): Promise<IReportStatsResponse> {
+  async getGlobalStats(user: UserSessionDto): Promise<IReportStatsResponse> {
     // Solo SUPER_ADMIN y ADMIN pueden ver stats globales
-    if (!user.hasAnyRole([ROLES.SUPER_ADMIN, ROLES.ADMIN])) {
+    if (!hasAnyRole(user.roles, [ROLES.SUPER_ADMIN, ROLES.ADMIN])) {
       this.handleError.forbidden('No tiene permisos para ver estadísticas globales');
     }
 
@@ -1142,7 +1145,7 @@ export class ReportsService {
     dateFrom: string,
     dateTo: string,
     groupBy: 'day' | 'week' | 'month',
-    user: UserEntity,
+    user: UserSessionDto,
   ): Promise<any> {
     let storeIds: string[] = [];
 
@@ -1153,7 +1156,7 @@ export class ReportsService {
       this.validateCompanyAccess(companyId, user);
       const stores = await this.storeRepository.findByCompany(companyId);
       storeIds = stores.map((s) => s.id);
-    } else if (user.hasRole(ROLES.USER)) {
+    } else if (hasRole(user.roles, ROLES.USER)) {
       const stores = await this.storeRepository.findByUserId(user.id);
       storeIds = stores.map((s) => s.id);
     }
@@ -1199,21 +1202,20 @@ export class ReportsService {
   // MÉTODOS PRIVADOS: VALIDACIONES
   // ============================================
 
-  private async validateStoreAccess(storeId: string, user: UserEntity): Promise<void> {
+  private async validateStoreAccess(storeId: string, user: UserSessionDto): Promise<void> {
     // SUPER_ADMIN y ADMIN tienen acceso a todo
-    if (user.hasAnyRole([ROLES.SUPER_ADMIN, ROLES.ADMIN])) {
+    if (hasAnyRole(user.roles, [ROLES.SUPER_ADMIN, ROLES.ADMIN])) {
       return;
     }
 
     const store = await this.storeRepository.findById(storeId);
     if (!store) {
       this.handleError.notFound('Tienda', storeId);
-      throw new Error('Store not found'); // TypeScript guard
     }
 
     // MANAGER puede acceder a tiendas de su compañía
-    if (user.hasRole(ROLES.MANAGER)) {
-      if (store.company_id !== user.company_id) {
+    if (hasRole(user.roles, ROLES.MANAGER)) {
+      if (store.company_id !== user.companyId) {
         this.handleError.forbidden('No tiene acceso a esta tienda');
       }
       return;
@@ -1228,15 +1230,15 @@ export class ReportsService {
     }
   }
 
-  private validateCompanyAccess(companyId: string, user: UserEntity): void {
+  private validateCompanyAccess(companyId: string, user: UserSessionDto): void {
     // SUPER_ADMIN y ADMIN tienen acceso a todo
-    if (user.hasAnyRole([ROLES.SUPER_ADMIN, ROLES.ADMIN])) {
+    if (hasAnyRole(user.roles, [ROLES.SUPER_ADMIN, ROLES.ADMIN])) {
       return;
     }
 
     // MANAGER solo puede acceder a su compañía
-    if (user.hasRole(ROLES.MANAGER)) {
-      if (companyId !== user.company_id) {
+    if (hasRole(user.roles, ROLES.MANAGER)) {
+      if (companyId !== user.companyId) {
         this.handleError.forbidden('No tiene acceso a esta compañía');
       }
       return;
@@ -1248,11 +1250,11 @@ export class ReportsService {
 
   private async validateConsolidationAccess(
     dto: ConsolidateReportsDto,
-    user: UserEntity,
+    user: UserSessionDto,
   ): Promise<void> {
     switch (dto.consolidation_level) {
       case ConsolidationLevelEnum.ALL_COMPANIES:
-        if (!user.hasAnyRole([ROLES.SUPER_ADMIN, ROLES.ADMIN])) {
+        if (!hasAnyRole(user.roles, [ROLES.SUPER_ADMIN, ROLES.ADMIN])) {
           this.handleError.forbidden('No tiene permisos para consolidación global');
         }
         break;
@@ -1269,15 +1271,18 @@ export class ReportsService {
     }
   }
 
-  private async applyRoleFilters(query: QueryReportDto, user: UserEntity): Promise<QueryReportDto> {
+  private async applyRoleFilters(
+    query: QueryReportDto,
+    user: UserSessionDto,
+  ): Promise<QueryReportDto> {
     const filteredQuery = Object.assign(new QueryReportDto(), query);
 
-    if (user.hasAnyRole([ROLES.SUPER_ADMIN, ROLES.ADMIN])) {
+    if (hasAnyRole(user.roles, [ROLES.SUPER_ADMIN, ROLES.ADMIN])) {
       return filteredQuery;
     }
 
-    if (user.hasRole(ROLES.MANAGER)) {
-      filteredQuery.company_id = user.company_id ?? undefined;
+    if (hasRole(user.roles, ROLES.MANAGER)) {
+      filteredQuery.company_id = user.companyId ?? undefined;
       return filteredQuery;
     }
 

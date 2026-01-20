@@ -27,10 +27,12 @@ interface JwtInfo {
 /**
  * Usuario autenticado
  */
-interface AuthUser {
+export interface AuthUser {
   id: string;
   email: string;
-  roles?: string[];
+  roles: string[]; // ✅ Ahora es obligatorio
+  companyId: string | null; // ✅ Para multi-tenant
+  schema: string | null; // ✅ Schema del tenant
 }
 
 @Injectable()

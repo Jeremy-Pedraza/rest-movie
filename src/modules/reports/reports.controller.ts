@@ -53,7 +53,7 @@ import {
   IQuickStoreRankingResponse,
 } from './interfaces';
 import { ConsolidationLevelEnum } from './enums';
-import { UserEntity } from '@modules/user/entities';
+import { UserSessionDto } from '@modules/auth/interfaces';
 import { ReportAccessGuard } from './guards/report-access.guard';
 
 /**
@@ -118,7 +118,7 @@ export class ReportsController {
   @ApiResponse({ status: 409, description: 'Ya existe reporte para esta tienda/fecha' })
   async create(
     @Body() dto: CreateReportDto,
-    @CurrentUser() user: UserEntity,
+    @CurrentUser() user: UserSessionDto,
   ): Promise<IApiResponse<IReportWithDetailsResponse>> {
     const data = await this.reportsService.create(dto, user);
     return {
@@ -143,7 +143,7 @@ export class ReportsController {
   @ApiResponse({ status: 401, description: 'No autorizado' })
   async findAll(
     @Query() query: QueryReportDto,
-    @CurrentUser() user: UserEntity,
+    @CurrentUser() user: UserSessionDto,
   ): Promise<IApiResponse<IPaginatedResponse<IReportWithStoreResponse>>> {
     const result = await this.reportsService.findAll(query, user);
     return {
@@ -170,7 +170,7 @@ export class ReportsController {
   @ApiResponse({ status: 404, description: 'Reporte no encontrado' })
   async findById(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: UserEntity,
+    @CurrentUser() user: UserSessionDto,
   ): Promise<IApiResponse<IReportWithStoreResponse>> {
     const data = await this.reportsService.findById(id, user);
     return {
@@ -198,7 +198,7 @@ export class ReportsController {
   @ApiResponse({ status: 404, description: 'Reporte no encontrado' })
   async findByIdWithDetails(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: UserEntity,
+    @CurrentUser() user: UserSessionDto,
   ): Promise<IApiResponse<IReportWithDetailsResponse>> {
     const data = await this.reportsService.findByIdWithDetails(id, user);
     return {
@@ -227,7 +227,7 @@ export class ReportsController {
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateReportDto,
-    @CurrentUser() user: UserEntity,
+    @CurrentUser() user: UserSessionDto,
   ): Promise<IApiResponse<IReportWithStoreResponse>> {
     const data = await this.reportsService.update(id, dto, user);
     return {
@@ -255,7 +255,7 @@ export class ReportsController {
   @ApiResponse({ status: 404, description: 'Reporte no encontrado' })
   async delete(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: UserEntity,
+    @CurrentUser() user: UserSessionDto,
   ): Promise<void> {
     await this.reportsService.delete(id, user);
   }
@@ -278,7 +278,7 @@ export class ReportsController {
   async changeStatus(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('status') status: ReportStatusEnum,
-    @CurrentUser() user: UserEntity,
+    @CurrentUser() user: UserSessionDto,
   ): Promise<IApiResponse<IReportWithStoreResponse>> {
     const data = await this.reportsService.changeStatus(id, status, user);
     return {
@@ -309,7 +309,7 @@ export class ReportsController {
   @ApiResponse({ status: 403, description: 'Sin permisos para este nivel de consolidación' })
   async consolidate(
     @Body() dto: ConsolidateReportsDto,
-    @CurrentUser() user: UserEntity,
+    @CurrentUser() user: UserSessionDto,
   ): Promise<IApiResponse<IConsolidatedReportResponse>> {
     const data = await this.reportsService.consolidate(dto, user);
     return {
@@ -341,7 +341,7 @@ export class ReportsController {
   @ApiResponse({ status: 401, description: 'No autorizado' })
   async quickConsolidate(
     @Query() dto: QuickConsolidateDto,
-    @CurrentUser() user: UserEntity,
+    @CurrentUser() user: UserSessionDto,
   ): Promise<IApiResponse<IQuickConsolidatedResponse>> {
     const data = await this.reportsService.quickConsolidate(dto, user);
     return {
@@ -372,7 +372,7 @@ export class ReportsController {
   @ApiResponse({ status: 403, description: 'Sin acceso a los datos solicitados' })
   async compare(
     @Body() dto: CompareReportsDto,
-    @CurrentUser() user: UserEntity,
+    @CurrentUser() user: UserSessionDto,
   ): Promise<IApiResponse<any>> {
     const data = await this.reportsService.compare(dto, user);
     return {
@@ -405,7 +405,7 @@ export class ReportsController {
   @ApiResponse({ status: 401, description: 'No autorizado' })
   async quickCompare(
     @Query() dto: QuickCompareDto,
-    @CurrentUser() user: UserEntity,
+    @CurrentUser() user: UserSessionDto,
   ): Promise<IApiResponse<IQuickComparisonResponse>> {
     const data = await this.reportsService.quickCompare(dto, user);
     return {
@@ -436,7 +436,7 @@ export class ReportsController {
   @ApiResponse({ status: 403, description: 'Sin permisos suficientes' })
   async getRankingStores(
     @Body() dto: RankingStoresDto,
-    @CurrentUser() user: UserEntity,
+    @CurrentUser() user: UserSessionDto,
   ): Promise<IApiResponse<IStoreRankingResponse>> {
     const data = await this.reportsService.getRankingStores(dto, user);
     return {
@@ -461,7 +461,7 @@ export class ReportsController {
   @ApiResponse({ status: 403, description: 'Sin permisos suficientes' })
   async getRankingCompanies(
     @Body() dto: RankingCompaniesDto,
-    @CurrentUser() user: UserEntity,
+    @CurrentUser() user: UserSessionDto,
   ): Promise<IApiResponse<ICompanyRankingResponse>> {
     const data = await this.reportsService.getRankingCompanies(dto, user);
     return {
@@ -497,7 +497,7 @@ export class ReportsController {
   @ApiResponse({ status: 401, description: 'No autorizado' })
   async quickRanking(
     @Query() dto: QuickRankingDto,
-    @CurrentUser() user: UserEntity,
+    @CurrentUser() user: UserSessionDto,
   ): Promise<IApiResponse<IQuickStoreRankingResponse>> {
     const data = await this.reportsService.quickRanking(dto, user);
     return {
@@ -525,7 +525,7 @@ export class ReportsController {
   @ApiResponse({ status: 401, description: 'No autorizado' })
   @ApiResponse({ status: 403, description: 'Sin permisos suficientes' })
   async getGlobalStats(
-    @CurrentUser() user: UserEntity,
+    @CurrentUser() user: UserSessionDto,
   ): Promise<IApiResponse<IReportStatsResponse>> {
     const data = await this.reportsService.getGlobalStats(user);
     return {
@@ -560,7 +560,7 @@ export class ReportsController {
   async getTrends(
     @Query('date_from') dateFrom: string,
     @Query('date_to') dateTo: string,
-    @CurrentUser() user: UserEntity,
+    @CurrentUser() user: UserSessionDto,
     @Query('group_by') groupBy: 'day' | 'week' | 'month' = 'day',
     @Query('store_id') storeId?: string,
     @Query('company_id') companyId?: string,
@@ -602,7 +602,7 @@ export class ReportsController {
   @ApiResponse({ status: 403, description: 'Sin acceso a esta tienda' })
   async findByStore(
     @Param('storeId', ParseUUIDPipe) storeId: string,
-    @CurrentUser() user: UserEntity,
+    @CurrentUser() user: UserSessionDto,
     @Query('date_from') dateFrom?: string,
     @Query('date_to') dateTo?: string,
   ): Promise<IApiResponse<IPaginatedResponse<IReportWithStoreResponse>>> {
@@ -639,7 +639,7 @@ export class ReportsController {
   @ApiResponse({ status: 403, description: 'Sin acceso a esta compañía' })
   async findByCompany(
     @Param('companyId', ParseUUIDPipe) companyId: string,
-    @CurrentUser() user: UserEntity,
+    @CurrentUser() user: UserSessionDto,
     @Query('date_from') dateFrom?: string,
     @Query('date_to') dateTo?: string,
   ): Promise<IApiResponse<IPaginatedResponse<IReportWithStoreResponse>>> {
@@ -676,7 +676,7 @@ export class ReportsController {
   @ApiResponse({ status: 404, description: 'No hay reporte para hoy' })
   async findTodayByStore(
     @Param('storeId', ParseUUIDPipe) storeId: string,
-    @CurrentUser() user: UserEntity,
+    @CurrentUser() user: UserSessionDto,
   ): Promise<IApiResponse<IReportWithStoreResponse | null>> {
     const today = new Date().toISOString().split('T')[0];
     const query = Object.assign(new QueryReportDto(), {
@@ -711,7 +711,7 @@ export class ReportsController {
   @ApiResponse({ status: 403, description: 'Sin acceso a esta tienda' })
   async getStoreSummary(
     @Param('storeId', ParseUUIDPipe) storeId: string,
-    @CurrentUser() user: UserEntity,
+    @CurrentUser() user: UserSessionDto,
   ): Promise<IApiResponse<IQuickConsolidatedResponse>> {
     const dto: QuickConsolidateDto = {
       period: 'this_month',
@@ -745,7 +745,7 @@ export class ReportsController {
   @ApiResponse({ status: 403, description: 'Sin acceso a esta compañía' })
   async getCompanyDashboard(
     @Param('companyId', ParseUUIDPipe) companyId: string,
-    @CurrentUser() user: UserEntity,
+    @CurrentUser() user: UserSessionDto,
   ): Promise<IApiResponse<any>> {
     // Consolidado del mes
     const consolidation = await this.reportsService.quickConsolidate(

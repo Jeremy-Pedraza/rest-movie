@@ -207,3 +207,8 @@ export {
 } from './validation.helper';
 
 export type { PasswordValidationResult, ValidationResult } from './validation.helper';
+
+// ============================================
+// ROLE HELPERS
+// ============================================
+export { hasRole, hasAnyRole, hasAllRoles } from './role.helper';

@@ -8,7 +8,7 @@
     "http://127.0.0.1:4200",
     "tacobell.rest-services.com"
   ],
-  "allowedSchemas": ["public", "tacobell_valle_schema"],
+  "allowedSchemas": ["public", "taco_bell_rd", "taco_bell_co"],
   "config": {
     "maxSchemaLength": 63,
     "allowDynamicSchemas": false,

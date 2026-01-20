@@ -28,10 +28,11 @@ export class UserService {
   private readonly logger = new Logger(UserService.name);
 
   constructor(
-    private readonly userRepository: UserRepository,
-    private readonly sanitizer: SanitizerService,
-    private readonly handleError: HandleErrorService,
     private readonly transactionService: TransactionService,
+    private readonly handleError: HandleErrorService,
+    private readonly userRepository: UserRepository,
+    private readonly utilsService: UtilsService,
+    private readonly sanitizer: SanitizerService,
     private readonly cacheService: CacheService, // ✅ Cache inteligente
     private readonly utils: UtilsService, // ✅ Utilidades (validación, formateo, crypto)
   ) {}
@@ -148,8 +149,8 @@ export class UserService {
       query.search = this.utils.string.normalizeForSearch(query.search);
     }
 
-    const result = await this.userRepository.findAll(query);
-
+    let result = await this.userRepository.findAll(query);
+    result = this.utilsService.removeTimestamps(result);
     return {
       data: result.data.map((user) => this.toUserResponse(user)),
       meta: result.meta,
@@ -598,7 +599,8 @@ export class UserService {
       this.handleError.badRequest('ID de usuario inválido', 'id');
     }
 
-    return await this.userRepository.findByIdWithCompanyAndRoles(id);
+    const data = await this.userRepository.findByIdWithCompanyAndRoles(id);
+    return data;
   }
 
   /**

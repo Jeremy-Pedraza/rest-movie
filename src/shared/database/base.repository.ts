@@ -7,10 +7,10 @@
  *
  * Proporciona métodos para ejecutar queries con SET search_path dinámico
  * según el tenant actual establecido en SchemaContext.
- * 
+ *
  * IMPORTANTE: Usar withSchema() + this.repository.createQueryBuilder()
  * en lugar de createTenantQueryBuilder() (deprecated).
- * 
+ *
  * @see docs/BASE-REPOSITORY.md para documentación completa
  */
 
@@ -224,16 +224,16 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
    * Query builder con search_path dinámico (para entidades tenant)
    *
    * @deprecated Usar this.repository.createQueryBuilder() dentro de withSchema() en su lugar.
-   * 
+   *
    * Este método usa manager.query() que NO es thread-safe en alta concurrencia.
    * Es redundante con withSchema() que ya establece search_path de forma aislada.
-   * 
+   *
    * Migración:
    * ```typescript
    * // ❌ ANTES (deprecated)
    * const qb = await this.createTenantQueryBuilder('alias');
    * return await qb.where(...).getOne();
-   * 
+   *
    * // ✅ DESPUÉS (correcto)
    * return await this.withSchema(async () => {
    *   return await this.repository.createQueryBuilder('alias')
@@ -241,7 +241,7 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
    *     .getOne();
    * });
    * ```
-   * 
+   *
    * @see docs/BASE-REPOSITORY.md para documentación completa
    *
    * @param alias - Alias de la tabla

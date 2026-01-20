@@ -213,7 +213,6 @@ export class CompanyRepository extends BaseRepository<CompanyEntity> {
     const { users: _u, stores: _s, ...updateData } = dataAsRecord;
 
     if (Object.keys(updateData).length > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.repository.update(id, updateData as any);
     }
 

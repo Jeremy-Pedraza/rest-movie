@@ -134,10 +134,10 @@ export class UserRepository extends BaseRepository<UserEntity> {
 
     const qb = this.createStaticQueryBuilder('user').leftJoinAndSelect('user.roles', 'roles');
 
-    // Filtro de búsqueda
+    // Filtro de búsqueda (usar nombres de columna snake_case)
     if (search) {
       qb.andWhere(
-        '(user.email ILIKE :search OR user.firstName ILIKE :search OR user.lastName ILIKE :search)',
+        '(user.email ILIKE :search OR user.first_name ILIKE :search OR user.last_name ILIKE :search)',
         { search: `%${search}%` },
       );
     }
@@ -166,16 +166,16 @@ export class UserRepository extends BaseRepository<UserEntity> {
       qb.andWhere('user.created_at <= :to_date', { to_date: new Date(toDate) });
     }
 
-    // Ordenamiento
-    const validSortFields = [
-      'createdAt',
-      'email',
-      'firstName',
-      'lastName',
-      'status',
-      'lastLoginAt',
-    ];
-    const orderField = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
+    // Ordenamiento - mapeo de camelCase (DTO) a snake_case (entidad)
+    const sortFieldMap: Record<string, string> = {
+      createdAt: 'created_at',
+      email: 'email',
+      firstName: 'first_name',
+      lastName: 'last_name',
+      status: 'status',
+      lastLoginAt: 'last_login_at',
+    };
+    const orderField = sortFieldMap[sortBy] || 'created_at';
     qb.orderBy(`user.${orderField}`, sortOrder);
 
     // Paginación
@@ -429,22 +429,24 @@ export class UserRepository extends BaseRepository<UserEntity> {
   }
 
   /**
-   * Busca un usuario por ID incluyendo company, roles y permisos completos
+   * Busca un usuario por ID incluyendo company, roles, permisos y tiendas asignadas
    * ⚠️ Solo para uso interno de autenticación (JwtStrategy)
    *
    * Este método carga toda la información necesaria para construir UserSessionDto:
    * - Datos del usuario
    * - Company (tenant) con schema
    * - Roles con permisos
+   * - Tiendas asignadas (para ReportAccessGuard)
    *
    * @param id - ID del usuario
-   * @returns Usuario con company, roles y permisos o null
+   * @returns Usuario con company, roles, permisos y tiendas asignadas o null
    */
   async findByIdWithCompanyAndRoles(id: string): Promise<UserEntity | null> {
     return this.createStaticQueryBuilder('user')
       .leftJoinAndSelect('user.company', 'company')
       .leftJoinAndSelect('user.roles', 'roles')
       .leftJoinAndSelect('roles.permissions', 'permissions')
+      .leftJoinAndSelect('user.assigned_stores', 'assigned_stores')
       .where('user.id = :id', { id })
       .andWhere('user.deleted_at IS NULL')
       .getOne();

@@ -294,7 +294,7 @@ export class UserEntity {
    * Lista de nombres de roles
    */
   get roleNames(): string[] {
-    return this.roles?.map((role) => role.name) ?? [];
+    return this.roles?.map((role) => role.name) || [];
   }
 
   /**

@@ -53,7 +53,8 @@ export class ReportAccessGuard implements CanActivate {
     // MANAGER puede acceder a niveles 'store' y 'company' solo de su compañía
     if (userRoles.includes(ROLES.MANAGER)) {
       // Validar que solo acceda a su compañía
-      if (company_id && company_id !== user.company_id) {
+      // Nota: user viene de UserSessionDto que usa camelCase (companyId)
+      if (company_id && company_id !== user.companyId) {
         throw new ForbiddenException('No tiene permisos para acceder a reportes de otra compañía');
       }
 

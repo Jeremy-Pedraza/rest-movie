@@ -5,12 +5,15 @@
  * @module modules/auth/strategies
  *
  * ✅ FASE 3: ACTUALIZADO para retornar UserSessionDto completo
+ * ✅ FASE 4: INTEGRACIÓN CON REDIS - Cache de sesión de usuario (TTL 3h)
  *
  * Cambios:
  * - Inyecta UserService para buscar usuario completo
+ * - Inyecta RedisService para cache de sesión
  * - Retorna UserSessionDto en lugar de IAuthUser
- * - Incluye company, schema, roles y permisos
+ * - Incluye company, schema, roles, permisos y tiendas asignadas
  * - Valida estado del usuario (activo, no eliminado)
+ * - Cache de sesión con TTL de 3 horas para reducir carga a BD
  */
 
 import { Injectable, UnauthorizedException } from '@nestjs/common';
@@ -20,12 +23,20 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 
 import { IJwtPayload, UserSessionDto } from '../interfaces';
 import { UserService } from '@modules/user/user.service';
+import { RedisService } from '@shared/redis/redis.service';
+
+/** TTL del cache de sesión: 3 horas en segundos */
+const SESSION_CACHE_TTL = 10800;
+
+/** Prefijo para claves de cache de sesión */
+const SESSION_CACHE_PREFIX = 'session';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
     private readonly configService: ConfigService,
-    private readonly userService: UserService, // ✅ Inyectar UserService
+    private readonly userService: UserService,
+    private readonly redisService: RedisService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -41,7 +52,12 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
    *
    * Este método es llamado automáticamente por Passport después de verificar el token.
    * Ahora retorna UserSessionDto completo con toda la información del usuario,
-   * incluyendo company, schema, roles y permisos.
+   * incluyendo company, schema, roles, permisos y tiendas asignadas.
+   *
+   * ✅ Usa Redis para cachear la sesión del usuario (TTL 3 horas)
+   * - Reduce carga a la base de datos
+   * - Mejora tiempos de respuesta
+   * - Cache se invalida automáticamente por TTL
    *
    * @param payload - Payload decodificado del JWT
    * @returns Usuario autenticado completo (UserSessionDto)
@@ -53,7 +69,22 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       throw new UnauthorizedException('Token inválido - payload incompleto');
     }
 
-    // 🔍 Buscar usuario completo con company, roles y permisos
+    const cacheKey = `${SESSION_CACHE_PREFIX}:${payload.schema}:user:${payload.sub}`;
+
+    // ✅ Intentar obtener del cache primero
+    const cachedSession = await this.redisService.getJson<UserSessionDto>(cacheKey);
+
+    if (cachedSession) {
+      // Validar que el usuario cacheado siga activo
+      if (cachedSession.status !== 'active') {
+        // Invalidar cache si el usuario no está activo
+        await this.redisService.del(cacheKey);
+        throw new UnauthorizedException('Usuario inactivo o eliminado');
+      }
+      return cachedSession;
+    }
+
+    // 🔍 Si no está en cache, buscar en BD
     const user = await this.userService.findByIdWithCompanyAndRoles(payload.sub);
 
     if (!user) {
@@ -66,7 +97,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     }
 
     // ✅ Construir UserSessionDto completo
-    return {
+    const userSession: UserSessionDto = {
       // Datos básicos del usuario
       id: user.id,
       email: user.email,
@@ -84,21 +115,30 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
           (role) =>
             role.permissions?.map((p) => ({
               id: p.id,
-              name: p.name, // Nombre completo (module.action)
-              module: p.module || '', // Módulo
-              action: p.action || '', // Acción
-              description: p.description || undefined, // Descripción opcional
+              name: p.name,
+              module: p.module || '',
+              action: p.action || '',
+              description: p.description || undefined,
             })) || [],
         ) || [],
+
+      // ✅ Tiendas asignadas (para ReportAccessGuard - solo rol USER las usa)
+      assigned_stores:
+        user.assigned_stores?.map((store: any) => ({
+          id: store.id,
+          codigo: store.codigo,
+          nombre: store.nombre,
+          company_id: store.company_id,
+        })) || [],
 
       // Estado del usuario
       status: user.status,
       emailVerified: user.email_verified,
 
-      // Información de sesión (mínima por ahora)
+      // Información de sesión
       session: {
-        id: '', // TODO: Si tienes sessionId en payload, agregarlo aquí
-        sessionUid: payload.sub, // Temporal - usar ID del usuario
+        id: '',
+        sessionUid: payload.sub,
         startedAt: new Date(payload.iat! * 1000),
         expiresAt: payload.exp ? new Date(payload.exp * 1000) : undefined,
       },
@@ -112,7 +152,6 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
             isActive: user.company.is_active,
           }
         : {
-            // Fallback si no hay company cargada
             id: user.company_id || '',
             name: 'Unknown',
             schema: payload.schema || 'public',
@@ -123,5 +162,10 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       createdAt: user.created_at,
       updatedAt: user.updated_at || undefined,
     };
+
+    // ✅ Guardar en cache con TTL de 3 horas
+    await this.redisService.setJson(cacheKey, userSession, { ttl: SESSION_CACHE_TTL });
+
+    return userSession;
   }
 }

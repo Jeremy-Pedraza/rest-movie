@@ -25,8 +25,12 @@ import { IJwtPayload, UserSessionDto } from '../interfaces';
 import { UserService } from '@modules/user/user.service';
 import { RedisService } from '@shared/redis/redis.service';
 
-/** TTL del cache de sesión: 3 horas en segundos */
-const SESSION_CACHE_TTL = 10800;
+/**
+ * TTL del cache de sesión: 55 minutos en segundos
+ * (5 min menos que JWT de 60min para evitar edge cases)
+ * ✅ FASE 1: Sincronizado con AUTH_USER_CACHE_TTL en AuthService
+ */
+const SESSION_CACHE_TTL = 3300;
 
 /** Prefijo para claves de cache de sesión */
 const SESSION_CACHE_PREFIX = 'session';

@@ -68,7 +68,7 @@ export interface IOperatingHours {
  * await storeRepo.save(store);
  * ```
  */
-@Entity({ name: 'stores' })
+@Entity({ name: 'stores', schema: 'public' })
 @Index(['company_id'])
 @Index(['codigo'], { unique: true })
 @Index(['company_id', 'codigo'], { unique: true })

@@ -4,100 +4,54 @@
  * @fileoverview Repository para módulo de reportes
  * @module modules/reports
  *
- * ARQUITECTURA MULTI-TENANT (FASE 7.4):
+ * ARQUITECTURA MULTI-TENANT - MIGRACIÓN COMPLETA:
  *
  * ✅ FASE 7.4.A COMPLETADA - Métodos Críticos Adaptados (Sesión 17)
  * ✅ FASE 7.4.B COMPLETADA - Métodos Secundarios Adaptados (Sesión 17)
  * ✅ FASE 7.4.C COMPLETADA - Métodos Auxiliares Adaptados (Sesión 17)
- * ✅ REPORTSREPOSITORY 100% COMPLETO
+ * ✅ MIGRACIÓN QUERIES COMPLETADA - Todos los métodos usan manager del callback (Sesión Actual)
  *
  * Estado actual:
  * - Las 6 tablas de reportes viven en schemas POR TENANT
- * - Se usa this.repository.createQueryBuilder() dentro de withSchema() para queries tenant
- * - Se usa withSchema() para operaciones READ
- * - Se usa withSchemaTransaction() para operaciones WRITE
+ * - Se usa manager.getRepository(Entity).createQueryBuilder() dentro de withSchema()
+ * - Se usa withSchema(async (manager) => {...}) para operaciones READ
+ * - Se usa withSchemaTransaction(async (manager) => {...}) para operaciones WRITE
  * - Las relaciones con stores funcionan cross-schema (tenant → public)
  *
- * Métodos adaptados (FASE 7.4.A + 7.4.B + 7.4.C = 38 métodos = 100%):
+ * PATRÓN OBLIGATORIO:
  *
- * CRUD Básico (8):
- * - create() → withSchemaTransaction()
- * - findAll() → withSchema() + this.repository.createQueryBuilder()
- * - findById() → withSchema() + this.repository.createQueryBuilder()
- * - findByStoreAndDate() → withSchema() + this.repository.createQueryBuilder()
- * - exists() → withSchema() + this.repository.createQueryBuilder()
- * - update() → withSchemaTransaction()
- * - delete() → withSchemaTransaction()
- * - findByStore() → withSchema() + this.repository.createQueryBuilder()
- *
- * Búsquedas Específicas (3):
- * - findByCompany() → withSchema() + this.repository.createQueryBuilder()
- * - findByDateRange() → withSchema() + this.repository.createQueryBuilder()
- * - getStoreIdsWithReports() → withSchema() + this.repository.createQueryBuilder()
- *
- * Consolidaciones (6):
- * - consolidateByStore() → withSchema() + this.repository.createQueryBuilder()
- * - consolidateByCompany() → withSchema() + this.repository.createQueryBuilder()
- * - consolidateGlobal() → withSchema() + this.repository.createQueryBuilder()
- * - consolidateSalesByOrderType() → withSchema() + createSalesOrderTypeQB()
- * - consolidatePaymentMethods() → withSchema() + createPaymentMethodQB()
- * - getDailyBreakdown() → withSchema() + this.repository.createQueryBuilder()
- *
- * Rankings (2):
- * - getRankingByStores() → withSchema() + this.repository.createQueryBuilder()
- * - getRankingByCompanies() → withSchema() + this.repository.createQueryBuilder()
- *
- * Comparaciones (3):
- * - compareStores() → withSchema() + this.repository.createQueryBuilder()
- * - comparePeriods() → withSchema() + this.repository.createQueryBuilder()
- * - compareByDayOfWeek() → withSchema() + this.repository.createQueryBuilder()
- *
- * Estadísticas (3):
- * - getGlobalStats() → withSchema() + this.repository.createQueryBuilder()
- * - getPeriodStats() → withSchema() + this.repository.createQueryBuilder()
- * - getTrends() → withSchema() + this.repository.createQueryBuilder()
- *
- * Operaciones con Detalles (13):
- * - addSalesByOrderType() → withSchemaTransaction()
- * - addPaymentMethod() → withSchemaTransaction()
- * - addDynamicDiscount() → withSchemaTransaction()
- * - addAdjustment() → withSchemaTransaction()
- * - addEffectiveOrder() → withSchemaTransaction()
- * - getSalesByOrderType() → withSchema() + createSalesOrderTypeQB()
- * - getPaymentMethods() → withSchema() + createPaymentMethodQB()
- * - getDynamicDiscounts() → withSchema() + discountRepo.createQueryBuilder()
- * - getAdjustments() → withSchema() + adjustmentRepo.createQueryBuilder()
- * - getEffectiveOrders() → withSchema() + effectiveOrderRepo.createQueryBuilder()
- * - deleteAllDetails() → withSchemaTransaction()
- * - countByStatus() → withSchema() + this.repository.createQueryBuilder()
- * - getMetricColumn() → Helper privado (sin cambios)
- *
- * Patrón usado:
  * ```typescript
- * // READ operations
+ * // ✅ READ operations - SIEMPRE recibir manager
  * async findById(id: string): Promise<ReportHeaderEntity | null> {
- *   return this.withSchema(async () => {
- *     return this.repository.createQueryBuilder('report')
+ *   return this.withSchema(async (manager) => {
+ *     return manager
+ *       .getRepository(ReportHeaderEntity)
+ *       .createQueryBuilder('report')
  *       .where('report.id = :id', { id })
  *       .getOne();
  *   });
  * }
  *
- * // WRITE operations
+ * // ✅ WRITE operations - SIEMPRE recibir manager
  * async create(data): Promise<ReportHeaderEntity> {
  *   return this.withSchemaTransaction(async (manager) => {
  *     const entity = manager.create(ReportHeaderEntity, data);
- *     return await manager.save(entity);
+ *     return await manager.save(ReportHeaderEntity, entity);
  *   });
  * }
  * ```
  *
- * @version 6.0.0 - FASE 7.4 COMPLETA: ReportsRepository 100% adaptado a multi-tenant
+ * REGLAS CRÍTICAS:
+ * - NUNCA usar this.repository dentro de callbacks
+ * - NUNCA usar this.<otroRepo> dentro de callbacks
+ * - SIEMPRE usar manager.getRepository(Entity) para obtener el repositorio con search_path correcto
+ *
+ * @version 7.0.0 - MIGRACIÓN QUERIES COMPLETA: Todos los métodos usan manager del callback
  */
 
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, SelectQueryBuilder } from 'typeorm';
+import { Repository } from 'typeorm';
 import {
   ReportHeaderEntity,
   SalesByOrderTypeEntity,
@@ -155,22 +109,16 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   }
 
   // ============================================
-  // QUERY BUILDERS HELPERS
+  // NOTA IMPORTANTE - USO DE manager
   // ============================================
-
-  /**
-   * Query builder para SalesByOrderType
-   */
-  private createSalesOrderTypeQB(alias: string): SelectQueryBuilder<SalesByOrderTypeEntity> {
-    return this.salesByOrderTypeRepo.createQueryBuilder(alias);
-  }
-
-  /**
-   * Query builder para PaymentMethod
-   */
-  private createPaymentMethodQB(alias: string): SelectQueryBuilder<PaymentMethodEntity> {
-    return this.paymentMethodRepo.createQueryBuilder(alias);
-  }
+  //
+  // TODOS los métodos que usan withSchema() DEBEN:
+  // 1. Recibir el 'manager' del callback: withSchema(async (manager) => { ... })
+  // 2. Usar manager.getRepository(Entity) en lugar de this.repository
+  // 3. NUNCA usar this.repository ni this.<otroRepo> dentro del callback
+  //
+  // Esto garantiza que las queries usen el QueryRunner con search_path correcto.
+  // ============================================
 
   // ============================================
   // SECCIÓN 1: CRUD BÁSICO
@@ -256,14 +204,14 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Buscar reportes con filtros y paginación
    *
-   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + manager.getRepository()
    *
    * @param query - Filtros y opciones de paginación
    * @returns Tupla [reportes, total]
    */
   async findAll(query: QueryReportDto): Promise<[ReportHeaderEntity[], number]> {
-    return this.withSchema(async () => {
-      const qb = this.repository.createQueryBuilder('report');
+    return this.withSchema(async (manager) => {
+      const qb = manager.getRepository(ReportHeaderEntity).createQueryBuilder('report');
 
       // Joins opcionales
       if (query.include_store || query.company_id) {
@@ -362,15 +310,16 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Buscar reporte por ID
    *
-   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + manager.getRepository()
    *
    * @param id - UUID del reporte
    * @param includeDetails - Cargar entidades de detalle
    * @returns ReportHeaderEntity o null
    */
   async findById(id: string, includeDetails = false): Promise<ReportHeaderEntity | null> {
-    return this.withSchema(async () => {
-      const qb = this.repository
+    return this.withSchema(async (manager) => {
+      const qb = manager
+        .getRepository(ReportHeaderEntity)
         .createQueryBuilder('report')
         .leftJoinAndSelect('report.store', 'store')
         .where('report.id = :id', { id });
@@ -390,7 +339,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Buscar reporte por tienda y fecha
    *
-   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + manager.getRepository()
    *
    * @param storeId - UUID de la tienda
    * @param reportDate - Fecha del reporte
@@ -402,8 +351,9 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
     reportDate: string,
     reportType?: ReportTypeEnum,
   ): Promise<ReportHeaderEntity | null> {
-    return this.withSchema(async () => {
-      const qb = this.repository
+    return this.withSchema(async (manager) => {
+      const qb = manager
+        .getRepository(ReportHeaderEntity)
         .createQueryBuilder('report')
         .where('report.store_id = :storeId', { storeId })
         .andWhere('report.report_date = :reportDate', { reportDate });
@@ -419,7 +369,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Verificar si existe reporte
    *
-   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + manager.getRepository()
    *
    * @param storeId - UUID de la tienda
    * @param reportDate - Fecha del reporte
@@ -427,8 +377,10 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
    * @returns true si existe
    */
   async exists(storeId: string, reportDate: string, excludeId?: string): Promise<boolean> {
-    return this.withSchema(async () => {
-      const qb = this.repository
+    return this.withSchema(async (manager) => {
+      // ✅ CORRECTO: Usar manager del QueryRunner (con search_path)
+      const qb = manager
+        .getRepository(ReportHeaderEntity)
         .createQueryBuilder('report')
         .where('report.store_id = :storeId', { storeId })
         .andWhere('report.report_date = :reportDate', { reportDate });
@@ -507,7 +459,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Buscar reportes por tienda
    *
-   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + manager.getRepository()
    *
    * @param storeId - UUID de la tienda
    * @param dateFrom - Fecha inicio (opcional)
@@ -519,10 +471,13 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
     dateFrom?: string,
     dateTo?: string,
   ): Promise<ReportHeaderEntity[]> {
-    return this.withSchema(async () => {
-      const qb = this.repository.createQueryBuilder('report').where('report.store_id = :storeId', {
-        storeId,
-      });
+    return this.withSchema(async (manager) => {
+      const qb = manager
+        .getRepository(ReportHeaderEntity)
+        .createQueryBuilder('report')
+        .where('report.store_id = :storeId', {
+          storeId,
+        });
 
       if (dateFrom && dateTo) {
         qb.andWhere('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
@@ -535,7 +490,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Buscar reportes por compañía (todas sus tiendas)
    *
-   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + manager.getRepository()
    *
    * @param companyId - UUID de la compañía
    * @param dateFrom - Fecha inicio
@@ -547,8 +502,9 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
     dateFrom: string,
     dateTo: string,
   ): Promise<ReportHeaderEntity[]> {
-    return this.withSchema(async () => {
-      return await this.repository
+    return this.withSchema(async (manager) => {
+      return await manager
+        .getRepository(ReportHeaderEntity)
         .createQueryBuilder('report')
         .leftJoin('report.store', 'store')
         .leftJoinAndSelect('report.store', 'storeSelect')
@@ -563,7 +519,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Buscar reportes por rango de fechas
    *
-   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + manager.getRepository()
    *
    * @param dateFrom - Fecha inicio
    * @param dateTo - Fecha fin
@@ -575,8 +531,9 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
     dateTo: string,
     reportType?: ReportTypeEnum,
   ): Promise<ReportHeaderEntity[]> {
-    return this.withSchema(async () => {
-      const qb = this.repository
+    return this.withSchema(async (manager) => {
+      const qb = manager
+        .getRepository(ReportHeaderEntity)
         .createQueryBuilder('report')
         .leftJoinAndSelect('report.store', 'store')
         .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
@@ -592,7 +549,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Obtener IDs de tiendas con reportes en un período
    *
-   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + manager.getRepository()
    *
    * @param dateFrom - Fecha inicio
    * @param dateTo - Fecha fin
@@ -604,8 +561,9 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
     dateTo: string,
     companyId?: string,
   ): Promise<string[]> {
-    return this.withSchema(async () => {
-      const qb = this.repository
+    return this.withSchema(async (manager) => {
+      const qb = manager
+        .getRepository(ReportHeaderEntity)
         .createQueryBuilder('report')
         .select('DISTINCT report.store_id', 'store_id')
         .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
@@ -628,7 +586,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Consolidar reportes de una tienda
    *
-   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + manager.getRepository()
    *
    * @param storeId - UUID de la tienda
    * @param dateFrom - Fecha inicio
@@ -649,8 +607,9 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
     reports_count: number;
     days_count: number;
   }> {
-    return this.withSchema(async () => {
-      const result = await this.repository
+    return this.withSchema(async (manager) => {
+      const result = await manager
+        .getRepository(ReportHeaderEntity)
         .createQueryBuilder('report')
         .select('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
         .addSelect('COALESCE(SUM(report.total_revenue), 0)', 'total_revenue')
@@ -680,7 +639,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Consolidar reportes de una compañía
    *
-   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + manager.getRepository()
    *
    * @param companyId - UUID de la compañía
    * @param dateFrom - Fecha inicio
@@ -713,9 +672,10 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
       reports_count: number;
     }>;
   }> {
-    return this.withSchema(async () => {
+    return this.withSchema(async (manager) => {
       // Totales de la compañía
-      const totals = await this.repository
+      const totals = await manager
+        .getRepository(ReportHeaderEntity)
         .createQueryBuilder('report')
         .leftJoin('report.store', 'store')
         .select('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
@@ -732,7 +692,8 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
         .getRawOne();
 
       // Desglose por tienda
-      const storesBreakdown = await this.repository
+      const storesBreakdown = await manager
+        .getRepository(ReportHeaderEntity)
         .createQueryBuilder('report')
         .leftJoin('report.store', 'store')
         .select('store.id', 'store_id')
@@ -778,7 +739,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Consolidar todas las compañías (global)
    *
-   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + manager.getRepository()
    *
    * @param dateFrom - Fecha inicio
    * @param dateTo - Fecha fin
@@ -809,9 +770,10 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
       reports_count: number;
     }>;
   }> {
-    return this.withSchema(async () => {
+    return this.withSchema(async (manager) => {
       // Totales globales
-      const totals = await this.repository
+      const totals = await manager
+        .getRepository(ReportHeaderEntity)
         .createQueryBuilder('report')
         .leftJoin('report.store', 'store')
         .leftJoin('store.company', 'company')
@@ -828,7 +790,8 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
         .getRawOne();
 
       // Desglose por compañía
-      const companiesBreakdown = await this.repository
+      const companiesBreakdown = await manager
+        .getRepository(ReportHeaderEntity)
         .createQueryBuilder('report')
         .leftJoin('report.store', 'store')
         .leftJoin('store.company', 'company')
@@ -873,7 +836,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Consolidar ventas por tipo de orden
    *
-   * MULTI-TENANT: Usa withSchema() - las entidades de detalle también están en schema tenant
+   * MULTI-TENANT: Usa withSchema() + manager.getRepository()
    *
    * @param storeIds - Array de IDs de tiendas (o vacío para todas)
    * @param dateFrom - Fecha inicio
@@ -893,8 +856,10 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
       percentage_of_total: number;
     }>
   > {
-    return this.withSchema(async () => {
-      const qb = this.createSalesOrderTypeQB('sot')
+    return this.withSchema(async (manager) => {
+      const qb = manager
+        .getRepository(SalesByOrderTypeEntity)
+        .createQueryBuilder('sot')
         .leftJoin('sot.report_header', 'report')
         .select('sot.order_type', 'order_type')
         .addSelect('COALESCE(SUM(sot.total_sales), 0)', 'total_sales')
@@ -926,7 +891,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Consolidar métodos de pago
    *
-   * MULTI-TENANT: Usa withSchema() - las entidades de detalle también están en schema tenant
+   * MULTI-TENANT: Usa withSchema() + manager.getRepository()
    *
    * @param storeIds - Array de IDs de tiendas (o vacío para todas)
    * @param dateFrom - Fecha inicio
@@ -945,8 +910,10 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
       percentage_of_total: number;
     }>
   > {
-    return this.withSchema(async () => {
-      const qb = this.createPaymentMethodQB('pm')
+    return this.withSchema(async (manager) => {
+      const qb = manager
+        .getRepository(PaymentMethodEntity)
+        .createQueryBuilder('pm')
         .leftJoin('pm.report_header', 'report')
         .select('pm.payment_method', 'payment_method')
         .addSelect('COALESCE(SUM(pm.total_amount), 0)', 'total_amount')
@@ -976,7 +943,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Obtener desglose diario
    *
-   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + manager.getRepository()
    *
    * @param storeIds - Array de IDs de tiendas
    * @param dateFrom - Fecha inicio
@@ -997,8 +964,9 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
       stores_reported: number;
     }>
   > {
-    return this.withSchema(async () => {
-      const qb = this.repository
+    return this.withSchema(async (manager) => {
+      const qb = manager
+        .getRepository(ReportHeaderEntity)
         .createQueryBuilder('report')
         .select('report.report_date', 'date')
         .addSelect('EXTRACT(DOW FROM report.report_date)', 'day_of_week')
@@ -1034,7 +1002,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Ranking de tiendas por métrica
    *
-   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + manager.getRepository()
    */
   async getRankingByStores(dto: RankingStoresDto): Promise<
     Array<{
@@ -1053,11 +1021,12 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
       reports_count: number;
     }>
   > {
-    return this.withSchema(async () => {
+    return this.withSchema(async (manager) => {
       const metricColumn = this.getMetricColumn(dto.metric);
       const sortDirection = dto.direction === RankingDirectionEnum.BOTTOM ? 'ASC' : 'DESC';
 
-      const qb = this.repository
+      const qb = manager
+        .getRepository(ReportHeaderEntity)
         .createQueryBuilder('report')
         .leftJoin('report.store', 'store')
         .leftJoin('store.company', 'company')
@@ -1145,7 +1114,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Ranking de compañías por métrica
    *
-   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + manager.getRepository()
    */
   async getRankingByCompanies(
     dateFrom: string,
@@ -1166,11 +1135,12 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
       reports_count: number;
     }>
   > {
-    return this.withSchema(async () => {
+    return this.withSchema(async (manager) => {
       const metricColumn = this.getMetricColumn(metric);
       const sortDirection = direction === RankingDirectionEnum.BOTTOM ? 'ASC' : 'DESC';
 
-      const results = await this.repository
+      const results = await manager
+        .getRepository(ReportHeaderEntity)
         .createQueryBuilder('report')
         .leftJoin('report.store', 'store')
         .leftJoin('store.company', 'company')
@@ -1247,7 +1217,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Comparar tiendas
    *
-   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + manager.getRepository()
    */
   async compareStores(
     storeIds: string[],
@@ -1265,8 +1235,9 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
       reports_count: number;
     }>
   > {
-    return this.withSchema(async () => {
-      const results = await this.repository
+    return this.withSchema(async (manager) => {
+      const results = await manager
+        .getRepository(ReportHeaderEntity)
         .createQueryBuilder('report')
         .leftJoin('report.store', 'store')
         .select('store.id', 'store_id')
@@ -1301,7 +1272,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Comparar períodos
    *
-   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + manager.getRepository()
    */
   async comparePeriods(
     storeIds: string[],
@@ -1323,9 +1294,10 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
       reports_count: number;
     };
   }> {
-    return this.withSchema(async () => {
+    return this.withSchema(async (manager) => {
       const buildQuery = (dateFrom: string, dateTo: string) => {
-        const qb = this.repository
+        const qb = manager
+          .getRepository(ReportHeaderEntity)
           .createQueryBuilder('report')
           .select('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
           .addSelect('COALESCE(SUM(report.total_revenue), 0)', 'total_revenue')
@@ -1363,7 +1335,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Comparar por día de la semana
    *
-   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + manager.getRepository()
    */
   async compareByDayOfWeek(
     storeIds: string[],
@@ -1379,10 +1351,11 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
       occurrences: number;
     }>
   > {
-    return this.withSchema(async () => {
+    return this.withSchema(async (manager) => {
       const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
-      const qb = this.repository
+      const qb = manager
+        .getRepository(ReportHeaderEntity)
         .createQueryBuilder('report')
         .select('EXTRACT(DOW FROM report.report_date)', 'day_of_week')
         .addSelect('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
@@ -1420,7 +1393,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Estadísticas globales
    *
-   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + manager.getRepository()
    */
   async getGlobalStats(): Promise<{
     total_reports: number;
@@ -1430,33 +1403,35 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
     stores_with_reports: number;
     companies_with_reports: number;
   }> {
-    return this.withSchema(async () => {
+    return this.withSchema(async (manager) => {
       const today = new Date().toISOString().split('T')[0];
       const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
         .toISOString()
         .split('T')[0];
 
+      const repo = manager.getRepository(ReportHeaderEntity);
+
       const [total, reportsToday, reportsThisWeek, reportsThisMonth, stores, companies] =
         await Promise.all([
-          this.repository.createQueryBuilder('report').getCount(),
-          this.repository
+          repo.createQueryBuilder('report').getCount(),
+          repo
             .createQueryBuilder('report')
             .where('report.report_date = :today', { today })
             .getCount(),
-          this.repository
+          repo
             .createQueryBuilder('report')
             .where('report.report_date >= :weekAgo', { weekAgo })
             .getCount(),
-          this.repository
+          repo
             .createQueryBuilder('report')
             .where('report.report_date >= :monthStart', { monthStart })
             .getCount(),
-          this.repository
+          repo
             .createQueryBuilder('report')
             .select('COUNT(DISTINCT report.store_id)', 'count')
             .getRawOne(),
-          this.repository
+          repo
             .createQueryBuilder('report')
             .leftJoin('report.store', 'store')
             .select('COUNT(DISTINCT store.company_id)', 'count')
@@ -1477,7 +1452,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Estadísticas de período
    *
-   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + manager.getRepository()
    */
   async getPeriodStats(
     dateFrom: string,
@@ -1495,8 +1470,9 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
     days_with_reports: number;
     average_daily_sales: number;
   }> {
-    return this.withSchema(async () => {
-      const qb = this.repository
+    return this.withSchema(async (manager) => {
+      const qb = manager
+        .getRepository(ReportHeaderEntity)
         .createQueryBuilder('report')
         .select('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
         .addSelect('COALESCE(SUM(report.total_revenue), 0)', 'total_revenue')
@@ -1537,7 +1513,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Tendencias temporales
    *
-   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + manager.getRepository()
    */
   async getTrends(
     storeIds: string[],
@@ -1553,7 +1529,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
       average_ticket: number;
     }>
   > {
-    return this.withSchema(async () => {
+    return this.withSchema(async (manager) => {
       let dateSelector: string;
       let groupByClause: string;
 
@@ -1571,7 +1547,8 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
           groupByClause = 'report.report_date';
       }
 
-      const qb = this.repository
+      const qb = manager
+        .getRepository(ReportHeaderEntity)
         .createQueryBuilder('report')
         .select(dateSelector, 'period')
         .addSelect('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
@@ -1685,11 +1662,13 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Obtener tipos de orden de un reporte
    *
-   * MULTI-TENANT: Usa withSchema() - entidades de detalle en schema tenant
+   * MULTI-TENANT: Usa withSchema() + manager.getRepository()
    */
   async getSalesByOrderType(reportId: string): Promise<SalesByOrderTypeEntity[]> {
-    return this.withSchema(async () => {
-      return await this.createSalesOrderTypeQB('sot')
+    return this.withSchema(async (manager) => {
+      return await manager
+        .getRepository(SalesByOrderTypeEntity)
+        .createQueryBuilder('sot')
         .where('sot.report_header_id = :reportId', { reportId })
         .orderBy('sot.total_sales', 'DESC')
         .getMany();
@@ -1699,11 +1678,13 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Obtener métodos de pago de un reporte
    *
-   * MULTI-TENANT: Usa withSchema() - entidades de detalle en schema tenant
+   * MULTI-TENANT: Usa withSchema() + manager.getRepository()
    */
   async getPaymentMethods(reportId: string): Promise<PaymentMethodEntity[]> {
-    return this.withSchema(async () => {
-      return await this.createPaymentMethodQB('pm')
+    return this.withSchema(async (manager) => {
+      return await manager
+        .getRepository(PaymentMethodEntity)
+        .createQueryBuilder('pm')
         .where('pm.report_header_id = :reportId', { reportId })
         .orderBy('pm.total_amount', 'DESC')
         .getMany();
@@ -1713,11 +1694,12 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Obtener descuentos dinámicos de un reporte
    *
-   * MULTI-TENANT: Usa withSchema() - entidades de detalle en schema tenant
+   * MULTI-TENANT: Usa withSchema() + manager.getRepository()
    */
   async getDynamicDiscounts(reportId: string): Promise<DynamicDiscountEntity[]> {
-    return this.withSchema(async () => {
-      return await this.discountRepo
+    return this.withSchema(async (manager) => {
+      return await manager
+        .getRepository(DynamicDiscountEntity)
         .createQueryBuilder('dd')
         .where('dd.report_header_id = :reportId', { reportId })
         .orderBy('dd.total_discount', 'DESC')
@@ -1728,11 +1710,12 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Obtener ajustes de un reporte
    *
-   * MULTI-TENANT: Usa withSchema() - entidades de detalle en schema tenant
+   * MULTI-TENANT: Usa withSchema() + manager.getRepository()
    */
   async getAdjustments(reportId: string): Promise<AdjustmentEntity[]> {
-    return this.withSchema(async () => {
-      return await this.adjustmentRepo
+    return this.withSchema(async (manager) => {
+      return await manager
+        .getRepository(AdjustmentEntity)
         .createQueryBuilder('adj')
         .where('adj.report_header_id = :reportId', { reportId })
         .orderBy('adj.total_amount', 'DESC')
@@ -1743,11 +1726,12 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Obtener órdenes efectivas de un reporte
    *
-   * MULTI-TENANT: Usa withSchema() - entidades de detalle en schema tenant
+   * MULTI-TENANT: Usa withSchema() + manager.getRepository()
    */
   async getEffectiveOrders(reportId: string, limit = 100): Promise<EffectiveOrderEntity[]> {
-    return this.withSchema(async () => {
-      return await this.effectiveOrderRepo
+    return this.withSchema(async (manager) => {
+      return await manager
+        .getRepository(EffectiveOrderEntity)
         .createQueryBuilder('eo')
         .where('eo.report_header_id = :reportId', { reportId })
         .orderBy('eo.order_datetime', 'DESC')
@@ -1776,11 +1760,12 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   /**
    * Contar reportes por estado
    *
-   * MULTI-TENANT: Usa withSchema() + this.repository.createQueryBuilder()
+   * MULTI-TENANT: Usa withSchema() + manager.getRepository()
    */
   async countByStatus(companyId?: string): Promise<Record<string, number>> {
-    return this.withSchema(async () => {
-      const qb = this.repository
+    return this.withSchema(async (manager) => {
+      const qb = manager
+        .getRepository(ReportHeaderEntity)
         .createQueryBuilder('report')
         .select('report.status', 'status')
         .addSelect('COUNT(*)', 'count');

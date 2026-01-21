@@ -1101,4 +1101,41 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       return 0;
     }
   }
+
+  // ============================================
+  // KEY BUILDERS
+  // ============================================
+
+  /**
+   * Construye una clave Redis con formato consistente
+   * Usa ':' como separador estándar
+   *
+   * @param parts - Partes de la clave
+   * @returns Clave formateada (ej: 'auth:user:123:full')
+   *
+   * @example
+   * buildKey('auth', 'user', userId, 'full') // 'auth:user:123:full'
+   * buildKey('session', schema, 'user', odId) // 'session:tenant1:user:456'
+   */
+  buildKey(...parts: (string | number | null | undefined)[]): string {
+    return parts
+      .filter((part) => part !== null && part !== undefined && part !== '')
+      .map((part) => String(part))
+      .join(':');
+  }
+
+  /**
+   * Construye un patrón para búsqueda de claves
+   * Útil para invalidar múltiples claves relacionadas
+   *
+   * @param parts - Partes del patrón (el último puede ser '*' para wildcard)
+   * @returns Patrón de búsqueda (ej: 'auth:user:123:*')
+   *
+   * @example
+   * buildPattern('auth', 'user', userId, '*') // 'auth:user:123:*'
+   * buildPattern('session', '*') // 'session:*'
+   */
+  buildPattern(...parts: (string | number | null | undefined)[]): string {
+    return this.buildKey(...parts);
+  }
 }

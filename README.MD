@@ -467,6 +467,63 @@ rest-valdez/
 
 ---
 
+## ⚡ Multi-Tenant Quick Reference
+
+> **🚨 REGLA CRÍTICA:** En repositorios multi-tenant, SIEMPRE recibir `manager` en el callback y usarlo.
+
+### Patrón Correcto (OBLIGATORIO)
+
+```typescript
+// ✅ READ operations
+async findById(id: string): Promise<Entity | null> {
+  return this.withSchema(async (manager) => {
+    //                           ↑ RECIBIR manager
+    return await manager
+      .getRepository(Entity)
+      //     ↑ USAR manager.getRepository()
+      .createQueryBuilder('entity')
+      .where('entity.id = :id', { id })
+      .getOne();
+  });
+}
+
+// ✅ WRITE operations
+async create(dto: CreateDto): Promise<Entity> {
+  return this.withSchemaTransaction(async (manager) => {
+    const entity = manager.create(Entity, dto);
+    return await manager.save(Entity, entity);
+  });
+}
+```
+
+### Anti-Patrones PROHIBIDOS
+
+```typescript
+// ❌ NO recibir manager
+this.withSchema(async () => { ... });
+
+// ❌ Usar this.repository dentro de callback
+this.withSchema(async (manager) => {
+  return this.repository.find(); // ❌ MAL
+});
+
+// ❌ Usar repositorios secundarios directamente
+this.withSchema(async (manager) => {
+  return this.detailsRepo.find(); // ❌ MAL
+});
+```
+
+### Tabla de Decisión
+
+| Entidad | Schema | Método |
+|---------|--------|--------|
+| users, companies, stores | PUBLIC | `createStaticQueryBuilder()` |
+| report_headers, sales, etc | TENANT | `withSchema(manager) + manager.getRepository()` |
+
+> **Ver:** `docs/BASE-REPOSITORY.md` para documentación completa.
+
+---
+
 ## ✅ Checklist Rápido Pre-Commit
 
 ```
@@ -474,6 +531,9 @@ rest-valdez/
 [ ] Repository usa createQueryBuilder
 [ ] Si es tenant: extends BaseRepository + withSchema()
 [ ] Si es tenant: Entity SIN schema explícito
+[ ] Si es tenant: SIEMPRE recibir manager en callback
+[ ] Si es tenant: SIEMPRE usar manager.getRepository(Entity)
+[ ] Si es tenant: NUNCA usar this.repository dentro de callbacks
 [ ] Si es public: Entity CON schema: 'public'
 [ ] Service inyecta SanitizerService + HandleErrorService
 [ ] Controller NO tiene try-catch
@@ -506,5 +566,5 @@ Softlogy Internal Use Only
 
 ---
 
-> **Última actualización:** Enero 2025 - Sesión 15 (ReportsModule Completado)
+> **Última actualización:** Enero 2025 - Sesión 20 (Migración Multi-Tenant Queries)
 > **Estado:** Sistema de Reportes Multi-Nivel + Multi-Tenant Operativo

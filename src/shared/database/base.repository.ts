@@ -80,41 +80,53 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
   /**
    * Ejecuta callback con SET search_path dinámico
    *
-   * Este es el método principal para queries multi-tenant.
-   * Establece el search_path al schema del tenant actual y ejecuta el callback.
+   * MULTI-TENANT: Método principal para queries con schema dinámico
+   *
+   * Establece search_path en un QueryRunner y pasa el manager de ese QueryRunner
+   * al callback para que todas las queries usen el mismo search_path.
    *
    * Características:
-   * - Obtiene schema desde SchemaContext (establecido por TenantInterceptor)
-   * - Establece search_path con fallback a 'public'
-   * - Restaura search_path después de ejecutar
-   * - Thread-safe (cada request tiene su propio QueryRunner)
+   * - Obtiene schema desde SchemaContext (TenantInterceptor)
+   * - Crea QueryRunner dedicado
+   * - Establece search_path (tenant, public)
+   * - Pasa manager al callback
+   * - Restaura search_path y libera QueryRunner
+   * - Thread-safe (cada request tiene su QueryRunner)
    *
-   * @param callback - Función async que ejecuta las queries
+   * @param callback - Función async que recibe EntityManager con search_path
    * @returns Resultado del callback
    *
    * @example
    * ```typescript
    * async findById(id: string): Promise<Product | null> {
-   *   return await this.withSchema(async () => {
-   *     return await this.repository.findOne({ where: { id } });
+   *   return await this.withSchema(async (manager) => {
+   *     return await manager
+   *       .getRepository(ProductEntity)
+   *       .createQueryBuilder('product')
+   *       .where('product.id = :id', { id })
+   *       .getOne();
    *   });
    * }
    * ```
    */
-  protected async withSchema<R>(callback: () => Promise<R>): Promise<R> {
+  protected async withSchema<R>(callback: (manager: EntityManager) => Promise<R>): Promise<R> {
     const schema = this.schemaContext.getSchema();
-    const manager = this.repository.manager;
-    const queryRunner = manager.connection.createQueryRunner();
+    const connection = this.repository.manager.connection;
+    const queryRunner = connection.createQueryRunner();
 
     try {
+      // Conectar el QueryRunner
+      await queryRunner.connect();
+
       // Establecer search_path (primero tenant, luego public como fallback)
-      const searchPath = schema === 'public' ? 'public' : `${schema}, public`;
+      const searchPath = schema === 'public' ? 'public' : `${schema}`;
       await queryRunner.query(`SET search_path TO ${searchPath}`);
 
       this.logger.debug(`search_path establecido: ${searchPath}`);
 
-      // Ejecutar callback
-      const result = await callback();
+      // Ejecutar callback pasando el manager del QueryRunner
+      // ✅ CRÍTICO: El manager del QueryRunner tiene el search_path aplicado
+      const result = await callback(queryRunner.manager);
 
       return result;
     } catch (error) {
@@ -127,6 +139,8 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
       } catch (err) {
         this.logger.warn('No se pudo restaurar search_path a public:', err);
       }
+
+      // Liberar QueryRunner
       await queryRunner.release();
     }
   }
@@ -162,8 +176,8 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
     await queryRunner.startTransaction();
 
     try {
-      // Establecer search_path
-      const searchPath = schema === 'public' ? 'public' : `${schema}, public`;
+      // Establecer search_path (SIN fallback a public para consistencia con withSchema())
+      const searchPath = schema === 'public' ? 'public' : `${schema}`;
       await queryRunner.query(`SET search_path TO ${searchPath}`);
 
       this.logger.debug(`Transacción iniciada con search_path: ${searchPath}`);
@@ -223,7 +237,7 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
   /**
    * Query builder con search_path dinámico (para entidades tenant)
    *
-   * @deprecated Usar this.repository.createQueryBuilder() dentro de withSchema() en su lugar.
+   * @deprecated Usar manager.getRepository(Entity).createQueryBuilder() dentro de withSchema() en su lugar.
    *
    * Este método usa manager.query() que NO es thread-safe en alta concurrencia.
    * Es redundante con withSchema() que ya establece search_path de forma aislada.
@@ -235,8 +249,10 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
    * return await qb.where(...).getOne();
    *
    * // ✅ DESPUÉS (correcto)
-   * return await this.withSchema(async () => {
-   *   return await this.repository.createQueryBuilder('alias')
+   * return await this.withSchema(async (manager) => {
+   *   return await manager
+   *     .getRepository(Entity)
+   *     .createQueryBuilder('alias')
    *     .where(...)
    *     .getOne();
    * });
@@ -248,11 +264,14 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
    * @returns Promise<QueryBuilder>
    */
   protected async createTenantQueryBuilder(alias: string): Promise<SelectQueryBuilder<T>> {
+    this.logger.warn(
+      'createTenantQueryBuilder() está deprecated. Usar manager.getRepository(Entity).createQueryBuilder() dentro de withSchema() en su lugar.',
+    );
     const schema = this.schemaContext.getSchema();
     const manager = this.repository.manager;
 
-    // SET search_path antes de crear query builder
-    const searchPath = schema === 'public' ? 'public' : `${schema}, public`;
+    // SET search_path antes de crear query builder (SIN fallback a public)
+    const searchPath = schema === 'public' ? 'public' : `${schema}`;
     await manager.query(`SET search_path TO ${searchPath}`);
 
     return this.repository.createQueryBuilder(alias);
@@ -292,15 +311,19 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
   /**
    * Obtiene entity manager con search_path establecido
    *
-   * Útil para operaciones manuales con el manager
+   * @deprecated Usar withSchema() en su lugar. Este método NO es thread-safe en alta concurrencia.
    *
    * @returns EntityManager con search_path configurado
    */
   protected async getSchemaManager(): Promise<EntityManager> {
+    this.logger.warn(
+      'getSchemaManager() está deprecated. Usar withSchema() en su lugar. Este método NO es thread-safe.',
+    );
     const schema = this.schemaContext.getSchema();
     const manager = this.repository.manager;
 
-    const searchPath = schema === 'public' ? 'public' : `${schema}, public`;
+    // SIN fallback a public para consistencia
+    const searchPath = schema === 'public' ? 'public' : `${schema}`;
     await manager.query(`SET search_path TO ${searchPath}`);
 
     return manager;

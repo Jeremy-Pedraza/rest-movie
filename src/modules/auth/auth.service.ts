@@ -299,10 +299,12 @@ export class AuthService {
       );
     }
 
-    // ✅ 4. Verificar estado del usuario y cargar company (CON CACHE)
-    // ✅ FASE 2: Usa helper con logging de cache hit/miss
-    const user = await this.getCachedUserWithCompany(session.user_id, 'refresh');
+    // ✅ FASE 3 (Sesión 22): Decodificar token para obtener schema y optimizar cache
+    const decoded = this.jwtService.decode(dto.refreshToken);
+    const knownSchema = decoded?.schema || null;
 
+    // ✅ 4. Verificar estado del usuario y cargar company (CON CACHE + SCHEMA)
+    const user = await this.getCachedUserWithCompany(session.user_id, 'refresh', knownSchema);
     if (!user) {
       await this.authRepository.revokeSession(session.id);
       this.handleError.unauthorized(
@@ -722,32 +724,95 @@ export class AuthService {
   /**
    * Obtiene usuario completo con cache y logging de hit/miss
    *
-   * ✅ FASE 2: Helper para monitoreo de cache
+   * ✅ FASE 3 (Sesión 22): ACTUALIZADO para incluir schema en cache key
+   *
+   * Estrategia de migración:
+   * 1. Si tenemos schema conocido, intentar cache con key nueva (auth:{schema}:user:{id})
+   * 2. Si no hay cache, buscar en BD
+   * 3. Cachear con schema obtenido de los datos
+   * 4. Durante migración: también intentar leer key legacy (auth:user:{id}:full)
+   *
+   * Key nueva: auth:{schema}:user:{userId}
+   * Key legacy: auth:user:{userId}:full
    *
    * @param userId - ID del usuario
    * @param context - Contexto para el log (ej: 'login', 'refresh')
+   * @param knownSchema - Schema conocido (opcional, de JWT en refresh)
    * @returns Usuario completo con company y roles
    */
-  private async getCachedUserWithCompany(userId: string, context: string = 'auth'): Promise<any> {
-    const cacheKey = this.redisService.buildKey(AUTH_CACHE_PREFIX, 'user', userId, 'full');
+  private async getCachedUserWithCompany(
+    userId: string,
+    context: string = 'auth',
+    knownSchema?: string | null,
+  ): Promise<any> {
+    // =============================================
+    // 1. Si tenemos schema, intentar cache con key nueva
+    // =============================================
+    if (knownSchema) {
+      const newCacheKey = this.redisService.buildKey(
+        AUTH_CACHE_PREFIX,
+        knownSchema,
+        'user',
+        userId,
+      );
+      const cached = await this.redisService.getJson(newCacheKey);
 
-    // Verificar si existe en cache primero (para logging)
-    const cached = await this.redisService.getJson(cacheKey);
-
-    if (cached) {
-      this.logger.debug(`[${context}] Cache HIT for user: ${userId}`);
-      return cached;
+      if (cached) {
+        this.logger.debug(`[${context}] Cache HIT for user: ${userId} (schema: ${knownSchema})`);
+        return cached;
+      }
     }
 
+    // =============================================
+    // 2. Intentar leer key legacy (migración gradual)
+    // =============================================
+    const legacyCacheKey = this.redisService.buildKey(AUTH_CACHE_PREFIX, 'user', userId, 'full');
+    const legacyCached = await this.redisService.getJson(legacyCacheKey);
+
+    if (legacyCached) {
+      this.logger.debug(`[${context}] Cache HIT (legacy key) for user: ${userId}`);
+
+      // Migrar a nueva key si tenemos schema en los datos
+      const legacySchema = legacyCached?.company?.schema;
+      if (legacySchema) {
+        const newCacheKey = this.redisService.buildKey(
+          AUTH_CACHE_PREFIX,
+          legacySchema,
+          'user',
+          userId,
+        );
+        await this.redisService.setJson(newCacheKey, legacyCached, { ttl: AUTH_USER_CACHE_TTL });
+        // Eliminar key legacy
+        await this.redisService.del(legacyCacheKey);
+        this.logger.debug(
+          `[${context}] Migrated cache key to new format (schema: ${legacySchema})`,
+        );
+      }
+
+      return legacyCached;
+    }
+
+    // =============================================
+    // 3. Cache MISS - Buscar en BD
+    // =============================================
     this.logger.debug(`[${context}] Cache MISS for user: ${userId} - fetching from DB`);
 
-    // Buscar en BD y cachear
     const user = await this.userService.findByIdWithCompanyAndRoles(userId);
 
-    if (user) {
-      await this.redisService.setJson(cacheKey, user, { ttl: AUTH_USER_CACHE_TTL });
-      this.logger.debug(`[${context}] Cached user: ${userId} (TTL: ${AUTH_USER_CACHE_TTL}s)`);
+    if (!user) {
+      return null;
     }
+
+    // =============================================
+    // 4. Cachear con schema obtenido de los datos
+    // =============================================
+    const userSchema = user.company?.schema || 'public';
+    const newCacheKey = this.redisService.buildKey(AUTH_CACHE_PREFIX, userSchema, 'user', userId);
+
+    await this.redisService.setJson(newCacheKey, user, { ttl: AUTH_USER_CACHE_TTL });
+    this.logger.debug(
+      `[${context}] Cached user: ${userId} (schema: ${userSchema}, TTL: ${AUTH_USER_CACHE_TTL}s)`,
+    );
 
     return user;
   }
@@ -755,7 +820,9 @@ export class AuthService {
   /**
    * Invalida el cache de autenticación de un usuario
    *
-   * ✅ FASE 1: Llamar cuando:
+   * ✅ FASE 3 (Sesión 22): ACTUALIZADO para invalidar keys con schema
+   *
+   * Llamar cuando:
    * - Cambia password
    * - Reset password
    * - Logout all
@@ -763,20 +830,27 @@ export class AuthService {
    * - Cambia estado del usuario
    *
    * @param userId - ID del usuario
-   * @param schema - Schema del tenant (opcional, para cache de sesión)
+   * @param schema - Schema del tenant (opcional, para cache específico)
    */
   private async invalidateUserAuthCache(userId: string, schema?: string | null): Promise<void> {
     const keysToDelete: string[] = [];
 
-    // 1. Cache de usuario autenticado (login)
+    // =============================================
+    // 1. Key legacy (para migración)
+    // =============================================
     keysToDelete.push(this.redisService.buildKey(AUTH_CACHE_PREFIX, 'user', userId, 'full'));
 
-    // 2. Cache de sesión (JwtStrategy) - si hay schema
+    // =============================================
+    // 2. Key nueva con schema específico
+    // =============================================
     if (schema) {
+      keysToDelete.push(this.redisService.buildKey(AUTH_CACHE_PREFIX, schema, 'user', userId));
       keysToDelete.push(this.redisService.buildKey(SESSION_CACHE_PREFIX, schema, 'user', userId));
     }
 
-    // 3. Eliminar todas las claves
+    // =============================================
+    // 3. Eliminar keys conocidas
+    // =============================================
     if (keysToDelete.length > 0) {
       const deleted = await this.redisService.del(...keysToDelete);
       if (deleted > 0) {
@@ -784,18 +858,27 @@ export class AuthService {
       }
     }
 
-    // 4. Si no tenemos schema, invalidar por patrón (más costoso pero seguro)
+    // =============================================
+    // 4. Si no tenemos schema, invalidar por patrón
+    // =============================================
     if (!schema) {
+      // Patrón para auth keys nuevas: auth:*:user:{userId}
+      const authPattern = this.redisService.buildPattern(AUTH_CACHE_PREFIX, '*', 'user', userId);
+      const deletedAuth = await this.redisService.invalidatePattern(authPattern);
+
+      // Patrón para session keys: session:*:user:{userId}
       const sessionPattern = this.redisService.buildPattern(
         SESSION_CACHE_PREFIX,
         '*',
         'user',
         userId,
       );
-      const deletedByPattern = await this.redisService.invalidatePattern(sessionPattern);
-      if (deletedByPattern > 0) {
+      const deletedSession = await this.redisService.invalidatePattern(sessionPattern);
+
+      const totalDeleted = deletedAuth + deletedSession;
+      if (totalDeleted > 0) {
         this.logger.debug(
-          `Invalidated ${deletedByPattern} session cache keys by pattern for user: ${userId}`,
+          `Invalidated ${totalDeleted} cache keys by pattern for user: ${userId} (auth: ${deletedAuth}, session: ${deletedSession})`,
         );
       }
     }

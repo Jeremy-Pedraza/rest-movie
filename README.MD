@@ -187,6 +187,82 @@ Request con JWT
 
 ---
 
+## 🔄 Sistema de Cache por Tenant
+
+### ¿Qué es?
+
+El backend implementa cache HTTP inteligente con **RedisService** que soporta:
+- ✅ Cache aislado por tenant (schema)
+- ✅ Cache por usuario individual
+- ✅ Cache público para endpoints sin auth
+- ✅ Una sola conexión a Redis
+- ✅ Keys unificadas con formato consistente
+
+### Arquitectura
+
+```
+Request → @Cacheable() → CacheInterceptor
+    │
+    ├── Genera cache key según estrategia
+    │   ├── public:     cache:http:{url}
+    │   ├── per-tenant: cache:{schema}:http:{url}
+    │   └── per-user:   cache:{schema}:user:{userId}:http:{url}
+    │
+    ├── RedisService.getJson(key)
+    │   ├── HIT → Retorna datos cacheados
+    │   └── MISS → Ejecuta handler
+    │
+    └── [Fire-and-forget] RedisService.setJson(key, data)
+```
+
+### Estrategias de Cache
+
+| Estrategia | Cuándo Usar | Ejemplo |
+|------------|-------------|---------||
+| `public` | Endpoints sin auth (`@Public()`) | Health checks, stats públicas |
+| `per-tenant` | Reportes/datos del tenant (DEFAULT) | Consolidaciones, dashboards |
+| `per-user` | Datos altamente personalizados | Mis preferencias, mi dashboard |
+
+### Uso Rápido
+
+```typescript
+// Cache por tenant (recomendado para reportes)
+@Cacheable({ ttl: 120, strategy: 'per-tenant' })
+@Get('reports/trends')
+async getTrends() {
+  return await this.service.getTrends();
+}
+
+// Cache por usuario (dashboards personalizados)
+@Cacheable({ ttl: 60, strategy: 'per-user' })
+@Get('my-dashboard')
+async getMyDashboard(@CurrentUser() user: UserSessionDto) {
+  return await this.service.getPersonalized(user.id);
+}
+
+// Cache público (sin autenticación)
+@Public()
+@Cacheable({ ttl: 3600, strategy: 'public' })
+@Get('public-stats')
+async getPublicStats() {
+  return await this.service.getPublicStats();
+}
+```
+
+### Guía de TTL Recomendados
+
+| Tipo de Dato | TTL | Uso |
+|--------------|-----|-----|
+| Tiempo real | Sin cache | - |
+| Dashboards | 60s (1 min) | Datos dinámicos |
+| Reportes | 120-300s (2-5 min) | Balance rendimiento/actualización |
+| Consolidaciones | 300s (5 min) | Queries pesados |
+| Estadísticas públicas | 3600s (1 hora) | Datos estables |
+
+**Documentación completa:** [docs/CACHE-PER-TENANT.md](docs/CACHE-PER-TENANT.md)
+
+---
+
 ## 📚 Documentación (Por Orden de Lectura)
 
 ### ⚡ Obligatorios Antes de Codificar
@@ -241,6 +317,7 @@ Request con JWT
 | **NotificationModule** | ✅ 93%  | Notificaciones multi-canal (Email/SMS/Push)   |
 | **TasksModule**        | ✅ 100% | Tareas programadas (Cron) - 5 jobs            |
 | **CacheModule**        | ✅ 100% | Cache con tags e invalidación                 |
+| **CacheInterceptor**   | ✅ 100% | Cache HTTP por tenant en endpoints            |
 | **LoggerModule**       | ✅ 100% | Logging a BD con buffer                       |
 | **HealthModule**       | ✅ 100% | Health checks para Kubernetes                 |
 
@@ -376,18 +453,19 @@ HTTP Request
 
 ## ⚙️ Componentes Globales Activos
 
-| Componente            | Tipo               | Bypass             |
-| --------------------- | ------------------ | ------------------ |
-| `RequestIdMiddleware` | Middleware         | -                  |
-| `LoggerMiddleware`    | Middleware         | -                  |
-| `ThrottlerGuard`      | Guard Global       | -                  |
-| `JwtAuthGuard`        | Guard Global       | `@Public()`        |
-| `TenantGuard`         | Guard Global       | `@SkipTenant()`    |
-| `RolesGuard`          | Guard Global       | Sin `@Roles()`     |
-| `LoggingInterceptor`  | Interceptor Global | `LOG_IGNORE_PATHS` |
-| `TenantInterceptor`   | Interceptor Global | -                  |
-| `TimeoutInterceptor`  | Interceptor Global | -                  |
-| `AllExceptionsFilter` | Filter Global      | -                  |
+| Componente            | Tipo                  | Bypass             |
+| --------------------- | --------------------- | ------------------ |
+| `RequestIdMiddleware` | Middleware            | -                  |
+| `LoggerMiddleware`    | Middleware            | -                  |
+| `ThrottlerGuard`      | Guard Global          | -                  |
+| `JwtAuthGuard`        | Guard Global          | `@Public()`        |
+| `TenantGuard`         | Guard Global          | `@SkipTenant()`    |
+| `RolesGuard`          | Guard Global          | Sin `@Roles()`     |
+| `LoggingInterceptor`  | Interceptor Global    | `LOG_IGNORE_PATHS` |
+| `TenantInterceptor`   | Interceptor Global    | -                  |
+| `TimeoutInterceptor`  | Interceptor Global    | -                  |
+| `CacheInterceptor`    | Interceptor Selectivo | `@Cacheable()`     |
+| `AllExceptionsFilter` | Filter Global         | -                  |
 
 ---
 

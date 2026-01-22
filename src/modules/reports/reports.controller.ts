@@ -264,7 +264,7 @@ export class ReportsController {
   @Get('consolidate/quick')
   @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
   @UseGuards(ReportAccessGuard)
-  @Cacheable(60) // Cache 1 minuto
+  @Cacheable({ ttl: 60, strategy: 'per-tenant' }) // Cache 1 minuto por tenant
   @ApiOperation({
     summary: 'Consolidación rápida',
     description:
@@ -296,7 +296,7 @@ export class ReportsController {
   @Get('compare/quick')
   @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
   @UseGuards(ReportAccessGuard)
-  @Cacheable(60) // Cache 1 minuto
+  @Cacheable({ ttl: 60, strategy: 'per-tenant' }) // Cache 1 minuto por tenant
   @ApiOperation({
     summary: 'Comparación rápida',
     description:
@@ -329,7 +329,7 @@ export class ReportsController {
   @Get('ranking/quick')
   @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER)
   @UseGuards(ReportAccessGuard)
-  @Cacheable(60) // Cache 1 minuto
+  @Cacheable({ ttl: 60, strategy: 'per-tenant' }) // Cache 1 minuto por tenant
   @ApiOperation({
     summary: 'Ranking rápido',
     description: 'Obtiene top 3 de tiendas para período predefinido.',
@@ -365,7 +365,7 @@ export class ReportsController {
    */
   @Get('stats/global')
   @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN)
-  @Cacheable(300) // Cache 5 minutos
+  @Cacheable({ ttl: 300, strategy: 'per-tenant' }) // Cache 5 minutos por tenant
   @ApiOperation({
     summary: 'Estadísticas globales',
     description: 'Obtiene estadísticas globales del módulo de reportes. Solo SUPER_ADMIN y ADMIN.',
@@ -389,7 +389,7 @@ export class ReportsController {
    */
   @Get('trends')
   @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
-  @Cacheable(120) // Cache 2 minutos
+  @Cacheable({ ttl: 120, strategy: 'per-tenant' }) // Cache 2 minutos por tenant
   @ApiOperation({
     summary: 'Obtener tendencias',
     description: 'Obtiene serie temporal de métricas para generar gráficos de tendencias.',
@@ -476,7 +476,7 @@ export class ReportsController {
   @Get('store/:storeId/today')
   @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
   @UseGuards(ReportAccessGuard)
-  @Cacheable(60) // Cache 1 minuto
+  @Cacheable({ ttl: 60, strategy: 'per-tenant' }) // Cache 1 minuto por tenant
   @ApiOperation({
     summary: 'Reporte de hoy',
     description: 'Obtiene el reporte del día de hoy para una tienda.',
@@ -512,7 +512,7 @@ export class ReportsController {
   @Get('store/:storeId/summary')
   @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
   @UseGuards(ReportAccessGuard)
-  @Cacheable(300) // Cache 5 minutos
+  @Cacheable({ ttl: 300, strategy: 'per-tenant' }) // Cache 5 minutos por tenant
   @ApiOperation({
     summary: 'Resumen de tienda',
     description: 'Obtiene consolidado del mes actual para una tienda.',
@@ -586,7 +586,7 @@ export class ReportsController {
   @Get('company/:companyId/dashboard')
   @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER)
   @UseGuards(ReportAccessGuard)
-  @Cacheable(120) // Cache 2 minutos
+  @Cacheable({ ttl: 120, strategy: 'per-tenant' }) // Cache 2 minutos por tenant
   @ApiOperation({
     summary: 'Dashboard de compañía',
     description:

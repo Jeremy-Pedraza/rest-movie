@@ -48,7 +48,6 @@ test-results/
 # IDE & Editors
 # ============================================
 .idea/
-.vscode/
 *.swp
 *.swo
 *~

@@ -444,7 +444,7 @@ export class ReportsService {
         stores_reported: d.stores_reported,
       })),
       order_type_breakdown: orderTypeBreakdown?.map((o) => ({
-        order_type: o.order_type as any,
+        order_type: o.order_type,
         total_sales: o.total_sales,
         total_orders: o.total_orders,
         total_quantity: o.total_quantity,
@@ -452,7 +452,7 @@ export class ReportsService {
         percentage_of_total: o.percentage_of_total,
       })),
       payment_method_breakdown: paymentMethodBreakdown?.map((p) => ({
-        payment_method: p.payment_method as any,
+        payment_method: p.payment_method,
         total_amount: p.total_amount,
         transactions_count: p.transactions_count,
         average_amount: p.transactions_count > 0 ? p.total_amount / p.transactions_count : 0,

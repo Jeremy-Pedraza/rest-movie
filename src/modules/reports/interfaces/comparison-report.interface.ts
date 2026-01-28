@@ -1,7 +1,18 @@
 // src/modules/reports/interfaces/comparison-report.interface.ts
 
+/**
+ * @fileoverview Interfaces para comparaciones de reportes
+ * @module modules/reports
+ *
+ * ACTUALIZACIÓN: 2025-01-28
+ * Se cambió order_type y payment_method de enums a strings
+ * para soportar valores dinámicos.
+ *
+ * @version 2.0.0 - Flexibilización de tipado
+ */
+
 import { ReportTypeEnum, ConsolidationLevelEnum } from '../enums';
-import { ComparisonTypeEnum, OrderTypeEnum, PaymentMethodTypeEnum } from '../dto';
+import { ComparisonTypeEnum } from '../dto';
 
 /**
  * Interfaces para comparaciones de reportes
@@ -54,6 +65,8 @@ export interface IMetricsWithDifferences extends IComparedMetrics {
 
 /**
  * Datos de una tienda en comparación
+ *
+ * @updated 2025-01-28 - order_type_breakdown y payment_method_breakdown cambiaron a string
  */
 export interface IStoreComparisonData {
   store_id: string;
@@ -73,13 +86,13 @@ export interface IStoreComparisonData {
 
   // Desglose opcional
   order_type_breakdown?: Array<{
-    order_type: OrderTypeEnum;
+    order_type: string; // Cambió de OrderTypeEnum a string
     total_sales: number;
     percentage: number;
   }>;
 
   payment_method_breakdown?: Array<{
-    payment_method: PaymentMethodTypeEnum;
+    payment_method: string; // Cambió de PaymentMethodTypeEnum a string
     total_amount: number;
     percentage: number;
   }>;

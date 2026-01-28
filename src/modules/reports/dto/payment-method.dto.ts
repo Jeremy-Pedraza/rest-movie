@@ -1,10 +1,16 @@
 // src/modules/reports/dto/payment-method.dto.ts
 
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsOptional, Min, IsEnum } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsOptional, Min, IsString, Length } from 'class-validator';
 
 /**
- * Métodos de pago disponibles
+ * Métodos de pago disponibles (REFERENCIA)
+ * 
+ * @deprecated Este enum se mantiene solo como referencia de tipos comunes.
+ * El API ahora acepta cualquier string para payment_method, permitiendo valores
+ * originales de Simphony como "Visa Crédito", "Mastercard Débito", "Nequi", etc.
+ * 
+ * Valores históricos en la BD pueden seguir usando estos valores normalizados.
  */
 export enum PaymentMethodTypeEnum {
   CASH = 'cash',
@@ -21,28 +27,46 @@ export enum PaymentMethodTypeEnum {
  * @description
  * Valida los campos para registrar el desglose de ventas por método de pago.
  * Usado dentro de CreateReportDto para el array payment_methods.
+ * 
+ * **CAMBIO IMPORTANTE (2025-01-27):**
+ * El campo `payment_method` ahora acepta cualquier string (1-100 caracteres) en lugar
+ * de estar limitado a un enum. Esto permite almacenar valores originales de Simphony
+ * sin transformación (ej: "Visa Crédito", "Mastercard Débito", "Nequi", "Efectivo").
  *
  * @example
  * ```typescript
- * const dto: CreatePaymentMethodDto = {
- *   payment_method: 'cash',
+ * // Nuevos valores (desde 2025-01-27)
+ * const dto1: CreatePaymentMethodDto = {
+ *   payment_method: 'Visa Crédito',
  *   total_amount: 3000.00,
  *   transactions_count: 15,
+ * };
+ * 
+ * const dto2: CreatePaymentMethodDto = {
+ *   payment_method: 'Nequi',
+ *   total_amount: 1500.50,
+ *   transactions_count: 25,
+ * };
+ * 
+ * // Valores legacy (anteriores a 2025-01-27) siguen siendo válidos
+ * const dto3: CreatePaymentMethodDto = {
+ *   payment_method: 'cash',
+ *   total_amount: 2000.00,
+ *   transactions_count: 10,
  * };
  * ```
  */
 export class CreatePaymentMethodDto {
   @ApiProperty({
-    description: 'Método de pago',
-    enum: PaymentMethodTypeEnum,
-    example: PaymentMethodTypeEnum.CASH,
+    description: 'Método de pago (valor libre desde Simphony, ej: "Visa Crédito", "Nequi", "Efectivo")',
+    example: 'Visa Crédito',
+    minLength: 1,
+    maxLength: 100,
   })
-  @IsEnum(PaymentMethodTypeEnum, {
-    message:
-      'El método de pago debe ser: cash, credit_card, debit_card, digital_wallet, bank_transfer u other',
-  })
+  @IsString({ message: 'El método de pago debe ser una cadena de texto' })
   @IsNotEmpty({ message: 'El método de pago es requerido' })
-  payment_method: PaymentMethodTypeEnum;
+  @Length(1, 100, { message: 'El método de pago debe tener entre 1 y 100 caracteres' })
+  payment_method: string;
 
   @ApiProperty({
     description: 'Monto total recaudado con este método',
@@ -84,6 +108,7 @@ export class CreatePaymentMethodDto {
  *
  * @description
  * Representa la estructura de respuesta para métodos de pago.
+ * El campo `payment_method` ahora retorna el valor original almacenado en la BD.
  */
 export class PaymentMethodResponseDto {
   @ApiProperty({ description: 'ID único del registro' })
@@ -92,8 +117,11 @@ export class PaymentMethodResponseDto {
   @ApiProperty({ description: 'ID del reporte padre' })
   report_header_id: string;
 
-  @ApiProperty({ description: 'Método de pago', enum: PaymentMethodTypeEnum })
-  payment_method: PaymentMethodTypeEnum;
+  @ApiProperty({ 
+    description: 'Método de pago (valor original de Simphony)',
+    example: 'Visa Crédito'
+  })
+  payment_method: string;
 
   @ApiProperty({ description: 'Monto total recaudado' })
   total_amount: number;

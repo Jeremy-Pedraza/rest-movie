@@ -1,7 +1,17 @@
 // src/modules/reports/interfaces/consolidated-report.interface.ts
 
+/**
+ * @fileoverview Interfaces para reportes consolidados
+ * @module modules/reports
+ *
+ * ACTUALIZACIÓN: 2025-01-28
+ * Se cambió order_type y payment_method de enums a strings
+ * para soportar valores dinámicos.
+ *
+ * @version 2.0.0 - Flexibilización de tipado
+ */
+
 import { ReportTypeEnum, ConsolidationLevelEnum } from '../enums';
-import { OrderTypeEnum, PaymentMethodTypeEnum } from '../dto';
 
 /**
  * Interfaces para reportes consolidados
@@ -35,9 +45,11 @@ export interface IConsolidatedTotals {
 
 /**
  * Desglose por tipo de orden consolidado
+ *
+ * @updated 2025-01-28 - order_type cambió de OrderTypeEnum a string
  */
 export interface IConsolidatedSalesByOrderType {
-  order_type: OrderTypeEnum;
+  order_type: string; // Cambió de OrderTypeEnum a string
   total_sales: number;
   total_orders: number;
   total_quantity: number;
@@ -47,9 +59,11 @@ export interface IConsolidatedSalesByOrderType {
 
 /**
  * Desglose por método de pago consolidado
+ *
+ * @updated 2025-01-28 - payment_method cambió de PaymentMethodTypeEnum a string
  */
 export interface IConsolidatedPaymentMethod {
-  payment_method: PaymentMethodTypeEnum;
+  payment_method: string; // Cambió de PaymentMethodTypeEnum a string
   total_amount: number;
   transactions_count: number;
   average_amount: number;

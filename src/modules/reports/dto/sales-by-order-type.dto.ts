@@ -1,10 +1,16 @@
 // src/modules/reports/dto/sales-by-order-type.dto.ts
 
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsOptional, Min, IsEnum } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsOptional, Min, IsString, Length } from 'class-validator';
 
 /**
- * Tipos de orden disponibles
+ * Tipos de orden disponibles (REFERENCIA)
+ * 
+ * @deprecated Este enum se mantiene solo como referencia de tipos comunes.
+ * El API ahora acepta cualquier string para order_type, permitiendo valores
+ * originales de Simphony como "Mesa VIP", "Domicilios Rappi", etc.
+ * 
+ * Valores históricos en la BD pueden seguir usando estos valores normalizados.
  */
 export enum OrderTypeEnum {
   DINE_IN = 'dine_in',
@@ -19,28 +25,49 @@ export enum OrderTypeEnum {
  * @description
  * Valida los campos para registrar ventas desglosadas por tipo de orden.
  * Usado dentro de CreateReportDto para el array sales_by_order_type.
+ * 
+ * **CAMBIO IMPORTANTE (2025-01-27):**
+ * El campo `order_type` ahora acepta cualquier string (1-100 caracteres) en lugar
+ * de estar limitado a un enum. Esto permite almacenar valores originales de Simphony
+ * sin transformación (ej: "Mesa VIP", "Domicilios Rappi", "Para Llevar Express").
  *
  * @example
  * ```typescript
- * const dto: CreateSalesByOrderTypeDto = {
- *   order_type: 'dine_in',
+ * // Nuevos valores (desde 2025-01-27)
+ * const dto1: CreateSalesByOrderTypeDto = {
+ *   order_type: 'Mesa VIP',
  *   total_sales: 5000.50,
  *   orders_count: 25,
  *   quantity: 100,
+ * };
+ * 
+ * const dto2: CreateSalesByOrderTypeDto = {
+ *   order_type: 'Domicilios Rappi',
+ *   total_sales: 3000.00,
+ *   orders_count: 40,
+ *   quantity: 150,
+ * };
+ * 
+ * // Valores legacy (anteriores a 2025-01-27) siguen siendo válidos
+ * const dto3: CreateSalesByOrderTypeDto = {
+ *   order_type: 'dine_in',
+ *   total_sales: 2000.00,
+ *   orders_count: 15,
+ *   quantity: 50,
  * };
  * ```
  */
 export class CreateSalesByOrderTypeDto {
   @ApiProperty({
-    description: 'Tipo de orden',
-    enum: OrderTypeEnum,
-    example: OrderTypeEnum.DINE_IN,
+    description: 'Tipo de orden (valor libre desde Simphony, ej: "Mesa VIP", "Domicilios", "Para Llevar")',
+    example: 'Mesa VIP',
+    minLength: 1,
+    maxLength: 100,
   })
-  @IsEnum(OrderTypeEnum, {
-    message: 'El tipo de orden debe ser: dine_in, takeout, delivery o pickup',
-  })
+  @IsString({ message: 'El tipo de orden debe ser una cadena de texto' })
   @IsNotEmpty({ message: 'El tipo de orden es requerido' })
-  order_type: OrderTypeEnum;
+  @Length(1, 100, { message: 'El tipo de orden debe tener entre 1 y 100 caracteres' })
+  order_type: string;
 
   @ApiProperty({
     description: 'Total de ventas para este tipo de orden',
@@ -93,6 +120,7 @@ export class CreateSalesByOrderTypeDto {
  *
  * @description
  * Representa la estructura de respuesta para ventas por tipo de orden.
+ * El campo `order_type` ahora retorna el valor original almacenado en la BD.
  */
 export class SalesByOrderTypeResponseDto {
   @ApiProperty({ description: 'ID único del registro' })
@@ -101,8 +129,11 @@ export class SalesByOrderTypeResponseDto {
   @ApiProperty({ description: 'ID del reporte padre' })
   report_header_id: string;
 
-  @ApiProperty({ description: 'Tipo de orden', enum: OrderTypeEnum })
-  order_type: OrderTypeEnum;
+  @ApiProperty({ 
+    description: 'Tipo de orden (valor original de Simphony)',
+    example: 'Mesa VIP'
+  })
+  order_type: string;
 
   @ApiProperty({ description: 'Total de ventas' })
   total_sales: number;

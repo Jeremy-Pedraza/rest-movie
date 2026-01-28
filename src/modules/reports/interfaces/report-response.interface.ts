@@ -1,14 +1,18 @@
 // src/modules/reports/interfaces/report-response.interface.ts
 
+/**
+ * @fileoverview Interfaces de respuesta para el módulo Reports
+ * @module modules/reports
+ *
+ * ACTUALIZACIÓN: 2025-01-28
+ * Se cambió order_type, payment_method, discount_type y adjustment_type
+ * de enums a strings para soportar valores dinámicos.
+ *
+ * @version 2.0.0 - Flexibilización de tipado
+ */
+
 import { ReportTypeEnum } from '../enums';
-import {
-  OrderTypeEnum,
-  PaymentMethodTypeEnum,
-  DiscountTypeEnum,
-  AdjustmentTypeEnum,
-  OrderStatusEnum,
-  ReportStatusEnum,
-} from '../dto';
+import { OrderStatusEnum, ReportStatusEnum } from '../dto';
 
 /**
  * Interfaces de respuesta para el módulo Reports
@@ -20,11 +24,13 @@ import {
 
 /**
  * Respuesta de ventas por tipo de orden
+ *
+ * @updated 2025-01-28 - order_type cambió de OrderTypeEnum a string
  */
 export interface ISalesByOrderTypeResponse {
   id: string;
   report_header_id: string;
-  order_type: OrderTypeEnum;
+  order_type: string; // Cambió de OrderTypeEnum a string
   total_sales: number;
   orders_count: number;
   quantity: number;
@@ -35,11 +41,13 @@ export interface ISalesByOrderTypeResponse {
 
 /**
  * Respuesta de método de pago
+ *
+ * @updated 2025-01-28 - payment_method cambió de PaymentMethodTypeEnum a string
  */
 export interface IPaymentMethodResponse {
   id: string;
   report_header_id: string;
-  payment_method: PaymentMethodTypeEnum;
+  payment_method: string; // Cambió de PaymentMethodTypeEnum a string
   total_amount: number;
   transactions_count: number;
   average_amount: number;
@@ -49,11 +57,13 @@ export interface IPaymentMethodResponse {
 
 /**
  * Respuesta de descuento dinámico
+ *
+ * @updated 2025-01-28 - discount_type cambió de DiscountTypeEnum a string
  */
 export interface IDynamicDiscountResponse {
   id: string;
   report_header_id: string;
-  discount_type: DiscountTypeEnum;
+  discount_type: string; // Cambió de DiscountTypeEnum a string
   discount_name: string;
   total_discount: number;
   times_applied: number;
@@ -64,11 +74,13 @@ export interface IDynamicDiscountResponse {
 
 /**
  * Respuesta de ajuste
+ *
+ * @updated 2025-01-28 - adjustment_type cambió de AdjustmentTypeEnum a string
  */
 export interface IAdjustmentResponse {
   id: string;
   report_header_id: string;
-  adjustment_type: AdjustmentTypeEnum;
+  adjustment_type: string; // Cambió de AdjustmentTypeEnum a string
   reason?: string;
   total_amount: number;
   count: number;
@@ -79,19 +91,21 @@ export interface IAdjustmentResponse {
 
 /**
  * Respuesta de orden efectiva
+ *
+ * @updated 2025-01-28 - order_type y payment_method cambiaron a string
  */
 export interface IEffectiveOrderResponse {
   id: string;
   report_header_id: string;
   order_number: string;
-  order_type: OrderTypeEnum;
+  order_type: string; // Cambió de OrderTypeEnum a string
   total_amount: number;
   gross_amount: number;
   discounts: number;
   items_count: number;
-  payment_method?: PaymentMethodTypeEnum;
+  payment_method?: string; // Cambió de PaymentMethodTypeEnum a string (opcional)
   order_datetime: Date;
-  status: OrderStatusEnum;
+  status: OrderStatusEnum; // OrderStatusEnum se mantiene (no es parte de flexibilización)
   metadata?: Record<string, any>;
   created_at: Date;
 }
@@ -125,7 +139,7 @@ export interface IReportResponse {
   total_adjustments: number;
 
   // Metadata y estado
-  status: ReportStatusEnum;
+  status: ReportStatusEnum; // ReportStatusEnum se mantiene (no es parte de flexibilización)
   metadata?: Record<string, any>;
 
   // Timestamps

@@ -123,7 +123,8 @@ export class SalesByOrderTypeEntity {
   average_ticket: number;
 
   /**
-   * Porcentaje del total de ventas
+   * Porcentaje del total de ventas (legacy, usar net_percentage)
+   * @deprecated Usar net_percentage en su lugar
    */
   @Column({
     type: 'decimal',
@@ -133,6 +134,30 @@ export class SalesByOrderTypeEntity {
     name: 'percentage',
   })
   percentage: number;
+
+  /**
+   * Porcentaje de ventas netas respecto al total del reporte
+   */
+  @Column({
+    type: 'decimal',
+    precision: 5,
+    scale: 2,
+    default: 0,
+    name: 'net_percentage',
+  })
+  net_percentage: number;
+
+  /**
+   * Porcentaje de cantidad de órdenes respecto al total del reporte
+   */
+  @Column({
+    type: 'decimal',
+    precision: 5,
+    scale: 2,
+    default: 0,
+    name: 'quantity_percentage',
+  })
+  quantity_percentage: number;
 
   // ============================================
   // RELACIONES

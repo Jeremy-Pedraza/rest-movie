@@ -20,6 +20,7 @@ import { CreatePaymentMethodDto } from './payment-method.dto';
 import { CreateDynamicDiscountDto } from './dynamic-discount.dto';
 import { CreateAdjustmentDto } from './adjustment.dto';
 import { CreateEffectiveOrderDto } from './effective-order.dto';
+import { CreateShortageOverageDto } from './shortage-overage.dto';
 
 /**
  * Estados de reporte disponibles
@@ -265,4 +266,15 @@ export class CreateReportDto {
   @Type(() => CreateEffectiveOrderDto)
   @IsOptional()
   effective_orders?: CreateEffectiveOrderDto[];
+
+  @ApiPropertyOptional({
+    description: 'Faltantes y sobrantes de caja',
+    type: [CreateShortageOverageDto],
+    isArray: true,
+  })
+  @IsArray({ message: 'shortage_overage debe ser un array' })
+  @ValidateNested({ each: true })
+  @Type(() => CreateShortageOverageDto)
+  @IsOptional()
+  shortage_overage?: CreateShortageOverageDto[];
 }

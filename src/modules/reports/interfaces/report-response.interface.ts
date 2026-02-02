@@ -35,7 +35,9 @@ export interface ISalesByOrderTypeResponse {
   orders_count: number;
   quantity: number;
   average_ticket: number;
-  percentage_of_total?: number; // % del total de ventas
+  net_percentage: number; // % de ventas netas respecto al total
+  quantity_percentage: number; // % de cantidad de órdenes respecto al total
+  percentage_of_total?: number; // % del total de ventas (legacy, usar net_percentage)
   created_at: Date;
 }
 
@@ -110,6 +112,29 @@ export interface IEffectiveOrderResponse {
   created_at: Date;
 }
 
+/**
+ * Respuesta de faltante/sobrante de caja
+ *
+ * @added 2026-02-02 - Nueva entidad para varianzas de caja
+ */
+export interface IShortageOverageResponse {
+  id: string;
+  report_header_id: string;
+  receptacle_type: string;
+  receptacle_name: string;
+  employee_id: number;
+  employee_name: string;
+  counted_at: Date;
+  expected_amount: number;
+  counted_amount: number;
+  variance_amount: number;
+  variance_type: string;
+  reason?: string;
+  class_name: string;
+  currency: string;
+  created_at: Date;
+}
+
 // ============================================
 // INTERFACE PRINCIPAL DE REPORTE
 // ============================================
@@ -178,6 +203,7 @@ export interface IReportWithDetailsResponse extends IReportWithStoreResponse {
   dynamic_discounts?: IDynamicDiscountResponse[];
   adjustments?: IAdjustmentResponse[];
   effective_orders?: IEffectiveOrderResponse[];
+  shortage_overage?: IShortageOverageResponse[];
 }
 
 /**

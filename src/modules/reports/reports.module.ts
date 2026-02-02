@@ -9,6 +9,7 @@ import {
   DynamicDiscountEntity,
   AdjustmentEntity,
   EffectiveOrderEntity,
+  ShortageOverageEntity,
 } from './entities';
 import { ReportsRepository } from './reports.repository';
 import { ReportsService } from './reports.service';
@@ -81,6 +82,7 @@ import { CompanyModule } from '@modules/company';
       DynamicDiscountEntity,
       AdjustmentEntity,
       EffectiveOrderEntity,
+      ShortageOverageEntity,
     ]),
     CommonModule,
     StoreModule,

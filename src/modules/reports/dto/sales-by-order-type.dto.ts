@@ -113,6 +113,34 @@ export class CreateSalesByOrderTypeDto {
   @Min(0, { message: 'average_ticket debe ser mayor o igual a 0' })
   @IsOptional()
   average_ticket?: number;
+
+  @ApiPropertyOptional({
+    description: 'Porcentaje de ventas netas respecto al total del reporte',
+    example: 45.5,
+    minimum: 0,
+    maximum: 100,
+  })
+  @IsNumber(
+    { maxDecimalPlaces: 2 },
+    { message: 'net_percentage debe ser un número con máximo 2 decimales' },
+  )
+  @Min(0, { message: 'net_percentage debe ser mayor o igual a 0' })
+  @IsOptional()
+  net_percentage?: number;
+
+  @ApiPropertyOptional({
+    description: 'Porcentaje de cantidad de órdenes respecto al total del reporte',
+    example: 38.2,
+    minimum: 0,
+    maximum: 100,
+  })
+  @IsNumber(
+    { maxDecimalPlaces: 2 },
+    { message: 'quantity_percentage debe ser un número con máximo 2 decimales' },
+  )
+  @Min(0, { message: 'quantity_percentage debe ser mayor o igual a 0' })
+  @IsOptional()
+  quantity_percentage?: number;
 }
 
 /**
@@ -129,7 +157,7 @@ export class SalesByOrderTypeResponseDto {
   @ApiProperty({ description: 'ID del reporte padre' })
   report_header_id: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Tipo de orden (valor original de Simphony)',
     example: 'Mesa VIP'
   })
@@ -146,6 +174,12 @@ export class SalesByOrderTypeResponseDto {
 
   @ApiProperty({ description: 'Ticket promedio' })
   average_ticket: number;
+
+  @ApiProperty({ description: 'Porcentaje de ventas netas respecto al total' })
+  net_percentage: number;
+
+  @ApiProperty({ description: 'Porcentaje de cantidad de órdenes respecto al total' })
+  quantity_percentage: number;
 
   @ApiProperty({ description: 'Fecha de creación' })
   created_at: Date;

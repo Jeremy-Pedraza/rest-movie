@@ -264,6 +264,12 @@ export class ReportHeaderEntity {
   @OneToMany('EffectiveOrderEntity', 'report_header')
   effective_orders?: any[];
 
+  /**
+   * Faltantes y sobrantes de caja
+   */
+  @OneToMany('ShortageOverageEntity', 'report_header')
+  shortage_overage?: any[];
+
   // ============================================
   // TIMESTAMPS
   // ============================================

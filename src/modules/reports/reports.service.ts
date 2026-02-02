@@ -1316,6 +1316,7 @@ export class ReportsService {
       dynamic_discounts: dto.dynamic_discounts,
       adjustments: dto.adjustments,
       effective_orders: dto.effective_orders,
+      shortage_overage: dto.shortage_overage,
     };
   }
 
@@ -1366,6 +1367,8 @@ export class ReportsService {
         orders_count: s.orders_count,
         quantity: s.quantity,
         average_ticket: s.average_ticket,
+        net_percentage: s.net_percentage,
+        quantity_percentage: s.quantity_percentage,
         created_at: s.created_at,
       })),
       payment_methods: report.payment_methods?.map((p) => ({
@@ -1411,6 +1414,23 @@ export class ReportsService {
         status: e.status,
         metadata: e.metadata,
         created_at: e.created_at,
+      })),
+      shortage_overage: report.shortage_overage?.map((s) => ({
+        id: s.id,
+        report_header_id: s.report_header_id,
+        receptacle_type: s.receptacle_type,
+        receptacle_name: s.receptacle_name,
+        employee_id: s.employee_id,
+        employee_name: s.employee_name,
+        counted_at: s.counted_at,
+        expected_amount: s.expected_amount,
+        counted_amount: s.counted_amount,
+        variance_amount: s.variance_amount,
+        variance_type: s.variance_type,
+        reason: s.reason,
+        class_name: s.class_name,
+        currency: s.currency,
+        created_at: s.created_at,
       })),
     };
   }

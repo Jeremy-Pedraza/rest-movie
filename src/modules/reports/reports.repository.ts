@@ -59,6 +59,7 @@ import {
   DynamicDiscountEntity,
   AdjustmentEntity,
   EffectiveOrderEntity,
+  ShortageOverageEntity,
 } from './entities';
 import { ReportTypeEnum } from './enums';
 import { QueryReportDto, RankingStoresDto, RankingMetricEnum, RankingDirectionEnum } from './dto';
@@ -139,6 +140,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
       dynamic_discounts?: Partial<DynamicDiscountEntity>[];
       adjustments?: Partial<AdjustmentEntity>[];
       effective_orders?: Partial<EffectiveOrderEntity>[];
+      shortage_overage?: Partial<ShortageOverageEntity>[];
     },
   ): Promise<ReportHeaderEntity> {
     return this.withSchemaTransaction(async (manager) => {
@@ -149,6 +151,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
         dynamic_discounts,
         adjustments,
         effective_orders,
+        shortage_overage,
         ...headerData
       } = data;
 
@@ -195,6 +198,14 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
           report_header_id: savedReport.id,
         }));
         await manager.save(EffectiveOrderEntity, entities);
+      }
+
+      if (shortage_overage?.length) {
+        const entities = shortage_overage.map((item) => ({
+          ...item,
+          report_header_id: savedReport.id,
+        }));
+        await manager.save(ShortageOverageEntity, entities);
       }
 
       return savedReport;

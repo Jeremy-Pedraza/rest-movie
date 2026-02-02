@@ -57,6 +57,11 @@ export {
   OrderStatusEnum,
 } from './effective-order.dto';
 
+export {
+  CreateShortageOverageDto,
+  ShortageOverageResponseDto,
+} from './shortage-overage.dto';
+
 // ============================================
 // DTOs PRINCIPALES
 // ============================================

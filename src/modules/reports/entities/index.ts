@@ -10,3 +10,4 @@ export * from './payment-method.entity';
 export * from './dynamic-discount.entity';
 export * from './adjustment.entity';
 export * from './effective-order.entity';
+export * from './shortage-overage.entity';

@@ -28,6 +28,7 @@ import { AuthModule } from '@modules/auth';
 import { CompanyModule } from '@modules/company'; // ✅ FASE 1
 import { StoreModule } from '@modules/store'; // ✅ FASE 2 AGREGADO
 import { ReportsModule } from '@modules/reports'; // ✅ FASE 4 AGREGADO
+import { GeographyModule } from '@modules/geography'; // ✅ Catálogo geográfico (público)
 import { CacheModule as CustomCacheModule } from '@modules/cache';
 import { QueueModule } from '@modules/queue';
 import { TasksModule } from '@modules/tasks';
@@ -144,6 +145,7 @@ import { bullConfig } from '@config/bull';
     CompanyModule, // ✅ FASE 1 - Gestión de compañías
     StoreModule, // ✅ FASE 2 AGREGADO - Gestión de tiendas/sucursales
     ReportsModule, // ✅ FASE 4 AGREGADO - Sistema de reportes multi-nivel
+    GeographyModule, // ✅ Catálogo geográfico (endpoints públicos)
     CustomCacheModule, // Cache inteligente con tags
     QueueModule, // Sistema de colas genérico (email, notification, report)
     TasksModule, // Tareas programadas (cleanup, backup, session-cleanup, etc.)

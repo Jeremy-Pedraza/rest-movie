@@ -16,6 +16,7 @@ import {
 } from 'typeorm';
 import type { CompanyEntity } from '@modules/company/entities';
 import type { UserEntity } from '@modules/user/entities';
+import type { GeoCityEntity } from '@modules/geography/entities';
 
 /**
  * Interfaz para horarios de operación
@@ -386,8 +387,37 @@ export class StoreEntity {
   metadata?: Record<string, any>;
 
   // ============================================
+  // REFERENCIAS A CATÁLOGO GEOGRÁFICO (OPCIONAL)
+  // ============================================
+
+  /**
+   * ID de la ciudad en el catálogo geográfico (opcional)
+   * Permite vincular la tienda al catálogo maestro para validación
+   *
+   * @description
+   * Si se establece, los campos ciudad/region pueden validarse
+   * contra el catálogo. El campo ciudad permanece como texto
+   * para retrocompatibilidad.
+   */
+  @Column({
+    type: 'uuid',
+    nullable: true,
+    name: 'geo_city_id',
+  })
+  @Index('idx_store_geo_city')
+  geo_city_id?: string;
+
+  // ============================================
   // RELACIONES
   // ============================================
+
+  /**
+   * Ciudad del catálogo geográfico (opcional)
+   * Relación con el catálogo maestro de ciudades
+   */
+  @ManyToOne('GeoCityEntity', { nullable: true })
+  @JoinColumn({ name: 'geo_city_id' })
+  geo_city?: GeoCityEntity;
 
   /**
    * Compañía a la que pertenece la tienda

@@ -26,6 +26,7 @@ import { seedRoles } from './role.seed';
 import { seedCompanies } from './company.seed';
 import { seedTenantSchemas } from './tenant-schema.seed';
 import { seedUsers } from './user.seed';
+import { seedGeography } from './latam-geography.seed';
 
 async function seed() {
   const startTime = Date.now();
@@ -59,6 +60,8 @@ async function seed() {
 
     // 5. Users (dependen de roles y companies)
     await seedUsers(dataSource);
+
+    await seedGeography(dataSource);
 
     // Resumen
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);

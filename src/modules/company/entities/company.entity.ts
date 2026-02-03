@@ -10,9 +10,10 @@
  * @version 2.0.0 - Agregados campos de internacionalización (FASE 1)
  */
 
-import { Entity, Column, OneToMany, Index } from 'typeorm';
+import { Entity, Column, OneToMany, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { BaseEntity } from '@shared/common';
 import type { UserEntity } from '@modules/user/entities';
+import type { GeoCountryEntity } from '@modules/geography/entities';
 
 /**
  * Interfaz para configuración fiscal del país
@@ -325,8 +326,37 @@ export class CompanyEntity extends BaseEntity {
   tax_config?: ITaxConfig;
 
   // ============================================
+  // REFERENCIAS A CATÁLOGO GEOGRÁFICO (OPCIONAL)
+  // ============================================
+
+  /**
+   * ID del país en el catálogo geográfico (opcional)
+   * Permite vincular la company al catálogo maestro para validación
+   *
+   * @description
+   * Si se establece, los campos country_code, timezone, currency_code
+   * pueden heredarse del catálogo. El campo pais/ciudad permanecen como texto
+   * para retrocompatibilidad.
+   */
+  @Column({
+    type: 'uuid',
+    nullable: true,
+    name: 'geo_country_id',
+  })
+  @Index('idx_company_geo_country')
+  geo_country_id?: string;
+
+  // ============================================
   // RELACIONES
   // ============================================
+
+  /**
+   * País del catálogo geográfico (opcional)
+   * Relación con el catálogo maestro de países
+   */
+  @ManyToOne('GeoCountryEntity', { nullable: true })
+  @JoinColumn({ name: 'geo_country_id' })
+  geo_country?: GeoCountryEntity;
 
   /**
    * Usuarios que pertenecen a esta company

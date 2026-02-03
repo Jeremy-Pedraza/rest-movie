@@ -152,6 +152,11 @@ export interface IReportResponse {
   report_date: Date;
   report_type: ReportTypeEnum;
 
+  // Empleado (opcional - para reportes individuales)
+  employee_id?: number | null;
+  employee_name?: string | null;
+  is_consolidated: boolean; // true si employee_id es null
+
   // Métricas principales
   total_sales: number;
   total_revenue: number;

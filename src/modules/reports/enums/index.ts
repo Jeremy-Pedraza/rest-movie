@@ -6,3 +6,4 @@
 
 export * from './report-type.enum';
 export * from './consolidation-level.enum';
+export * from './report-scope.enum';

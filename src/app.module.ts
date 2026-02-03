@@ -63,7 +63,16 @@ import { bullConfig } from '@config/bull';
     // Configuration Module
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: [`.env.${process.env.NODE_ENV}`, '.env'],
+      envFilePath:
+        process.env.NODE_ENV === 'production'
+          ? [
+              './api/.env.production', // Primera opción
+              './.env.production', // Fallback
+            ]
+          : [
+              `.env.${process.env.NODE_ENV}`, // Ambiente específico
+              '.env', // Fallback general
+            ],
       load: [appConfig, databaseConfig, redisConfig, jwtConfig, throttlerConfig, bullConfig],
       cache: true,
       expandVariables: true,

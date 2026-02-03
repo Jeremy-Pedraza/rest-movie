@@ -1,7 +1,17 @@
 // src/modules/reports/dto/query-report.dto.ts
 
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsUUID, IsBoolean, IsEnum, IsOptional, IsDateString, IsArray } from 'class-validator';
+import {
+  IsUUID,
+  IsBoolean,
+  IsEnum,
+  IsOptional,
+  IsDateString,
+  IsArray,
+  IsInt,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { PaginationDto } from '@shared/common';
 import { ReportTypeEnum } from '../enums';
@@ -58,6 +68,80 @@ export class QueryReportDto extends PaginationDto {
   @IsUUID('4', { message: 'company_id debe ser un UUID válido' })
   @IsOptional()
   company_id?: string;
+
+  // ============================================
+  // FILTROS GEOGRÁFICOS
+  // ============================================
+  //
+  // Permite filtrar reportes por ubicación geográfica.
+  // Los filtros hacen JOIN con la tabla stores y companies.
+  // ============================================
+
+  @ApiPropertyOptional({
+    description:
+      'Filtrar por ciudad de la tienda. ' + 'Busca coincidencia exacta en stores.ciudad.',
+    example: 'Santo Domingo',
+  })
+  @IsString({ message: 'city debe ser una cadena de texto' })
+  @IsOptional()
+  city?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Filtrar por región de la tienda. ' + 'Busca coincidencia exacta en stores.region.',
+    example: 'Norte',
+  })
+  @IsString({ message: 'region debe ser una cadena de texto' })
+  @IsOptional()
+  region?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Filtrar por código ISO del país (2 letras). ' +
+      'Busca en companies.country_code a través de la relación store→company.',
+    example: 'DO',
+  })
+  @IsString({ message: 'country_code debe ser una cadena de texto' })
+  @MaxLength(2, { message: 'country_code debe tener máximo 2 caracteres' })
+  @IsOptional()
+  country_code?: string;
+
+  // ============================================
+  // FILTROS POR EMPLEADO
+  // ============================================
+  //
+  // Permite filtrar reportes por empleado específico o por tipo:
+  // - employee_id: Obtener reportes de un empleado específico
+  // - consolidated: Filtrar por reportes consolidados (true) o individuales (false)
+  //
+  // NOTA: employee_id y consolidated son mutuamente excluyentes.
+  // Si se usa employee_id, se ignora consolidated.
+  // ============================================
+
+  @ApiPropertyOptional({
+    description:
+      'Filtrar por ID de empleado específico (Simphony). ' +
+      'Retorna solo los reportes de ese empleado.',
+    example: 12345,
+  })
+  @Type(() => Number)
+  @IsInt({ message: 'employee_id debe ser un número entero' })
+  @IsOptional()
+  employee_id?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Filtrar por tipo de reporte según empleado:\n' +
+      '- true = Solo reportes CONSOLIDADOS (employee_id IS NULL)\n' +
+      '- false = Solo reportes INDIVIDUALES (employee_id IS NOT NULL)\n' +
+      '- No enviar = Todos los reportes\n\n' +
+      'NOTA: Se ignora si se especifica employee_id.',
+    example: true,
+  })
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean({ message: 'consolidated debe ser booleano' })
+  @IsOptional()
+  consolidated?: boolean;
 
   // ============================================
   // FILTROS POR FECHA

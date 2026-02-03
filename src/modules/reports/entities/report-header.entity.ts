@@ -60,10 +60,11 @@ import { ReportTypeEnum } from '../enums';
  * ```
  */
 @Entity({ name: 'report_headers' })
-@Index(['store_id', 'report_date'], { unique: true })
+@Index(['store_id', 'report_date', 'employee_id'], { unique: true }) // Idempotencia: 1 reporte por tienda/fecha/empleado
 @Index(['report_date'])
 @Index(['report_type'])
 @Index(['store_id', 'report_type'])
+@Index(['employee_id'])
 export class ReportHeaderEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -100,6 +101,33 @@ export class ReportHeaderEntity {
     name: 'report_type',
   })
   report_type: ReportTypeEnum;
+
+  // ============================================
+  // EMPLEADO (para reportes individuales)
+  // ============================================
+
+  /**
+   * ID del empleado en Simphony
+   * NULL = reporte consolidado (todos los empleados)
+   */
+  @Column({
+    type: 'int',
+    nullable: true,
+    name: 'employee_id',
+  })
+  employee_id?: number | null;
+
+  /**
+   * Nombre completo del empleado
+   * Requerido cuando employee_id está presente
+   */
+  @Column({
+    type: 'varchar',
+    length: 200,
+    nullable: true,
+    name: 'employee_name',
+  })
+  employee_name?: string | null;
 
   // ============================================
   // MÉTRICAS PRINCIPALES

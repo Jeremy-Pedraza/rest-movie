@@ -11,7 +11,7 @@ import {
   IsBoolean,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { ReportTypeEnum, ConsolidationLevelEnum } from '../enums';
+import { ReportTypeEnum, ConsolidationLevelEnum, ReportScopeEnum } from '../enums';
 
 /**
  * DTO para consolidar reportes
@@ -159,6 +159,28 @@ export class ConsolidateReportsDto {
   @IsBoolean({ message: 'calculate_percentages debe ser booleano' })
   @IsOptional()
   calculate_percentages?: boolean;
+
+  // ============================================
+  // FILTRO DE ALCANCE (EVITAR DOBLE CONTEO)
+  // ============================================
+
+  @ApiPropertyOptional({
+    description:
+      'Alcance de reportes a incluir en la consolidación. ' +
+      'Usar para evitar doble conteo cuando existen reportes individuales (por empleado) ' +
+      'y consolidados (sin empleado) para el mismo día/tienda.\n\n' +
+      '- `individual`: Solo reportes por empleado (employee_id IS NOT NULL)\n' +
+      '- `consolidated`: Solo reportes consolidados (employee_id IS NULL)\n' +
+      '- `all`: Todos los reportes (⚠️ puede causar doble conteo)',
+    enum: ReportScopeEnum,
+    default: ReportScopeEnum.INDIVIDUAL,
+    example: ReportScopeEnum.INDIVIDUAL,
+  })
+  @IsEnum(ReportScopeEnum, {
+    message: 'report_scope debe ser: individual, consolidated o all',
+  })
+  @IsOptional()
+  report_scope?: ReportScopeEnum;
 }
 
 /**
@@ -201,4 +223,13 @@ export class QuickConsolidateDto {
   @IsUUID('4')
   @IsOptional()
   store_id?: string;
+
+  @ApiPropertyOptional({
+    description: 'Alcance de reportes a incluir. Default: individual (evita doble conteo)',
+    enum: ReportScopeEnum,
+    default: ReportScopeEnum.INDIVIDUAL,
+  })
+  @IsEnum(ReportScopeEnum)
+  @IsOptional()
+  report_scope?: ReportScopeEnum;
 }

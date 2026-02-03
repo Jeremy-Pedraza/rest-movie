@@ -8,13 +8,17 @@ import {
   IsOptional,
   Min,
   IsEnum,
-  IsObject,
   IsArray,
   ValidateNested,
   IsDateString,
+  IsInt,
+  IsString,
+  MaxLength,
+  ValidateIf,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ReportTypeEnum } from '../enums';
+import { ReportMetadataDto } from './system-metrics.dto';
 import { CreateSalesByOrderTypeDto } from './sales-by-order-type.dto';
 import { CreatePaymentMethodDto } from './payment-method.dto';
 import { CreateDynamicDiscountDto } from './dynamic-discount.dto';
@@ -90,6 +94,46 @@ export class CreateReportDto {
   })
   @IsOptional()
   report_type?: ReportTypeEnum;
+
+  // ============================================
+  // EMPLEADO (OPCIONAL - para reportes individuales)
+  // ============================================
+  //
+  // REGLAS DE NEGOCIO:
+  // - Si employee_id es NULL/undefined → Reporte CONSOLIDADO (todos los empleados)
+  // - Si employee_id tiene valor → Reporte INDIVIDUAL de ese empleado
+  // - employee_name es REQUERIDO cuando employee_id está presente
+  //
+  // IDEMPOTENCIA:
+  // La combinación (store_id + report_date + employee_id) debe ser única.
+  // Esto permite múltiples reportes por día: uno por cada empleado.
+  // ============================================
+
+  @ApiPropertyOptional({
+    description:
+      'ID del empleado en Simphony. Si es NULL o no se envía, se considera un reporte consolidado (todos los empleados). ' +
+      'Si tiene valor, es un reporte individual de ese empleado específico. ' +
+      'IMPORTANTE: La combinación (store_id + report_date + employee_id) debe ser única.',
+    example: 12345,
+    nullable: true,
+  })
+  @IsInt({ message: 'employee_id debe ser un número entero' })
+  @IsOptional()
+  employee_id?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Nombre completo del empleado. REQUERIDO cuando employee_id está presente. ' +
+      'Se almacena para referencia histórica incluso si el empleado cambia de nombre en Simphony.',
+    example: 'Juan Pérez',
+    maxLength: 200,
+  })
+  @ValidateIf((o) => o.employee_id !== undefined && o.employee_id !== null)
+  @IsNotEmpty({ message: 'employee_name es requerido cuando employee_id está presente' })
+  @IsString({ message: 'employee_name debe ser una cadena de texto' })
+  @MaxLength(200, { message: 'employee_name no puede exceder 200 caracteres' })
+  @IsOptional()
+  employee_name?: string;
 
   // ============================================
   // MÉTRICAS PRINCIPALES
@@ -201,12 +245,26 @@ export class CreateReportDto {
   status?: ReportStatusEnum;
 
   @ApiPropertyOptional({
-    description: 'Información adicional del reporte (JSON)',
-    example: { source: 'POS', version: '1.0', operator: 'Juan Pérez' },
+    description:
+      'Información adicional del reporte (JSON). ' +
+      'Puede incluir systemMetrics con información del agente (CPU, memoria, discos, bases de datos).',
+    type: ReportMetadataDto,
+    example: {
+      source: 'agent',
+      version: '2.1.0',
+      operator: 'Juan Pérez',
+      systemMetrics: {
+        cpu: { usage: 45.5, cores: 4 },
+        memory: { total: 8589934592, used: 4294967296, free: 4294967296 },
+        disks: [{ name: 'C:', total: 500107862016, used: 250053931008, free: 250053931008 }],
+        databases: [{ name: 'simphony_db', size: 1073741824, tables: 45, status: 'connected' }],
+      },
+    },
   })
-  @IsObject({ message: 'metadata debe ser un objeto JSON' })
+  @ValidateNested()
+  @Type(() => ReportMetadataDto)
   @IsOptional()
-  metadata?: Record<string, any>;
+  metadata?: ReportMetadataDto;
 
   // ============================================
   // DATOS DE DETALLE (OPCIONALES)

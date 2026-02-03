@@ -20,8 +20,10 @@ import {
   RankingDirectionEnum,
   ComparisonTypeEnum,
   ReportStatusEnum,
+  QueryDailySummaryDto,
+  DailySummaryResponseDto,
 } from './dto';
-import { ReportTypeEnum, ConsolidationLevelEnum } from './enums';
+import { ReportTypeEnum, ConsolidationLevelEnum, ReportScopeEnum } from './enums';
 import {
   IReportResponse,
   IReportWithStoreResponse,
@@ -84,11 +86,18 @@ export class ReportsService {
     // Validar acceso a la tienda
     await this.validateStoreAccess(dto.store_id, user);
 
-    // Verificar si ya existe reporte para esa tienda/fecha
-    const exists = await this.reportsRepository.exists(dto.store_id, dto.report_date);
+    // Verificar idempotencia: store_id + report_date + employee_id
+    const exists = await this.reportsRepository.exists(
+      dto.store_id,
+      dto.report_date,
+      dto.employee_id,
+    );
     if (exists) {
+      const employeeInfo = dto.employee_id
+        ? `empleado ${dto.employee_id}`
+        : 'consolidado (todos los empleados)';
       this.handleError.conflict(
-        `Ya existe un reporte para la tienda en la fecha ${dto.report_date}`,
+        `Ya existe un reporte para la tienda en la fecha ${dto.report_date}, ${employeeInfo}`,
         'report_date',
       );
     }
@@ -276,6 +285,81 @@ export class ReportsService {
     return this.toResponseWithStore(updated);
   }
 
+  /**
+   * Obtener resumen diario con desglose por empleados
+   *
+   * @description
+   * Retorna un resumen del día para una tienda, incluyendo:
+   * - Totales consolidados (suma de todos los empleados)
+   * - Lista de empleados con sus métricas individuales
+   * - Porcentaje de participación de cada empleado
+   * - Indicador de si existe reporte consolidado (legacy)
+   *
+   * @param dto - Parámetros (store_id, report_date)
+   * @param user - Usuario que consulta
+   * @returns DailySummaryResponseDto
+   */
+  async getDailySummary(
+    dto: QueryDailySummaryDto,
+    user: UserSessionDto,
+  ): Promise<DailySummaryResponseDto> {
+    this.logger.log(`Obteniendo resumen diario: tienda=${dto.store_id}, fecha=${dto.report_date}`);
+
+    // Validar acceso a la tienda
+    await this.validateStoreAccess(dto.store_id, user);
+
+    // Obtener información de la tienda
+    const store = await this.storeRepository.findById(dto.store_id);
+    if (!store) {
+      this.handleError.notFound('Tienda', dto.store_id);
+    }
+
+    // Obtener resumen del repositorio
+    const summary = await this.reportsRepository.getDailySummaryByEmployees(
+      dto.store_id,
+      dto.report_date,
+    );
+
+    // Calcular totales y porcentajes
+    const totalSalesAll = summary.totals.total_sales;
+    const averageTicketAll =
+      summary.totals.orders_count > 0
+        ? summary.totals.total_sales / summary.totals.orders_count
+        : 0;
+
+    // Mapear empleados con porcentaje de participación
+    const employees = summary.employees.map((emp) => ({
+      employee_id: emp.employee_id,
+      employee_name: emp.employee_name,
+      report_id: emp.report_id,
+      total_sales: emp.total_sales,
+      total_revenue: emp.total_revenue,
+      orders_count: emp.orders_count,
+      total_quantity: emp.total_quantity,
+      average_ticket: emp.average_ticket,
+      total_discounts: emp.total_discounts,
+      percentage_of_total: totalSalesAll > 0 ? (emp.total_sales / totalSalesAll) * 100 : 0,
+    }));
+
+    return {
+      store_id: dto.store_id,
+      store_name: store.nombre,
+      store_code: store.codigo,
+      report_date: dto.report_date,
+      total_employees: employees.length,
+      total_sales_all: summary.totals.total_sales,
+      total_revenue_all: summary.totals.total_revenue,
+      total_orders_all: summary.totals.orders_count,
+      total_quantity_all: summary.totals.total_quantity,
+      average_ticket_all: averageTicketAll,
+      total_discounts_all: summary.totals.total_discounts,
+      has_consolidated: summary.consolidated !== null,
+      consolidated_report_id: summary.consolidated?.report_id,
+      employees,
+      generated_at: new Date(),
+    };
+  }
+
   // ============================================
   // SECCIÓN 2: CONSOLIDACIONES
   // ============================================
@@ -392,6 +476,7 @@ export class ReportsService {
       dto.store_id,
       dto.date_from,
       dto.date_to,
+      dto.report_scope || ReportScopeEnum.INDIVIDUAL,
     );
 
     let dailyBreakdown;
@@ -476,6 +561,7 @@ export class ReportsService {
       dto.company_id,
       dto.date_from,
       dto.date_to,
+      dto.report_scope || ReportScopeEnum.INDIVIDUAL,
     );
 
     let dailyBreakdown;
@@ -529,7 +615,11 @@ export class ReportsService {
   private async consolidateGlobal(
     dto: ConsolidateReportsDto,
   ): Promise<IConsolidatedReportResponse> {
-    const { totals } = await this.reportsRepository.consolidateGlobal(dto.date_from, dto.date_to);
+    const { totals } = await this.reportsRepository.consolidateGlobal(
+      dto.date_from,
+      dto.date_to,
+      dto.report_scope || ReportScopeEnum.INDIVIDUAL,
+    );
 
     return {
       consolidation_level: ConsolidationLevelEnum.ALL_COMPANIES,
@@ -1302,6 +1392,10 @@ export class ReportsService {
       store_id: dto.store_id,
       report_date: dto.report_date,
       report_type: dto.report_type || ReportTypeEnum.DAILY,
+      // Campos de empleado (null = consolidado)
+      employee_id: dto.employee_id ?? null,
+      employee_name: dto.employee_name ?? null,
+      // Métricas
       total_sales: dto.total_sales,
       total_revenue: dto.total_revenue,
       total_quantity: dto.total_quantity,
@@ -1311,6 +1405,7 @@ export class ReportsService {
       total_adjustments: dto.total_adjustments || 0,
       status: dto.status || ReportStatusEnum.DRAFT,
       metadata: dto.metadata,
+      // Detalles
       sales_by_order_type: dto.sales_by_order_type,
       payment_methods: dto.payment_methods,
       dynamic_discounts: dto.dynamic_discounts,
@@ -1326,6 +1421,11 @@ export class ReportsService {
       store_id: report.store_id,
       report_date: report.report_date,
       report_type: report.report_type,
+      // Campos de empleado
+      employee_id: report.employee_id ?? null,
+      employee_name: report.employee_name ?? null,
+      is_consolidated: report.employee_id === null || report.employee_id === undefined,
+      // Métricas
       total_sales: report.total_sales,
       total_revenue: report.total_revenue,
       total_quantity: report.total_quantity,

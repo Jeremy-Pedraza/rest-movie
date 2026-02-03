@@ -61,7 +61,7 @@ import {
   EffectiveOrderEntity,
   ShortageOverageEntity,
 } from './entities';
-import { ReportTypeEnum } from './enums';
+import { ReportTypeEnum, ReportScopeEnum } from './enums';
 import { QueryReportDto, RankingStoresDto, RankingMetricEnum, RankingDirectionEnum } from './dto';
 import { BaseRepository, SchemaContext } from '@shared/database';
 
@@ -225,9 +225,14 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
       const qb = manager.getRepository(ReportHeaderEntity).createQueryBuilder('report');
 
       // Joins opcionales
-      if (query.include_store || query.company_id) {
+      // Se requiere join con store si: include_store, company_id, o filtros geográficos
+      const needsStoreJoin =
+        query.include_store || query.company_id || query.city || query.region || query.country_code;
+      const needsCompanyJoin = query.company_id || query.country_code;
+
+      if (needsStoreJoin) {
         qb.leftJoinAndSelect('report.store', 'store');
-        if (query.company_id) {
+        if (needsCompanyJoin) {
           qb.leftJoin('store.company', 'company');
         }
       }
@@ -243,6 +248,19 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
 
       if (query.company_id) {
         qb.andWhere('store.company_id = :company_id', { company_id: query.company_id });
+      }
+
+      // Filtros geográficos
+      if (query.city) {
+        qb.andWhere('store.ciudad = :city', { city: query.city });
+      }
+
+      if (query.region) {
+        qb.andWhere('store.region = :region', { region: query.region });
+      }
+
+      if (query.country_code) {
+        qb.andWhere('company.country_code = :country_code', { country_code: query.country_code });
       }
 
       // Filtros por fecha
@@ -268,6 +286,21 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
 
       if (query.status) {
         qb.andWhere('report.status = :status', { status: query.status });
+      }
+
+      // Filtros por empleado
+      if (query.employee_id !== undefined) {
+        qb.andWhere('report.employee_id = :employee_id', { employee_id: query.employee_id });
+      }
+
+      if (query.consolidated !== undefined) {
+        if (query.consolidated) {
+          // Solo reportes consolidados (sin empleado)
+          qb.andWhere('report.employee_id IS NULL');
+        } else {
+          // Solo reportes individuales (con empleado)
+          qb.andWhere('report.employee_id IS NOT NULL');
+        }
       }
 
       // Filtros por métricas
@@ -382,19 +415,37 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
    *
    * MULTI-TENANT: Usa withSchema() + manager.getRepository()
    *
+   * Idempotencia: store_id + report_date + employee_id
+   * - Si employeeId es undefined/null, busca reporte consolidado (employee_id IS NULL)
+   * - Si employeeId tiene valor, busca reporte de ese empleado específico
+   *
    * @param storeId - UUID de la tienda
    * @param reportDate - Fecha del reporte
+   * @param employeeId - ID del empleado (null/undefined = consolidado)
    * @param excludeId - ID a excluir (para updates)
    * @returns true si existe
    */
-  async exists(storeId: string, reportDate: string, excludeId?: string): Promise<boolean> {
+  async exists(
+    storeId: string,
+    reportDate: string,
+    employeeId?: number | null,
+    excludeId?: string,
+  ): Promise<boolean> {
     return this.withSchema(async (manager) => {
-      // ✅ CORRECTO: Usar manager del QueryRunner (con search_path)
       const qb = manager
         .getRepository(ReportHeaderEntity)
         .createQueryBuilder('report')
         .where('report.store_id = :storeId', { storeId })
         .andWhere('report.report_date = :reportDate', { reportDate });
+
+      // Idempotencia incluye employee_id
+      if (employeeId !== undefined && employeeId !== null) {
+        // Reporte individual de empleado
+        qb.andWhere('report.employee_id = :employeeId', { employeeId });
+      } else {
+        // Reporte consolidado (sin empleado)
+        qb.andWhere('report.employee_id IS NULL');
+      }
 
       if (excludeId) {
         qb.andWhere('report.id != :excludeId', { excludeId });
@@ -602,12 +653,14 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
    * @param storeId - UUID de la tienda
    * @param dateFrom - Fecha inicio
    * @param dateTo - Fecha fin
+   * @param reportScope - Alcance: individual, consolidated, o all (default: individual)
    * @returns Totales consolidados
    */
   async consolidateByStore(
     storeId: string,
     dateFrom: string,
     dateTo: string,
+    reportScope: ReportScopeEnum = ReportScopeEnum.INDIVIDUAL,
   ): Promise<{
     total_sales: number;
     total_revenue: number;
@@ -619,7 +672,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
     days_count: number;
   }> {
     return this.withSchema(async (manager) => {
-      const result = await manager
+      const qb = manager
         .getRepository(ReportHeaderEntity)
         .createQueryBuilder('report')
         .select('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
@@ -631,8 +684,12 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
         .addSelect('COUNT(*)', 'reports_count')
         .addSelect('COUNT(DISTINCT report.report_date)', 'days_count')
         .where('report.store_id = :storeId', { storeId })
-        .andWhere('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo })
-        .getRawOne();
+        .andWhere('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
+
+      // Aplicar filtro de alcance para evitar doble conteo
+      this.applyReportScopeFilter(qb, reportScope);
+
+      const result = await qb.getRawOne();
 
       return {
         total_sales: parseFloat(result.total_sales) || 0,
@@ -655,12 +712,14 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
    * @param companyId - UUID de la compañía
    * @param dateFrom - Fecha inicio
    * @param dateTo - Fecha fin
+   * @param reportScope - Alcance: individual, consolidated, o all (default: individual)
    * @returns Totales consolidados con desglose por tienda
    */
   async consolidateByCompany(
     companyId: string,
     dateFrom: string,
     dateTo: string,
+    reportScope: ReportScopeEnum = ReportScopeEnum.INDIVIDUAL,
   ): Promise<{
     totals: {
       total_sales: number;
@@ -685,7 +744,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   }> {
     return this.withSchema(async (manager) => {
       // Totales de la compañía
-      const totals = await manager
+      const totalsQb = manager
         .getRepository(ReportHeaderEntity)
         .createQueryBuilder('report')
         .leftJoin('report.store', 'store')
@@ -699,11 +758,15 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
         .addSelect('COUNT(DISTINCT report.store_id)', 'stores_count')
         .addSelect('COUNT(DISTINCT report.report_date)', 'days_count')
         .where('store.company_id = :companyId', { companyId })
-        .andWhere('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo })
-        .getRawOne();
+        .andWhere('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
+
+      // Aplicar filtro de alcance para evitar doble conteo
+      this.applyReportScopeFilter(totalsQb, reportScope);
+
+      const totals = await totalsQb.getRawOne();
 
       // Desglose por tienda
-      const storesBreakdown = await manager
+      const storesQb = manager
         .getRepository(ReportHeaderEntity)
         .createQueryBuilder('report')
         .leftJoin('report.store', 'store')
@@ -715,7 +778,12 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
         .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
         .addSelect('COUNT(*)', 'reports_count')
         .where('store.company_id = :companyId', { companyId })
-        .andWhere('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo })
+        .andWhere('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
+
+      // Aplicar filtro de alcance para evitar doble conteo
+      this.applyReportScopeFilter(storesQb, reportScope);
+
+      const storesBreakdown = await storesQb
         .groupBy('store.id')
         .addGroupBy('store.nombre')
         .addGroupBy('store.codigo')
@@ -754,11 +822,13 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
    *
    * @param dateFrom - Fecha inicio
    * @param dateTo - Fecha fin
+   * @param reportScope - Alcance: individual, consolidated, o all (default: individual)
    * @returns Totales globales con desglose por compañía
    */
   async consolidateGlobal(
     dateFrom: string,
     dateTo: string,
+    reportScope: ReportScopeEnum = ReportScopeEnum.INDIVIDUAL,
   ): Promise<{
     totals: {
       total_sales: number;
@@ -783,7 +853,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   }> {
     return this.withSchema(async (manager) => {
       // Totales globales
-      const totals = await manager
+      const totalsQb = manager
         .getRepository(ReportHeaderEntity)
         .createQueryBuilder('report')
         .leftJoin('report.store', 'store')
@@ -797,11 +867,15 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
         .addSelect('COUNT(*)', 'reports_count')
         .addSelect('COUNT(DISTINCT store.id)', 'stores_count')
         .addSelect('COUNT(DISTINCT company.id)', 'companies_count')
-        .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo })
-        .getRawOne();
+        .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
+
+      // Aplicar filtro de alcance para evitar doble conteo
+      this.applyReportScopeFilter(totalsQb, reportScope);
+
+      const totals = await totalsQb.getRawOne();
 
       // Desglose por compañía
-      const companiesBreakdown = await manager
+      const companiesQb = manager
         .getRepository(ReportHeaderEntity)
         .createQueryBuilder('report')
         .leftJoin('report.store', 'store')
@@ -813,7 +887,12 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
         .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
         .addSelect('COUNT(DISTINCT store.id)', 'stores_count')
         .addSelect('COUNT(*)', 'reports_count')
-        .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo })
+        .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
+
+      // Aplicar filtro de alcance para evitar doble conteo
+      this.applyReportScopeFilter(companiesQb, reportScope);
+
+      const companiesBreakdown = await companiesQb
         .groupBy('company.id')
         .addGroupBy('company.name')
         .orderBy('total_sales', 'DESC')
@@ -948,6 +1027,116 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
         transactions_count: parseInt(r.transactions_count) || 0,
         percentage_of_total: totalAmount > 0 ? (parseFloat(r.total_amount) / totalAmount) * 100 : 0,
       }));
+    });
+  }
+
+  /**
+   * Obtener resumen diario con desglose por empleados
+   *
+   * MULTI-TENANT: Usa withSchema() + manager.getRepository()
+   *
+   * Retorna todos los reportes de una tienda para una fecha específica,
+   * separando los reportes individuales por empleado del reporte consolidado.
+   *
+   * @param storeId - UUID de la tienda
+   * @param reportDate - Fecha del reporte (YYYY-MM-DD)
+   * @returns Resumen con totales y desglose por empleado
+   */
+  async getDailySummaryByEmployees(
+    storeId: string,
+    reportDate: string,
+  ): Promise<{
+    employees: Array<{
+      report_id: string;
+      employee_id: number;
+      employee_name: string;
+      total_sales: number;
+      total_revenue: number;
+      orders_count: number;
+      total_quantity: number;
+      average_ticket: number;
+      total_discounts: number;
+    }>;
+    consolidated: {
+      report_id: string;
+      total_sales: number;
+      total_revenue: number;
+      orders_count: number;
+      total_quantity: number;
+      average_ticket: number;
+      total_discounts: number;
+    } | null;
+    totals: {
+      total_sales: number;
+      total_revenue: number;
+      orders_count: number;
+      total_quantity: number;
+      total_discounts: number;
+    };
+  }> {
+    return this.withSchema(async (manager) => {
+      // Obtener todos los reportes de la tienda para esa fecha
+      const reports = await manager
+        .getRepository(ReportHeaderEntity)
+        .createQueryBuilder('report')
+        .where('report.store_id = :storeId', { storeId })
+        .andWhere('report.report_date = :reportDate', { reportDate })
+        .orderBy('report.employee_name', 'ASC')
+        .getMany();
+
+      // Separar reportes individuales de empleados vs consolidado
+      const employeeReports = reports.filter((r) => r.employee_id !== null);
+      const consolidatedReport = reports.find((r) => r.employee_id === null) || null;
+
+      // Mapear reportes de empleados
+      const employees = employeeReports.map((r) => ({
+        report_id: r.id,
+        employee_id: r.employee_id!,
+        employee_name: r.employee_name || 'Sin nombre',
+        total_sales: r.total_sales || 0,
+        total_revenue: r.total_revenue || 0,
+        orders_count: r.orders_count || 0,
+        total_quantity: r.total_quantity || 0,
+        average_ticket: r.average_ticket || 0,
+        total_discounts: r.total_discounts || 0,
+      }));
+
+      // Mapear reporte consolidado si existe
+      const consolidated = consolidatedReport
+        ? {
+            report_id: consolidatedReport.id,
+            total_sales: consolidatedReport.total_sales || 0,
+            total_revenue: consolidatedReport.total_revenue || 0,
+            orders_count: consolidatedReport.orders_count || 0,
+            total_quantity: consolidatedReport.total_quantity || 0,
+            average_ticket: consolidatedReport.average_ticket || 0,
+            total_discounts: consolidatedReport.total_discounts || 0,
+          }
+        : null;
+
+      // Calcular totales sumando reportes de empleados (NO el consolidado)
+      const totals = employees.reduce(
+        (acc, emp) => ({
+          total_sales: acc.total_sales + emp.total_sales,
+          total_revenue: acc.total_revenue + emp.total_revenue,
+          orders_count: acc.orders_count + emp.orders_count,
+          total_quantity: acc.total_quantity + emp.total_quantity,
+          total_discounts: acc.total_discounts + emp.total_discounts,
+        }),
+        {
+          total_sales: 0,
+          total_revenue: 0,
+          orders_count: 0,
+          total_quantity: 0,
+          total_discounts: 0,
+        },
+      );
+
+      return {
+        employees,
+        consolidated,
+        totals,
+      };
     });
   }
 
@@ -1204,6 +1393,35 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
         };
       });
     });
+  }
+
+  /**
+   * Aplicar filtro de alcance (scope) al QueryBuilder
+   *
+   * @description
+   * Filtra reportes por employee_id para evitar doble conteo
+   * cuando existen tanto reportes individuales como consolidados.
+   *
+   * @param qb - QueryBuilder a modificar
+   * @param scope - Alcance: individual, consolidated, o all
+   */
+  private applyReportScopeFilter(
+    qb: import('typeorm').SelectQueryBuilder<ReportHeaderEntity>,
+    scope: ReportScopeEnum,
+  ): void {
+    switch (scope) {
+      case ReportScopeEnum.INDIVIDUAL:
+        // Solo reportes por empleado (evita doble conteo sumando individuales)
+        qb.andWhere('report.employee_id IS NOT NULL');
+        break;
+      case ReportScopeEnum.CONSOLIDATED:
+        // Solo reportes consolidados (sin empleado)
+        qb.andWhere('report.employee_id IS NULL');
+        break;
+      case ReportScopeEnum.ALL:
+        // No aplicar filtro (puede causar doble conteo)
+        break;
+    }
   }
 
   private getMetricColumn(metric: RankingMetricEnum): string {

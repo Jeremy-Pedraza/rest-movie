@@ -57,10 +57,7 @@ export {
   OrderStatusEnum,
 } from './effective-order.dto';
 
-export {
-  CreateShortageOverageDto,
-  ShortageOverageResponseDto,
-} from './shortage-overage.dto';
+export { CreateShortageOverageDto, ShortageOverageResponseDto } from './shortage-overage.dto';
 
 // ============================================
 // DTOs PRINCIPALES
@@ -87,3 +84,22 @@ export {
   RankingMetricEnum,
   RankingDirectionEnum,
 } from './ranking-stores.dto';
+
+export {
+  QueryDailySummaryDto,
+  EmployeeSummaryDto,
+  DailySummaryResponseDto,
+} from './daily-summary.dto';
+
+// ============================================
+// DTOs DE METADATA Y SYSTEM METRICS
+// ============================================
+
+export {
+  SystemMetricsDto,
+  CpuMetricsDto,
+  MemoryMetricsDto,
+  DiskMetricsDto,
+  DatabaseMetricsDto,
+  ReportMetadataDto,
+} from './system-metrics.dto';

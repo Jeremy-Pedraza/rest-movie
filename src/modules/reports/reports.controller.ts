@@ -41,6 +41,8 @@ import {
   RankingCompaniesDto,
   ReportStatusEnum,
   RankingMetricEnum,
+  QueryDailySummaryDto,
+  DailySummaryResponseDto,
 } from './dto';
 import {
   IReportWithStoreResponse,
@@ -92,6 +94,12 @@ export class ReportsController {
 
   /**
    * Crear reporte
+   *
+   * Soporta dos tipos de reportes:
+   * - CONSOLIDADO: Sin employee_id (todos los empleados)
+   * - INDIVIDUAL: Con employee_id (un empleado específico)
+   *
+   * La idempotencia se verifica por (store_id + report_date + employee_id)
    */
   @Post()
   @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
@@ -100,13 +108,26 @@ export class ReportsController {
   @ApiOperation({
     summary: 'Crear reporte',
     description:
-      'Crea un nuevo reporte para una tienda y fecha específica. Incluye métricas de ventas, pagos, descuentos y órdenes.',
+      'Crea un nuevo reporte para una tienda y fecha específica. Incluye métricas de ventas, pagos, descuentos y órdenes.\n\n' +
+      '**Tipos de reporte:**\n' +
+      '- **Consolidado**: Sin `employee_id` (o null). Representa las ventas de todos los empleados.\n' +
+      '- **Individual**: Con `employee_id`. Representa las ventas de un empleado específico.\n\n' +
+      '**Idempotencia:**\n' +
+      'La combinación `(store_id + report_date + employee_id)` debe ser única. ' +
+      'Esto permite crear múltiples reportes por día: uno por cada empleado.',
   })
   @ApiResponse({ status: 201, description: 'Reporte creado exitosamente' })
-  @ApiResponse({ status: 400, description: 'Datos de entrada inválidos' })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Datos de entrada inválidos o employee_name faltante cuando employee_id está presente',
+  })
   @ApiResponse({ status: 401, description: 'No autorizado' })
   @ApiResponse({ status: 403, description: 'Sin acceso a la tienda' })
-  @ApiResponse({ status: 409, description: 'Ya existe reporte para esta tienda/fecha' })
+  @ApiResponse({
+    status: 409,
+    description: 'Ya existe reporte para esta combinación de tienda/fecha/empleado',
+  })
   async create(
     @Body() dto: CreateReportDto,
     @CurrentUser() user: UserSessionDto,
@@ -231,6 +252,10 @@ export class ReportsController {
 
   /**
    * Listar reportes con filtros
+   *
+   * Incluye filtros para reportes por empleado:
+   * - employee_id: Filtrar por empleado específico
+   * - consolidated: Filtrar consolidados (true) o individuales (false)
    */
   @Get()
   @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
@@ -238,7 +263,15 @@ export class ReportsController {
   @ApiOperation({
     summary: 'Listar reportes con filtros',
     description:
-      'Obtiene lista paginada de reportes. Los filtros se aplican según el rol del usuario.',
+      'Obtiene lista paginada de reportes. Los filtros se aplican según el rol del usuario.\n\n' +
+      '**Filtros de empleado disponibles:**\n' +
+      '- `employee_id`: Obtener reportes de un empleado específico\n' +
+      '- `consolidated=true`: Solo reportes consolidados (sin empleado)\n' +
+      '- `consolidated=false`: Solo reportes individuales (con empleado)\n\n' +
+      '**Ejemplos:**\n' +
+      '- `GET /reports?store_id=xxx&report_date=2026-01-19` - Todos los reportes del día\n' +
+      '- `GET /reports?store_id=xxx&report_date=2026-01-19&employee_id=12345` - Reporte de un empleado\n' +
+      '- `GET /reports?store_id=xxx&consolidated=false` - Solo reportes individuales',
   })
   @ApiResponse({ status: 200, description: 'Reportes obtenidos exitosamente' })
   @ApiResponse({ status: 401, description: 'No autorizado' })
@@ -425,6 +458,54 @@ export class ReportsController {
     return {
       success: true,
       message: 'Tendencias obtenidas',
+      data,
+    };
+  }
+
+  /**
+   * Resumen diario con desglose por empleados
+   *
+   * IMPORTANTE: Esta ruta DEBE estar antes de rutas con :id
+   * para evitar que NestJS la capture incorrectamente.
+   */
+  @Get('daily-summary')
+  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @UseGuards(ReportAccessGuard)
+  @Cacheable({ ttl: 60, strategy: 'per-tenant' }) // Cache 1 minuto por tenant
+  @ApiOperation({
+    summary: 'Resumen diario por empleados',
+    description:
+      'Obtiene el resumen de un día específico para una tienda, con desglose por empleado. ' +
+      'Incluye totales consolidados, métricas individuales por empleado y porcentaje de participación.',
+  })
+  @ApiQuery({
+    name: 'store_id',
+    required: true,
+    description: 'UUID de la tienda',
+    example: '39a85714-3b44-4794-9647-9408709df3aa',
+  })
+  @ApiQuery({
+    name: 'report_date',
+    required: true,
+    description: 'Fecha del reporte (formato YYYY-MM-DD)',
+    example: '2026-01-19',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Resumen diario obtenido exitosamente',
+    type: DailySummaryResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  @ApiResponse({ status: 403, description: 'Sin acceso a esta tienda' })
+  @ApiResponse({ status: 404, description: 'Tienda no encontrada' })
+  async getDailySummary(
+    @Query() query: QueryDailySummaryDto,
+    @CurrentUser() user: UserSessionDto,
+  ): Promise<IApiResponse<DailySummaryResponseDto>> {
+    const data = await this.reportsService.getDailySummary(query, user);
+    return {
+      success: true,
+      message: 'Resumen diario obtenido exitosamente',
       data,
     };
   }

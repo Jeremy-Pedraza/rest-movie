@@ -26,6 +26,14 @@ const TENANT_TABLES = [
   'dynamic_discounts',
   'adjustments',
   'effective_orders',
+  'shortage_overage',
+  'report_cash_summary',
+  'report_employee_sales',
+  'report_category_sales',
+  'report_revenue_center_sales',
+  'report_service_charges',
+  'report_income_by_class',
+  'report_income_by_tender_type',
 ];
 
 /**
@@ -113,6 +121,8 @@ async function createTenantSchema(
             "store_id" uuid NOT NULL,
             "report_date" date NOT NULL,
             "report_type" "${schemaName}"."report_type_enum" NOT NULL DEFAULT 'daily',
+            "employee_id" integer,
+            "employee_name" varchar(200),
             "total_sales" decimal(12,2) NOT NULL DEFAULT 0,
             "total_revenue" decimal(12,2) NOT NULL DEFAULT 0,
             "total_quantity" integer NOT NULL DEFAULT 0,
@@ -120,12 +130,14 @@ async function createTenantSchema(
             "average_ticket" decimal(10,2) NOT NULL DEFAULT 0,
             "total_discounts" decimal(12,2) NOT NULL DEFAULT 0,
             "total_adjustments" decimal(12,2) NOT NULL DEFAULT 0,
+            "total_service_charge" decimal(12,2) NOT NULL DEFAULT 0,
+            "total_payment" decimal(12,2) NOT NULL DEFAULT 0,
             "metadata" jsonb,
             "status" varchar(20) NOT NULL DEFAULT 'published',
             "created_at" timestamptz NOT NULL DEFAULT now(),
             "updated_at" timestamptz DEFAULT now(),
             CONSTRAINT "pk_${schemaName}_report_headers" PRIMARY KEY ("id"),
-            CONSTRAINT "uq_${schemaName}_report_headers_store_date" UNIQUE ("store_id", "report_date")
+            CONSTRAINT "uq_${schemaName}_report_headers_store_date_emp" UNIQUE ("store_id", "report_date", "employee_id")
           )
         `);
 
@@ -138,6 +150,9 @@ async function createTenantSchema(
         );
         await queryRunner.query(
           `CREATE INDEX "idx_${schemaName}_report_headers_store_type" ON "${schemaName}"."${tableName}" ("store_id", "report_type")`,
+        );
+        await queryRunner.query(
+          `CREATE INDEX "idx_${schemaName}_report_headers_employee" ON "${schemaName}"."${tableName}" ("employee_id")`,
         );
 
         // FK a stores (public)
@@ -249,7 +264,11 @@ export async function seedTenantSchemas(dataSource: DataSource): Promise<void> {
     const exists = await schemaExists(dataSource, company.schema);
     if (exists) {
       // Verificar si tiene las tablas
-      const hasReportHeaders = await tableExistsInSchema(dataSource, company.schema, 'report_headers');
+      const hasReportHeaders = await tableExistsInSchema(
+        dataSource,
+        company.schema,
+        'report_headers',
+      );
       if (hasReportHeaders) {
         console.log(`   ⏭️  Schema "${company.schema}" ya existe con tablas, omitiendo`);
         skipped++;
@@ -275,7 +294,9 @@ export async function seedTenantSchemas(dataSource: DataSource): Promise<void> {
   console.log('│  📊 RESUMEN TENANT SCHEMAS                         │');
   console.log('├────────────────────────────────────────────────────┤');
   console.log(`│  ✅ Creados:  ${created.toString().padStart(3)}                                │`);
-  console.log(`│  ⏭️  Omitidos: ${skipped.toString().padStart(3)}                                │`);
+  console.log(
+    `│  ⏭️  Omitidos: ${skipped.toString().padStart(3)}                                │`,
+  );
   console.log(`│  ❌ Errores:  ${errors.toString().padStart(3)}                                │`);
   console.log('└────────────────────────────────────────────────────┘');
 }

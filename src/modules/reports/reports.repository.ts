@@ -60,6 +60,13 @@ import {
   AdjustmentEntity,
   EffectiveOrderEntity,
   ShortageOverageEntity,
+  CashSummaryEntity,
+  EmployeeSalesEntity,
+  CategorySalesEntity,
+  RevenueCenterSalesEntity,
+  ServiceChargeEntity,
+  IncomeByClassEntity,
+  IncomeByTenderTypeEntity,
 } from './entities';
 import { ReportTypeEnum, ReportScopeEnum } from './enums';
 import { QueryReportDto, RankingStoresDto, RankingMetricEnum, RankingDirectionEnum } from './dto';
@@ -141,6 +148,13 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
       adjustments?: Partial<AdjustmentEntity>[];
       effective_orders?: Partial<EffectiveOrderEntity>[];
       shortage_overage?: Partial<ShortageOverageEntity>[];
+      cash_summary?: Partial<CashSummaryEntity>[];
+      employee_sales?: Partial<EmployeeSalesEntity>[];
+      category_sales?: Partial<CategorySalesEntity>[];
+      revenue_center_sales?: Partial<RevenueCenterSalesEntity>[];
+      service_charges?: Partial<ServiceChargeEntity>[];
+      income_by_class?: Partial<IncomeByClassEntity>[];
+      income_by_tender_type?: Partial<IncomeByTenderTypeEntity>[];
     },
   ): Promise<ReportHeaderEntity> {
     return this.withSchemaTransaction(async (manager) => {
@@ -152,6 +166,13 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
         adjustments,
         effective_orders,
         shortage_overage,
+        cash_summary,
+        employee_sales,
+        category_sales,
+        revenue_center_sales,
+        service_charges,
+        income_by_class,
+        income_by_tender_type,
         ...headerData
       } = data;
 
@@ -206,6 +227,62 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
           report_header_id: savedReport.id,
         }));
         await manager.save(ShortageOverageEntity, entities);
+      }
+
+      if (cash_summary?.length) {
+        const entities = cash_summary.map((item) => ({
+          ...item,
+          report_header_id: savedReport.id,
+        }));
+        await manager.save(CashSummaryEntity, entities);
+      }
+
+      if (employee_sales?.length) {
+        const entities = employee_sales.map((item) => ({
+          ...item,
+          report_header_id: savedReport.id,
+        }));
+        await manager.save(EmployeeSalesEntity, entities);
+      }
+
+      if (category_sales?.length) {
+        const entities = category_sales.map((item) => ({
+          ...item,
+          report_header_id: savedReport.id,
+        }));
+        await manager.save(CategorySalesEntity, entities);
+      }
+
+      if (revenue_center_sales?.length) {
+        const entities = revenue_center_sales.map((item) => ({
+          ...item,
+          report_header_id: savedReport.id,
+        }));
+        await manager.save(RevenueCenterSalesEntity, entities);
+      }
+
+      if (service_charges?.length) {
+        const entities = service_charges.map((item) => ({
+          ...item,
+          report_header_id: savedReport.id,
+        }));
+        await manager.save(ServiceChargeEntity, entities);
+      }
+
+      if (income_by_class?.length) {
+        const entities = income_by_class.map((item) => ({
+          ...item,
+          report_header_id: savedReport.id,
+        }));
+        await manager.save(IncomeByClassEntity, entities);
+      }
+
+      if (income_by_tender_type?.length) {
+        const entities = income_by_tender_type.map((item) => ({
+          ...item,
+          report_header_id: savedReport.id,
+        }));
+        await manager.save(IncomeByTenderTypeEntity, entities);
       }
 
       return savedReport;
@@ -373,7 +450,15 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
           .leftJoinAndSelect('report.payment_methods', 'paymentMethods')
           .leftJoinAndSelect('report.dynamic_discounts', 'discounts')
           .leftJoinAndSelect('report.adjustments', 'adjustments')
-          .leftJoinAndSelect('report.effective_orders', 'effectiveOrders');
+          .leftJoinAndSelect('report.effective_orders', 'effectiveOrders')
+          .leftJoinAndSelect('report.shortage_overage', 'shortageOverage')
+          .leftJoinAndSelect('report.cash_summary', 'cashSummary')
+          .leftJoinAndSelect('report.employee_sales', 'employeeSales')
+          .leftJoinAndSelect('report.category_sales', 'categorySales')
+          .leftJoinAndSelect('report.revenue_center_sales', 'revenueCenterSales')
+          .leftJoinAndSelect('report.service_charges', 'serviceCharges')
+          .leftJoinAndSelect('report.income_by_class', 'incomeByClass')
+          .leftJoinAndSelect('report.income_by_tender_type', 'incomeByTenderType');
       }
 
       return await qb.getOne();
@@ -480,6 +565,8 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
         'average_ticket',
         'total_discounts',
         'total_adjustments',
+        'total_service_charge',
+        'total_payment',
         'status',
         'metadata',
       ];

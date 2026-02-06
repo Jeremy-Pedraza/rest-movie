@@ -135,6 +135,79 @@ export interface IShortageOverageResponse {
   created_at: Date;
 }
 
+export interface ICashSummaryResponse {
+  id: string;
+  report_header_id: string;
+  tender_name: string;
+  quantity: number;
+  total_amount: number;
+  created_at: Date;
+}
+
+export interface IEmployeeSalesResponse {
+  id: string;
+  report_header_id: string;
+  employee_id: number;
+  employee_name: string;
+  total_checks: number;
+  gross_sales: number;
+  total_tax: number;
+  net_sales: number;
+  average_ticket: number;
+  created_at: Date;
+}
+
+export interface ICategorySalesResponse {
+  id: string;
+  report_header_id: string;
+  category_id: number;
+  category_name: string;
+  items_sold: number;
+  total_sales: number;
+  created_at: Date;
+}
+
+export interface IRevenueCenterSalesResponse {
+  id: string;
+  report_header_id: string;
+  revenue_center_id: number;
+  revenue_center_name: string;
+  total_checks: number;
+  total_sales: number;
+  average_ticket: number;
+  created_at: Date;
+}
+
+export interface IServiceChargeResponse {
+  id: string;
+  report_header_id: string;
+  service_charge_name: string;
+  quantity: number;
+  total_amount: number;
+  created_at: Date;
+}
+
+export interface IIncomeByClassResponse {
+  id: string;
+  report_header_id: string;
+  class_name: string;
+  currency_name: string;
+  currency_symbol: string;
+  transaction_count: number;
+  total_amount: number;
+  created_at: Date;
+}
+
+export interface IIncomeByTenderTypeResponse {
+  id: string;
+  report_header_id: string;
+  tender_type: string;
+  tender_name: string;
+  transaction_count: number;
+  total_amount: number;
+  created_at: Date;
+}
+
 // ============================================
 // INTERFACE PRINCIPAL DE REPORTE
 // ============================================
@@ -164,9 +237,11 @@ export interface IReportResponse {
   orders_count: number;
   average_ticket: number;
 
-  // Descuentos y ajustes
+  // Descuentos, ajustes y cargos
   total_discounts: number;
   total_adjustments: number;
+  total_service_charge: number;
+  total_payment: number;
 
   // Metadata y estado
   status: ReportStatusEnum; // ReportStatusEnum se mantiene (no es parte de flexibilización)
@@ -209,6 +284,13 @@ export interface IReportWithDetailsResponse extends IReportWithStoreResponse {
   adjustments?: IAdjustmentResponse[];
   effective_orders?: IEffectiveOrderResponse[];
   shortage_overage?: IShortageOverageResponse[];
+  cash_summary?: ICashSummaryResponse[];
+  employee_sales?: IEmployeeSalesResponse[];
+  category_sales?: ICategorySalesResponse[];
+  revenue_center_sales?: IRevenueCenterSalesResponse[];
+  service_charges?: IServiceChargeResponse[];
+  income_by_class?: IIncomeByClassResponse[];
+  income_by_tender_type?: IIncomeByTenderTypeResponse[];
 }
 
 /**

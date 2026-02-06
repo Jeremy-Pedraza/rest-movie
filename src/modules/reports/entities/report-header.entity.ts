@@ -219,6 +219,30 @@ export class ReportHeaderEntity {
   })
   total_adjustments: number;
 
+  /**
+   * Total de cargos por servicio
+   */
+  @Column({
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    default: 0,
+    name: 'total_service_charge',
+  })
+  total_service_charge: number;
+
+  /**
+   * Total de pagos recibidos (= sum tenders)
+   */
+  @Column({
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    default: 0,
+    name: 'total_payment',
+  })
+  total_payment: number;
+
   // ============================================
   // METADATA
   // ============================================
@@ -297,6 +321,48 @@ export class ReportHeaderEntity {
    */
   @OneToMany('ShortageOverageEntity', 'report_header')
   shortage_overage?: any[];
+
+  /**
+   * Resumen de efectivo por tender
+   */
+  @OneToMany('CashSummaryEntity', 'report_header')
+  cash_summary?: any[];
+
+  /**
+   * Ventas por empleado
+   */
+  @OneToMany('EmployeeSalesEntity', 'report_header')
+  employee_sales?: any[];
+
+  /**
+   * Ventas por categoría
+   */
+  @OneToMany('CategorySalesEntity', 'report_header')
+  category_sales?: any[];
+
+  /**
+   * Ventas por revenue center
+   */
+  @OneToMany('RevenueCenterSalesEntity', 'report_header')
+  revenue_center_sales?: any[];
+
+  /**
+   * Cargos por servicio
+   */
+  @OneToMany('ServiceChargeEntity', 'report_header')
+  service_charges?: any[];
+
+  /**
+   * Ingresos por clase de pago
+   */
+  @OneToMany('IncomeByClassEntity', 'report_header')
+  income_by_class?: any[];
+
+  /**
+   * Ingresos por tipo de tender
+   */
+  @OneToMany('IncomeByTenderTypeEntity', 'report_header')
+  income_by_tender_type?: any[];
 
   // ============================================
   // TIMESTAMPS

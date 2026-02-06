@@ -10,6 +10,13 @@ import {
   AdjustmentEntity,
   EffectiveOrderEntity,
   ShortageOverageEntity,
+  CashSummaryEntity,
+  EmployeeSalesEntity,
+  CategorySalesEntity,
+  RevenueCenterSalesEntity,
+  ServiceChargeEntity,
+  IncomeByClassEntity,
+  IncomeByTenderTypeEntity,
 } from './entities';
 import { ReportsRepository } from './reports.repository';
 import { ReportsService } from './reports.service';
@@ -83,6 +90,13 @@ import { CompanyModule } from '@modules/company';
       AdjustmentEntity,
       EffectiveOrderEntity,
       ShortageOverageEntity,
+      CashSummaryEntity,
+      EmployeeSalesEntity,
+      CategorySalesEntity,
+      RevenueCenterSalesEntity,
+      ServiceChargeEntity,
+      IncomeByClassEntity,
+      IncomeByTenderTypeEntity,
     ]),
     CommonModule,
     StoreModule,

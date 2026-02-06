@@ -102,9 +102,24 @@ export class AddEmployeeFieldsToReportHeaders1738600000000 implements MigrationI
 
     if (existingIndex.length > 0) {
       for (const idx of existingIndex) {
-        await queryRunner.query(`
-          DROP INDEX IF EXISTS "${schemaName}"."${idx.indexname}"
+        // Verificar si es un constraint (no se puede eliminar con DROP INDEX)
+        const isConstraint = await queryRunner.query(`
+          SELECT 1 FROM information_schema.table_constraints
+          WHERE constraint_schema = '${schemaName}'
+            AND table_name = 'report_headers'
+            AND constraint_name = '${idx.indexname}'
+            AND constraint_type = 'UNIQUE'
         `);
+
+        if (isConstraint.length > 0) {
+          await queryRunner.query(`
+            ALTER TABLE "${schemaName}"."report_headers" DROP CONSTRAINT "${idx.indexname}"
+          `);
+        } else {
+          await queryRunner.query(`
+            DROP INDEX IF EXISTS "${schemaName}"."${idx.indexname}"
+          `);
+        }
         console.log(`  ✓ Schema ${schemaName}: índice ${idx.indexname} eliminado`);
       }
     }

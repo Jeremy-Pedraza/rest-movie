@@ -59,6 +59,26 @@ export {
 
 export { CreateShortageOverageDto, ShortageOverageResponseDto } from './shortage-overage.dto';
 
+export { CreateCashSummaryDto, CashSummaryResponseDto } from './cash-summary.dto';
+
+export { CreateEmployeeSalesDto, EmployeeSalesResponseDto } from './employee-sales.dto';
+
+export { CreateCategorySalesDto, CategorySalesResponseDto } from './category-sales.dto';
+
+export {
+  CreateRevenueCenterSalesDto,
+  RevenueCenterSalesResponseDto,
+} from './revenue-center-sales.dto';
+
+export { CreateServiceChargeDto, ServiceChargeResponseDto } from './service-charge.dto';
+
+export { CreateIncomeByClassDto, IncomeByClassResponseDto } from './income-by-class.dto';
+
+export {
+  CreateIncomeByTenderTypeDto,
+  IncomeByTenderTypeResponseDto,
+} from './income-by-tender-type.dto';
+
 // ============================================
 // DTOs PRINCIPALES
 // ============================================

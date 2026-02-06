@@ -25,6 +25,13 @@ import { CreateDynamicDiscountDto } from './dynamic-discount.dto';
 import { CreateAdjustmentDto } from './adjustment.dto';
 import { CreateEffectiveOrderDto } from './effective-order.dto';
 import { CreateShortageOverageDto } from './shortage-overage.dto';
+import { CreateCashSummaryDto } from './cash-summary.dto';
+import { CreateEmployeeSalesDto } from './employee-sales.dto';
+import { CreateCategorySalesDto } from './category-sales.dto';
+import { CreateRevenueCenterSalesDto } from './revenue-center-sales.dto';
+import { CreateServiceChargeDto } from './service-charge.dto';
+import { CreateIncomeByClassDto } from './income-by-class.dto';
+import { CreateIncomeByTenderTypeDto } from './income-by-tender-type.dto';
 
 /**
  * Estados de reporte disponibles
@@ -228,6 +235,30 @@ export class CreateReportDto {
   @IsOptional()
   total_adjustments?: number;
 
+  @ApiPropertyOptional({
+    description: 'Total de cargos por servicio',
+    example: 750.0,
+    default: 0,
+  })
+  @IsNumber(
+    { maxDecimalPlaces: 2 },
+    { message: 'total_service_charge debe ser un número con máximo 2 decimales' },
+  )
+  @IsOptional()
+  total_service_charge?: number;
+
+  @ApiPropertyOptional({
+    description: 'Total de pagos recibidos (= sum tenders)',
+    example: 15000.0,
+    default: 0,
+  })
+  @IsNumber(
+    { maxDecimalPlaces: 2 },
+    { message: 'total_payment debe ser un número con máximo 2 decimales' },
+  )
+  @IsOptional()
+  total_payment?: number;
+
   // ============================================
   // METADATA Y ESTADO
   // ============================================
@@ -335,4 +366,85 @@ export class CreateReportDto {
   @Type(() => CreateShortageOverageDto)
   @IsOptional()
   shortage_overage?: CreateShortageOverageDto[];
+
+  // ============================================
+  // DATOS DE DETALLE v1.1.0 (OPCIONALES)
+  // ============================================
+
+  @ApiPropertyOptional({
+    description: 'Resumen de efectivo por tender',
+    type: [CreateCashSummaryDto],
+    isArray: true,
+  })
+  @IsArray({ message: 'cash_summary debe ser un array' })
+  @ValidateNested({ each: true })
+  @Type(() => CreateCashSummaryDto)
+  @IsOptional()
+  cash_summary?: CreateCashSummaryDto[];
+
+  @ApiPropertyOptional({
+    description: 'Ventas por empleado',
+    type: [CreateEmployeeSalesDto],
+    isArray: true,
+  })
+  @IsArray({ message: 'employee_sales debe ser un array' })
+  @ValidateNested({ each: true })
+  @Type(() => CreateEmployeeSalesDto)
+  @IsOptional()
+  employee_sales?: CreateEmployeeSalesDto[];
+
+  @ApiPropertyOptional({
+    description: 'Ventas por categoría',
+    type: [CreateCategorySalesDto],
+    isArray: true,
+  })
+  @IsArray({ message: 'category_sales debe ser un array' })
+  @ValidateNested({ each: true })
+  @Type(() => CreateCategorySalesDto)
+  @IsOptional()
+  category_sales?: CreateCategorySalesDto[];
+
+  @ApiPropertyOptional({
+    description: 'Ventas por revenue center',
+    type: [CreateRevenueCenterSalesDto],
+    isArray: true,
+  })
+  @IsArray({ message: 'revenue_center_sales debe ser un array' })
+  @ValidateNested({ each: true })
+  @Type(() => CreateRevenueCenterSalesDto)
+  @IsOptional()
+  revenue_center_sales?: CreateRevenueCenterSalesDto[];
+
+  @ApiPropertyOptional({
+    description: 'Cargos por servicio',
+    type: [CreateServiceChargeDto],
+    isArray: true,
+  })
+  @IsArray({ message: 'service_charges debe ser un array' })
+  @ValidateNested({ each: true })
+  @Type(() => CreateServiceChargeDto)
+  @IsOptional()
+  service_charges?: CreateServiceChargeDto[];
+
+  @ApiPropertyOptional({
+    description: 'Ingresos por clase de pago',
+    type: [CreateIncomeByClassDto],
+    isArray: true,
+  })
+  @IsArray({ message: 'income_by_class debe ser un array' })
+  @ValidateNested({ each: true })
+  @Type(() => CreateIncomeByClassDto)
+  @IsOptional()
+  income_by_class?: CreateIncomeByClassDto[];
+
+  @ApiPropertyOptional({
+    description: 'Ingresos por tipo de tender',
+    type: [CreateIncomeByTenderTypeDto],
+    isArray: true,
+  })
+  @IsArray({ message: 'income_by_tender_type debe ser un array' })
+  @ValidateNested({ each: true })
+  @Type(() => CreateIncomeByTenderTypeDto)
+  @IsOptional()
+  income_by_tender_type?: CreateIncomeByTenderTypeDto[];
 }

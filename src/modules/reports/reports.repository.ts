@@ -439,29 +439,103 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
    */
   async findById(id: string, includeDetails = false): Promise<ReportHeaderEntity | null> {
     return this.withSchema(async (manager) => {
-      const qb = manager
+      // Query 1: Header + Store (siempre)
+      const report = await manager
         .getRepository(ReportHeaderEntity)
         .createQueryBuilder('report')
         .leftJoinAndSelect('report.store', 'store')
-        .where('report.id = :id', { id });
+        .where('report.id = :id', { id })
+        .getOne();
 
-      if (includeDetails) {
-        qb.leftJoinAndSelect('report.sales_by_order_type', 'salesByOrderType')
-          .leftJoinAndSelect('report.payment_methods', 'paymentMethods')
-          .leftJoinAndSelect('report.dynamic_discounts', 'discounts')
-          .leftJoinAndSelect('report.adjustments', 'adjustments')
-          .leftJoinAndSelect('report.effective_orders', 'effectiveOrders')
-          .leftJoinAndSelect('report.shortage_overage', 'shortageOverage')
-          .leftJoinAndSelect('report.cash_summary', 'cashSummary')
-          .leftJoinAndSelect('report.employee_sales', 'employeeSales')
-          .leftJoinAndSelect('report.category_sales', 'categorySales')
-          .leftJoinAndSelect('report.revenue_center_sales', 'revenueCenterSales')
-          .leftJoinAndSelect('report.service_charges', 'serviceCharges')
-          .leftJoinAndSelect('report.income_by_class', 'incomeByClass')
-          .leftJoinAndSelect('report.income_by_tender_type', 'incomeByTenderType');
+      if (!report || !includeDetails) {
+        return report;
       }
 
-      return await qb.getOne();
+      // Queries separadas para cada colección de detalle
+      // Esto evita el producto cartesiano de 13 LEFT JOINs que genera millones de filas
+      const [
+        salesByOrderType,
+        paymentMethods,
+        dynamicDiscounts,
+        adjustments,
+        effectiveOrders,
+        shortageOverage,
+        cashSummary,
+        employeeSales,
+        categorySales,
+        revenueCenterSales,
+        serviceCharges,
+        incomeByClass,
+        incomeByTenderType,
+      ] = await Promise.all([
+        manager.getRepository(SalesByOrderTypeEntity).find({
+          where: { report_header_id: id },
+          order: { total_sales: 'DESC' },
+        }),
+        manager.getRepository(PaymentMethodEntity).find({
+          where: { report_header_id: id },
+          order: { total_amount: 'DESC' },
+        }),
+        manager.getRepository(DynamicDiscountEntity).find({
+          where: { report_header_id: id },
+          order: { total_discount: 'DESC' },
+        }),
+        manager.getRepository(AdjustmentEntity).find({
+          where: { report_header_id: id },
+        }),
+        manager.getRepository(EffectiveOrderEntity).find({
+          where: { report_header_id: id },
+          order: { order_datetime: 'DESC' },
+        }),
+        manager.getRepository(ShortageOverageEntity).find({
+          where: { report_header_id: id },
+        }),
+        manager.getRepository(CashSummaryEntity).find({
+          where: { report_header_id: id },
+          order: { total_amount: 'DESC' },
+        }),
+        manager.getRepository(EmployeeSalesEntity).find({
+          where: { report_header_id: id },
+          order: { gross_sales: 'DESC' },
+        }),
+        manager.getRepository(CategorySalesEntity).find({
+          where: { report_header_id: id },
+          order: { total_sales: 'DESC' },
+        }),
+        manager.getRepository(RevenueCenterSalesEntity).find({
+          where: { report_header_id: id },
+          order: { total_sales: 'DESC' },
+        }),
+        manager.getRepository(ServiceChargeEntity).find({
+          where: { report_header_id: id },
+          order: { total_amount: 'DESC' },
+        }),
+        manager.getRepository(IncomeByClassEntity).find({
+          where: { report_header_id: id },
+          order: { total_amount: 'DESC' },
+        }),
+        manager.getRepository(IncomeByTenderTypeEntity).find({
+          where: { report_header_id: id },
+          order: { total_amount: 'DESC' },
+        }),
+      ]);
+
+      // Asignar relaciones al entity
+      report.sales_by_order_type = salesByOrderType;
+      report.payment_methods = paymentMethods;
+      report.dynamic_discounts = dynamicDiscounts;
+      report.adjustments = adjustments;
+      report.effective_orders = effectiveOrders;
+      report.shortage_overage = shortageOverage;
+      report.cash_summary = cashSummary;
+      report.employee_sales = employeeSales;
+      report.category_sales = categorySales;
+      report.revenue_center_sales = revenueCenterSales;
+      report.service_charges = serviceCharges;
+      report.income_by_class = incomeByClass;
+      report.income_by_tender_type = incomeByTenderType;
+
+      return report;
     });
   }
 

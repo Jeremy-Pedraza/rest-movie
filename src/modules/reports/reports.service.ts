@@ -86,6 +86,11 @@ export class ReportsService {
     // Validar acceso a la tienda
     await this.validateStoreAccess(dto.store_id, user);
 
+    // Validar que la tienda pertenezca al tenant/compañía del usuario
+    // Esto es CRÍTICO para escritura: el reporte se crea en el schema del tenant del usuario,
+    // por lo que la tienda DEBE pertenecer a la misma compañía, incluso para ADMIN/SUPER_ADMIN
+    await this.validateStoreBelongsToUserTenant(dto.store_id, user);
+
     // Verificar idempotencia: store_id + report_date + employee_id
     const exists = await this.reportsRepository.exists(
       dto.store_id,
@@ -1317,6 +1322,33 @@ export class ReportsService {
 
     if (!hasAccess) {
       this.handleError.forbidden('No tiene acceso a esta tienda');
+    }
+  }
+
+  /**
+   * Validar que la tienda pertenezca al tenant/compañía del usuario
+   *
+   * CRÍTICO para operaciones de ESCRITURA:
+   * En arquitectura multi-tenant, los datos se escriben en el schema del tenant
+   * del usuario autenticado. Si la tienda pertenece a otra compañía, el reporte
+   * quedaría en el schema incorrecto, creando inconsistencia de datos.
+   *
+   * Esta validación aplica a TODOS los roles, incluyendo SUPER_ADMIN y ADMIN.
+   */
+  private async validateStoreBelongsToUserTenant(
+    storeId: string,
+    user: UserSessionDto,
+  ): Promise<void> {
+    const store = await this.storeRepository.findById(storeId);
+    if (!store) {
+      this.handleError.notFound('Tienda', storeId);
+    }
+
+    if (store.company_id !== user.companyId) {
+      this.handleError.forbidden(
+        `La tienda ${storeId} no pertenece a la compañía del usuario. ` +
+          `No se puede crear el reporte en un tenant diferente`,
+      );
     }
   }
 

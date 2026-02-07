@@ -111,6 +111,8 @@ export {
   DailySummaryResponseDto,
 } from './daily-summary.dto';
 
+export { QueryAnalyticsDto } from './query-analytics.dto';
+
 // ============================================
 // DTOs DE METADATA Y SYSTEM METRICS
 // ============================================

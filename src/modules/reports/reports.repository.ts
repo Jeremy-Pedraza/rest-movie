@@ -829,6 +829,8 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
     total_orders: number;
     total_discounts: number;
     total_adjustments: number;
+    total_service_charge: number;
+    total_payment: number;
     reports_count: number;
     days_count: number;
   }> {
@@ -842,6 +844,8 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
         .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
         .addSelect('COALESCE(SUM(report.total_discounts), 0)', 'total_discounts')
         .addSelect('COALESCE(SUM(report.total_adjustments), 0)', 'total_adjustments')
+        .addSelect('COALESCE(SUM(report.total_service_charge), 0)', 'total_service_charge')
+        .addSelect('COALESCE(SUM(report.total_payment), 0)', 'total_payment')
         .addSelect('COUNT(*)', 'reports_count')
         .addSelect('COUNT(DISTINCT report.report_date)', 'days_count')
         .where('report.store_id = :storeId', { storeId })
@@ -859,6 +863,8 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
         total_orders: parseInt(result.total_orders) || 0,
         total_discounts: parseFloat(result.total_discounts) || 0,
         total_adjustments: parseFloat(result.total_adjustments) || 0,
+        total_service_charge: parseFloat(result.total_service_charge) || 0,
+        total_payment: parseFloat(result.total_payment) || 0,
         reports_count: parseInt(result.reports_count) || 0,
         days_count: parseInt(result.days_count) || 0,
       };
@@ -889,6 +895,8 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
       total_orders: number;
       total_discounts: number;
       total_adjustments: number;
+      total_service_charge: number;
+      total_payment: number;
       reports_count: number;
       stores_count: number;
       days_count: number;
@@ -915,6 +923,8 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
         .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
         .addSelect('COALESCE(SUM(report.total_discounts), 0)', 'total_discounts')
         .addSelect('COALESCE(SUM(report.total_adjustments), 0)', 'total_adjustments')
+        .addSelect('COALESCE(SUM(report.total_service_charge), 0)', 'total_service_charge')
+        .addSelect('COALESCE(SUM(report.total_payment), 0)', 'total_payment')
         .addSelect('COUNT(*)', 'reports_count')
         .addSelect('COUNT(DISTINCT report.store_id)', 'stores_count')
         .addSelect('COUNT(DISTINCT report.report_date)', 'days_count')
@@ -959,6 +969,8 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
           total_orders: parseInt(totals.total_orders) || 0,
           total_discounts: parseFloat(totals.total_discounts) || 0,
           total_adjustments: parseFloat(totals.total_adjustments) || 0,
+          total_service_charge: parseFloat(totals.total_service_charge) || 0,
+          total_payment: parseFloat(totals.total_payment) || 0,
           reports_count: parseInt(totals.reports_count) || 0,
           stores_count: parseInt(totals.stores_count) || 0,
           days_count: parseInt(totals.days_count) || 0,
@@ -998,6 +1010,8 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
       total_orders: number;
       total_discounts: number;
       total_adjustments: number;
+      total_service_charge: number;
+      total_payment: number;
       reports_count: number;
       stores_count: number;
       companies_count: number;
@@ -1025,6 +1039,8 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
         .addSelect('COALESCE(SUM(report.orders_count), 0)', 'total_orders')
         .addSelect('COALESCE(SUM(report.total_discounts), 0)', 'total_discounts')
         .addSelect('COALESCE(SUM(report.total_adjustments), 0)', 'total_adjustments')
+        .addSelect('COALESCE(SUM(report.total_service_charge), 0)', 'total_service_charge')
+        .addSelect('COALESCE(SUM(report.total_payment), 0)', 'total_payment')
         .addSelect('COUNT(*)', 'reports_count')
         .addSelect('COUNT(DISTINCT store.id)', 'stores_count')
         .addSelect('COUNT(DISTINCT company.id)', 'companies_count')
@@ -1067,6 +1083,8 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
           total_orders: parseInt(totals.total_orders) || 0,
           total_discounts: parseFloat(totals.total_discounts) || 0,
           total_adjustments: parseFloat(totals.total_adjustments) || 0,
+          total_service_charge: parseFloat(totals.total_service_charge) || 0,
+          total_payment: parseFloat(totals.total_payment) || 0,
           reports_count: parseInt(totals.reports_count) || 0,
           stores_count: parseInt(totals.stores_count) || 0,
           companies_count: parseInt(totals.companies_count) || 0,
@@ -2174,6 +2192,383 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
         },
         {} as Record<string, number>,
       );
+    });
+  }
+
+  // ============================================
+  // SECCIÓN 8: DASHBOARD ENRIQUECIDO v1.1.0
+  // ============================================
+
+  /**
+   * Top categorías de venta consolidadas
+   *
+   * @param storeIds - Filtrar por tiendas (vacío = todas)
+   * @param dateFrom - Fecha inicio
+   * @param dateTo - Fecha fin
+   * @param limit - Máximo de resultados
+   */
+  async getTopCategories(
+    storeIds: string[],
+    dateFrom: string,
+    dateTo: string,
+    limit = 10,
+  ): Promise<
+    Array<{
+      category_name: string;
+      total_items_sold: number;
+      total_sales: number;
+      percentage_of_total: number;
+    }>
+  > {
+    return this.withSchema(async (manager) => {
+      const qb = manager
+        .getRepository(CategorySalesEntity)
+        .createQueryBuilder('cs')
+        .leftJoin('cs.report_header', 'report')
+        .select('cs.category_name', 'category_name')
+        .addSelect('COALESCE(SUM(cs.items_sold), 0)', 'total_items_sold')
+        .addSelect('COALESCE(SUM(cs.total_sales), 0)', 'total_sales')
+        .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
+
+      if (storeIds.length > 0) {
+        qb.andWhere('report.store_id IN (:...storeIds)', { storeIds });
+      }
+
+      qb.groupBy('cs.category_name').orderBy('total_sales', 'DESC').limit(limit);
+
+      const results = await qb.getRawMany();
+      const totalSales = results.reduce((sum, r) => sum + parseFloat(r.total_sales), 0);
+
+      return results.map((r) => ({
+        category_name: r.category_name,
+        total_items_sold: parseInt(r.total_items_sold) || 0,
+        total_sales: parseFloat(r.total_sales) || 0,
+        percentage_of_total: totalSales > 0 ? (parseFloat(r.total_sales) / totalSales) * 100 : 0,
+      }));
+    });
+  }
+
+  /**
+   * Top empleados por ventas consolidadas
+   *
+   * @param storeIds - Filtrar por tiendas (vacío = todas)
+   * @param dateFrom - Fecha inicio
+   * @param dateTo - Fecha fin
+   * @param limit - Máximo de resultados
+   */
+  async getTopEmployees(
+    storeIds: string[],
+    dateFrom: string,
+    dateTo: string,
+    limit = 10,
+  ): Promise<
+    Array<{
+      employee_id: number;
+      employee_name: string;
+      total_checks: number;
+      gross_sales: number;
+      net_sales: number;
+      average_ticket: number;
+    }>
+  > {
+    return this.withSchema(async (manager) => {
+      const qb = manager
+        .getRepository(EmployeeSalesEntity)
+        .createQueryBuilder('es')
+        .leftJoin('es.report_header', 'report')
+        .select('es.employee_id', 'employee_id')
+        .addSelect('es.employee_name', 'employee_name')
+        .addSelect('COALESCE(SUM(es.total_checks), 0)', 'total_checks')
+        .addSelect('COALESCE(SUM(es.gross_sales), 0)', 'gross_sales')
+        .addSelect('COALESCE(SUM(es.net_sales), 0)', 'net_sales')
+        .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
+
+      if (storeIds.length > 0) {
+        qb.andWhere('report.store_id IN (:...storeIds)', { storeIds });
+      }
+
+      qb.groupBy('es.employee_id')
+        .addGroupBy('es.employee_name')
+        .orderBy('gross_sales', 'DESC')
+        .limit(limit);
+
+      const results = await qb.getRawMany();
+
+      return results.map((r) => {
+        const grossSales = parseFloat(r.gross_sales) || 0;
+        const totalChecks = parseInt(r.total_checks) || 0;
+        return {
+          employee_id: parseInt(r.employee_id),
+          employee_name: r.employee_name,
+          total_checks: totalChecks,
+          gross_sales: grossSales,
+          net_sales: parseFloat(r.net_sales) || 0,
+          average_ticket: totalChecks > 0 ? grossSales / totalChecks : 0,
+        };
+      });
+    });
+  }
+
+  /**
+   * Distribución de ingresos por método de pago (tender type)
+   *
+   * @param storeIds - Filtrar por tiendas (vacío = todas)
+   * @param dateFrom - Fecha inicio
+   * @param dateTo - Fecha fin
+   */
+  async getPaymentDistribution(
+    storeIds: string[],
+    dateFrom: string,
+    dateTo: string,
+  ): Promise<
+    Array<{
+      tender_type: string;
+      tender_name: string;
+      transaction_count: number;
+      total_amount: number;
+      percentage_of_total: number;
+    }>
+  > {
+    return this.withSchema(async (manager) => {
+      const qb = manager
+        .getRepository(IncomeByTenderTypeEntity)
+        .createQueryBuilder('itt')
+        .leftJoin('itt.report_header', 'report')
+        .select('itt.tender_type', 'tender_type')
+        .addSelect('itt.tender_name', 'tender_name')
+        .addSelect('COALESCE(SUM(itt.transaction_count), 0)', 'transaction_count')
+        .addSelect('COALESCE(SUM(itt.total_amount), 0)', 'total_amount')
+        .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
+
+      if (storeIds.length > 0) {
+        qb.andWhere('report.store_id IN (:...storeIds)', { storeIds });
+      }
+
+      qb.groupBy('itt.tender_type')
+        .addGroupBy('itt.tender_name')
+        .orderBy('total_amount', 'DESC');
+
+      const results = await qb.getRawMany();
+      const totalAmount = results.reduce((sum, r) => sum + parseFloat(r.total_amount), 0);
+
+      return results.map((r) => ({
+        tender_type: r.tender_type,
+        tender_name: r.tender_name,
+        transaction_count: parseInt(r.transaction_count) || 0,
+        total_amount: parseFloat(r.total_amount) || 0,
+        percentage_of_total:
+          totalAmount > 0 ? (parseFloat(r.total_amount) / totalAmount) * 100 : 0,
+      }));
+    });
+  }
+
+  /**
+   * Revenue centers consolidados
+   *
+   * @param storeIds - Filtrar por tiendas (vacío = todas)
+   * @param dateFrom - Fecha inicio
+   * @param dateTo - Fecha fin
+   */
+  async getRevenueCenterBreakdown(
+    storeIds: string[],
+    dateFrom: string,
+    dateTo: string,
+  ): Promise<
+    Array<{
+      revenue_center_name: string;
+      total_checks: number;
+      total_sales: number;
+      average_ticket: number;
+      percentage_of_total: number;
+    }>
+  > {
+    return this.withSchema(async (manager) => {
+      const qb = manager
+        .getRepository(RevenueCenterSalesEntity)
+        .createQueryBuilder('rcs')
+        .leftJoin('rcs.report_header', 'report')
+        .select('rcs.revenue_center_name', 'revenue_center_name')
+        .addSelect('COALESCE(SUM(rcs.total_checks), 0)', 'total_checks')
+        .addSelect('COALESCE(SUM(rcs.total_sales), 0)', 'total_sales')
+        .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
+
+      if (storeIds.length > 0) {
+        qb.andWhere('report.store_id IN (:...storeIds)', { storeIds });
+      }
+
+      qb.groupBy('rcs.revenue_center_name').orderBy('total_sales', 'DESC');
+
+      const results = await qb.getRawMany();
+      const totalSales = results.reduce((sum, r) => sum + parseFloat(r.total_sales), 0);
+
+      return results.map((r) => {
+        const sales = parseFloat(r.total_sales) || 0;
+        const checks = parseInt(r.total_checks) || 0;
+        return {
+          revenue_center_name: r.revenue_center_name,
+          total_checks: checks,
+          total_sales: sales,
+          average_ticket: checks > 0 ? sales / checks : 0,
+          percentage_of_total: totalSales > 0 ? (sales / totalSales) * 100 : 0,
+        };
+      });
+    });
+  }
+
+  /**
+   * Service charges consolidados
+   *
+   * @param storeIds - Filtrar por tiendas (vacío = todas)
+   * @param dateFrom - Fecha inicio
+   * @param dateTo - Fecha fin
+   */
+  async getServiceChargesBreakdown(
+    storeIds: string[],
+    dateFrom: string,
+    dateTo: string,
+  ): Promise<
+    Array<{
+      service_charge_name: string;
+      total_quantity: number;
+      total_amount: number;
+      percentage_of_total: number;
+    }>
+  > {
+    return this.withSchema(async (manager) => {
+      const qb = manager
+        .getRepository(ServiceChargeEntity)
+        .createQueryBuilder('sc')
+        .leftJoin('sc.report_header', 'report')
+        .select('sc.service_charge_name', 'service_charge_name')
+        .addSelect('COALESCE(SUM(sc.quantity), 0)', 'total_quantity')
+        .addSelect('COALESCE(SUM(sc.total_amount), 0)', 'total_amount')
+        .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
+
+      if (storeIds.length > 0) {
+        qb.andWhere('report.store_id IN (:...storeIds)', { storeIds });
+      }
+
+      qb.groupBy('sc.service_charge_name').orderBy('total_amount', 'DESC');
+
+      const results = await qb.getRawMany();
+      const totalAmount = results.reduce((sum, r) => sum + parseFloat(r.total_amount), 0);
+
+      return results.map((r) => ({
+        service_charge_name: r.service_charge_name,
+        total_quantity: parseInt(r.total_quantity) || 0,
+        total_amount: parseFloat(r.total_amount) || 0,
+        percentage_of_total:
+          totalAmount > 0 ? (parseFloat(r.total_amount) / totalAmount) * 100 : 0,
+      }));
+    });
+  }
+
+  // ============================================
+  // SECCIÓN 9: QUERIES ANALÍTICAS v1.1.0 - FASE 3
+  // ============================================
+
+  /**
+   * Ingresos por clase de pago consolidados
+   *
+   * @param storeIds - Filtrar por tiendas (vacío = todas)
+   * @param dateFrom - Fecha inicio
+   * @param dateTo - Fecha fin
+   */
+  async getIncomeByClassBreakdown(
+    storeIds: string[],
+    dateFrom: string,
+    dateTo: string,
+  ): Promise<
+    Array<{
+      class_name: string;
+      currency_name: string;
+      currency_symbol: string;
+      transaction_count: number;
+      total_amount: number;
+      percentage_of_total: number;
+    }>
+  > {
+    return this.withSchema(async (manager) => {
+      const qb = manager
+        .getRepository(IncomeByClassEntity)
+        .createQueryBuilder('ibc')
+        .leftJoin('ibc.report_header', 'report')
+        .select('ibc.class_name', 'class_name')
+        .addSelect('ibc.currency_name', 'currency_name')
+        .addSelect('ibc.currency_symbol', 'currency_symbol')
+        .addSelect('COALESCE(SUM(ibc.transaction_count), 0)', 'transaction_count')
+        .addSelect('COALESCE(SUM(ibc.total_amount), 0)', 'total_amount')
+        .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
+
+      if (storeIds.length > 0) {
+        qb.andWhere('report.store_id IN (:...storeIds)', { storeIds });
+      }
+
+      qb.groupBy('ibc.class_name')
+        .addGroupBy('ibc.currency_name')
+        .addGroupBy('ibc.currency_symbol')
+        .orderBy('total_amount', 'DESC');
+
+      const results = await qb.getRawMany();
+      const totalAmount = results.reduce((sum, r) => sum + parseFloat(r.total_amount), 0);
+
+      return results.map((r) => ({
+        class_name: r.class_name,
+        currency_name: r.currency_name,
+        currency_symbol: r.currency_symbol,
+        transaction_count: parseInt(r.transaction_count) || 0,
+        total_amount: parseFloat(r.total_amount) || 0,
+        percentage_of_total:
+          totalAmount > 0 ? (parseFloat(r.total_amount) / totalAmount) * 100 : 0,
+      }));
+    });
+  }
+
+  /**
+   * Cash summary consolidado (resumen de efectivo por tender)
+   *
+   * @param storeIds - Filtrar por tiendas (vacío = todas)
+   * @param dateFrom - Fecha inicio
+   * @param dateTo - Fecha fin
+   */
+  async getCashSummaryBreakdown(
+    storeIds: string[],
+    dateFrom: string,
+    dateTo: string,
+  ): Promise<
+    Array<{
+      tender_name: string;
+      total_quantity: number;
+      total_amount: number;
+      percentage_of_total: number;
+    }>
+  > {
+    return this.withSchema(async (manager) => {
+      const qb = manager
+        .getRepository(CashSummaryEntity)
+        .createQueryBuilder('cs')
+        .leftJoin('cs.report_header', 'report')
+        .select('cs.tender_name', 'tender_name')
+        .addSelect('COALESCE(SUM(cs.quantity), 0)', 'total_quantity')
+        .addSelect('COALESCE(SUM(cs.total_amount), 0)', 'total_amount')
+        .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
+
+      if (storeIds.length > 0) {
+        qb.andWhere('report.store_id IN (:...storeIds)', { storeIds });
+      }
+
+      qb.groupBy('cs.tender_name').orderBy('total_amount', 'DESC');
+
+      const results = await qb.getRawMany();
+      const totalAmount = results.reduce((sum, r) => sum + parseFloat(r.total_amount), 0);
+
+      return results.map((r) => ({
+        tender_name: r.tender_name,
+        total_quantity: parseInt(r.total_quantity) || 0,
+        total_amount: parseFloat(r.total_amount) || 0,
+        percentage_of_total:
+          totalAmount > 0 ? (parseFloat(r.total_amount) / totalAmount) * 100 : 0,
+      }));
     });
   }
 }

@@ -161,6 +161,46 @@ export class ConsolidateReportsDto {
   calculate_percentages?: boolean;
 
   // ============================================
+  // DESGLOSES v1.1.0
+  // ============================================
+
+  @ApiPropertyOptional({
+    description: 'Incluir desglose por categoría de producto (v1.1.0)',
+    default: false,
+  })
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean({ message: 'include_category_breakdown debe ser booleano' })
+  @IsOptional()
+  include_category_breakdown?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Incluir desglose por revenue center (v1.1.0)',
+    default: false,
+  })
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean({ message: 'include_revenue_center_breakdown debe ser booleano' })
+  @IsOptional()
+  include_revenue_center_breakdown?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Incluir desglose por empleado (v1.1.0)',
+    default: false,
+  })
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean({ message: 'include_employee_breakdown debe ser booleano' })
+  @IsOptional()
+  include_employee_breakdown?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Incluir desglose por tender type / método de pago detallado (v1.1.0)',
+    default: false,
+  })
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean({ message: 'include_tender_type_breakdown debe ser booleano' })
+  @IsOptional()
+  include_tender_type_breakdown?: boolean;
+
+  // ============================================
   // FILTRO DE ALCANCE (EVITAR DOBLE CONTEO)
   // ============================================
 

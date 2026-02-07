@@ -291,6 +291,50 @@ export interface IReportWithDetailsResponse extends IReportWithStoreResponse {
   service_charges?: IServiceChargeResponse[];
   income_by_class?: IIncomeByClassResponse[];
   income_by_tender_type?: IIncomeByTenderTypeResponse[];
+  validation?: IFinancialValidation;
+}
+
+// ============================================
+// INTERFACES DE VALIDACIÓN FINANCIERA
+// ============================================
+
+/**
+ * Resultado de una regla de validación financiera
+ */
+export interface IFinancialValidationRule {
+  /** Nombre de la regla (ej: 'total_payment_vs_payment_methods') */
+  rule: string;
+  /** Valor esperado según el cálculo */
+  expected: number;
+  /** Valor actual del campo en el reporte */
+  actual: number;
+  /** Diferencia absoluta entre expected y actual */
+  difference: number;
+  /** Tolerancia permitida */
+  tolerance: number;
+  /** true si la diferencia está dentro de la tolerancia */
+  passed: boolean;
+}
+
+/**
+ * Resultado completo de la validación de integridad financiera
+ *
+ * @description
+ * Se ejecuta al crear un reporte para detectar inconsistencias
+ * entre los totales del header y las sumas de las colecciones de detalle.
+ * Las validaciones son informativas (warnings), no bloquean la creación.
+ */
+export interface IFinancialValidation {
+  /** true si todas las reglas pasaron */
+  is_valid: boolean;
+  /** Cantidad de reglas que pasaron */
+  rules_passed: number;
+  /** Cantidad total de reglas evaluadas */
+  rules_total: number;
+  /** Detalle de cada regla evaluada */
+  rules: IFinancialValidationRule[];
+  /** Timestamp de la validación */
+  validated_at: string;
 }
 
 /**

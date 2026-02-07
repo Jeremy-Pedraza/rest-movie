@@ -46,6 +46,9 @@ export {
   IReportStatsResponse,
   IDailySummaryResponse,
   IReportTrendsResponse,
+  // Validación financiera
+  IFinancialValidation,
+  IFinancialValidationRule,
 } from './report-response.interface';
 
 // ============================================

@@ -35,6 +35,8 @@ export interface IConsolidatedTotals {
   total_orders: number;
   total_discounts: number;
   total_adjustments: number;
+  total_service_charge: number;
+  total_payment: number;
   average_ticket: number;
 
   // Contadores
@@ -132,6 +134,36 @@ export interface IConsolidatedReportResponse {
   daily_breakdown?: IDailyBreakdown[];
   order_type_breakdown?: IConsolidatedSalesByOrderType[];
   payment_method_breakdown?: IConsolidatedPaymentMethod[];
+
+  // Desgloses v1.1.0
+  category_breakdown?: Array<{
+    category_name: string;
+    total_items_sold: number;
+    total_sales: number;
+    percentage_of_total: number;
+  }>;
+  revenue_center_breakdown?: Array<{
+    revenue_center_name: string;
+    total_checks: number;
+    total_sales: number;
+    average_ticket: number;
+    percentage_of_total: number;
+  }>;
+  employee_breakdown?: Array<{
+    employee_id: number;
+    employee_name: string;
+    total_checks: number;
+    gross_sales: number;
+    net_sales: number;
+    average_ticket: number;
+  }>;
+  tender_type_breakdown?: Array<{
+    tender_type: string;
+    tender_name: string;
+    transaction_count: number;
+    total_amount: number;
+    percentage_of_total: number;
+  }>;
 
   // Métricas adicionales
   metrics?: {

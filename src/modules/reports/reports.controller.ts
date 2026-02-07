@@ -43,6 +43,7 @@ import {
   RankingMetricEnum,
   QueryDailySummaryDto,
   DailySummaryResponseDto,
+  QueryAnalyticsDto,
 } from './dto';
 import {
   IReportWithStoreResponse,
@@ -620,6 +621,167 @@ export class ReportsController {
     };
   }
 
+  /**
+   * Top categorías de una tienda por período
+   */
+  @Get('store/:storeId/categories')
+  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @UseGuards(ReportAccessGuard)
+  @Cacheable({ ttl: 120, strategy: 'per-tenant' })
+  @ApiOperation({
+    summary: 'Top categorías por tienda (v1.1.0)',
+    description:
+      'Obtiene las categorías de producto más vendidas de una tienda en un período. ' +
+      'Incluye items vendidos, ventas totales y porcentaje de participación.',
+  })
+  @ApiParam({ name: 'storeId', description: 'UUID de la tienda' })
+  @ApiQuery({ name: 'date_from', required: true, description: 'Fecha inicio (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'date_to', required: true, description: 'Fecha fin (YYYY-MM-DD)' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Máximo de resultados (default: 10, max: 50)',
+  })
+  @ApiResponse({ status: 200, description: 'Categorías obtenidas exitosamente' })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  @ApiResponse({ status: 403, description: 'Sin acceso a esta tienda' })
+  async getStoreCategories(
+    @Param('storeId', ParseUUIDPipe) storeId: string,
+    @Query() query: QueryAnalyticsDto,
+    @CurrentUser() user: UserSessionDto,
+  ): Promise<IApiResponse<any>> {
+    const data = await this.reportsService.getStoreCategories(
+      storeId,
+      query.date_from,
+      query.date_to,
+      query.limit || 10,
+      user,
+    );
+    return {
+      success: true,
+      message: 'Categorías de tienda obtenidas',
+      data,
+    };
+  }
+
+  /**
+   * Revenue centers de una tienda por período
+   */
+  @Get('store/:storeId/revenue-centers')
+  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @UseGuards(ReportAccessGuard)
+  @Cacheable({ ttl: 120, strategy: 'per-tenant' })
+  @ApiOperation({
+    summary: 'Revenue centers por tienda (v1.1.0)',
+    description:
+      'Desglose de ventas por revenue center (restaurante, takeout, delivery, etc.) ' +
+      'de una tienda en un período.',
+  })
+  @ApiParam({ name: 'storeId', description: 'UUID de la tienda' })
+  @ApiQuery({ name: 'date_from', required: true, description: 'Fecha inicio (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'date_to', required: true, description: 'Fecha fin (YYYY-MM-DD)' })
+  @ApiResponse({ status: 200, description: 'Revenue centers obtenidos exitosamente' })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  @ApiResponse({ status: 403, description: 'Sin acceso a esta tienda' })
+  async getStoreRevenueCenters(
+    @Param('storeId', ParseUUIDPipe) storeId: string,
+    @Query() query: QueryAnalyticsDto,
+    @CurrentUser() user: UserSessionDto,
+  ): Promise<IApiResponse<any>> {
+    const data = await this.reportsService.getStoreRevenueCenters(
+      storeId,
+      query.date_from,
+      query.date_to,
+      user,
+    );
+    return {
+      success: true,
+      message: 'Revenue centers de tienda obtenidos',
+      data,
+    };
+  }
+
+  /**
+   * Ranking de empleados de una tienda por período
+   */
+  @Get('store/:storeId/employees')
+  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @UseGuards(ReportAccessGuard)
+  @Cacheable({ ttl: 120, strategy: 'per-tenant' })
+  @ApiOperation({
+    summary: 'Ranking de empleados por tienda (v1.1.0)',
+    description:
+      'Top empleados ordenados por ventas brutas de una tienda en un período. ' +
+      'Incluye checks, gross/net sales y ticket promedio.',
+  })
+  @ApiParam({ name: 'storeId', description: 'UUID de la tienda' })
+  @ApiQuery({ name: 'date_from', required: true, description: 'Fecha inicio (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'date_to', required: true, description: 'Fecha fin (YYYY-MM-DD)' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Máximo de resultados (default: 10, max: 50)',
+  })
+  @ApiResponse({ status: 200, description: 'Empleados obtenidos exitosamente' })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  @ApiResponse({ status: 403, description: 'Sin acceso a esta tienda' })
+  async getStoreEmployees(
+    @Param('storeId', ParseUUIDPipe) storeId: string,
+    @Query() query: QueryAnalyticsDto,
+    @CurrentUser() user: UserSessionDto,
+  ): Promise<IApiResponse<any>> {
+    const data = await this.reportsService.getStoreEmployees(
+      storeId,
+      query.date_from,
+      query.date_to,
+      query.limit || 10,
+      user,
+    );
+    return {
+      success: true,
+      message: 'Empleados de tienda obtenidos',
+      data,
+    };
+  }
+
+  /**
+   * Análisis completo de pagos de una tienda por período
+   */
+  @Get('store/:storeId/payment-analysis')
+  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @UseGuards(ReportAccessGuard)
+  @Cacheable({ ttl: 120, strategy: 'per-tenant' })
+  @ApiOperation({
+    summary: 'Análisis de pagos por tienda (v1.1.0)',
+    description:
+      'Análisis completo de pagos: desglose por tender type (Visa, MC, Nequi...), ' +
+      'agrupación por clase (Efectivo, Tarjetas, Billeteras) y cash summary. ' +
+      'Las 3 consultas se ejecutan en paralelo.',
+  })
+  @ApiParam({ name: 'storeId', description: 'UUID de la tienda' })
+  @ApiQuery({ name: 'date_from', required: true, description: 'Fecha inicio (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'date_to', required: true, description: 'Fecha fin (YYYY-MM-DD)' })
+  @ApiResponse({ status: 200, description: 'Análisis de pagos obtenido exitosamente' })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  @ApiResponse({ status: 403, description: 'Sin acceso a esta tienda' })
+  async getStorePaymentAnalysis(
+    @Param('storeId', ParseUUIDPipe) storeId: string,
+    @Query() query: QueryAnalyticsDto,
+    @CurrentUser() user: UserSessionDto,
+  ): Promise<IApiResponse<any>> {
+    const data = await this.reportsService.getStorePaymentAnalysis(
+      storeId,
+      query.date_from,
+      query.date_to,
+      user,
+    );
+    return {
+      success: true,
+      message: 'Análisis de pagos de tienda obtenido',
+      data,
+    };
+  }
+
   // ============================================
   // SECCIÓN 5: GET CON PREFIJO /company/:companyId
   // ============================================
@@ -669,48 +831,112 @@ export class ReportsController {
   @UseGuards(ReportAccessGuard)
   @Cacheable({ ttl: 120, strategy: 'per-tenant' }) // Cache 2 minutos por tenant
   @ApiOperation({
-    summary: 'Dashboard de compañía',
+    summary: 'Dashboard enriquecido de compañía (v1.1.0)',
     description:
-      'Obtiene datos para dashboard: consolidado del mes, comparación vs mes anterior, ranking de tiendas.',
+      'Obtiene datos completos para dashboard ejecutivo: consolidado del mes, comparación vs mes anterior, ' +
+      'ranking de tiendas, top categorías, top empleados, distribución de pagos, revenue centers y service charges. ' +
+      'Todas las consultas se ejecutan en paralelo.',
   })
   @ApiParam({ name: 'companyId', description: 'UUID de la compañía' })
-  @ApiResponse({ status: 200, description: 'Dashboard obtenido' })
+  @ApiResponse({ status: 200, description: 'Dashboard enriquecido obtenido' })
   @ApiResponse({ status: 401, description: 'No autorizado' })
   @ApiResponse({ status: 403, description: 'Sin acceso a esta compañía' })
   async getCompanyDashboard(
     @Param('companyId', ParseUUIDPipe) companyId: string,
     @CurrentUser() user: UserSessionDto,
   ): Promise<IApiResponse<any>> {
-    // Consolidado del mes
-    const consolidation = await this.reportsService.quickConsolidate(
-      {
-        period: 'this_month',
-        consolidation_level: ConsolidationLevelEnum.COMPANY,
-        company_id: companyId,
-      },
-      user,
-    );
-
-    // Comparación vs mes anterior
-    const comparison = await this.reportsService.quickCompare(
-      { quick_compare_type: 'this_month_vs_last_month', company_id: companyId },
-      user,
-    );
-
-    // Ranking rápido
-    const ranking = await this.reportsService.quickRanking(
-      { period: 'this_month', company_id: companyId },
-      user,
-    );
+    const dashboard = await this.reportsService.getCompanyDashboard(companyId, user);
 
     return {
       success: true,
       message: 'Dashboard de compañía obtenido',
-      data: {
-        consolidation,
-        comparison,
-        ranking,
-      },
+      data: dashboard,
+    };
+  }
+
+  /**
+   * Top categorías consolidadas de una compañía por período
+   */
+  @Get('company/:companyId/categories')
+  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER)
+  @UseGuards(ReportAccessGuard)
+  @Cacheable({ ttl: 120, strategy: 'per-tenant' })
+  @ApiOperation({
+    summary: 'Top categorías por compañía (v1.1.0)',
+    description:
+      'Obtiene las categorías de producto más vendidas consolidando TODAS las tiendas ' +
+      'de la compañía en un período.',
+  })
+  @ApiParam({ name: 'companyId', description: 'UUID de la compañía' })
+  @ApiQuery({ name: 'date_from', required: true, description: 'Fecha inicio (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'date_to', required: true, description: 'Fecha fin (YYYY-MM-DD)' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Máximo de resultados (default: 10, max: 50)',
+  })
+  @ApiResponse({ status: 200, description: 'Categorías de compañía obtenidas exitosamente' })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  @ApiResponse({ status: 403, description: 'Sin acceso a esta compañía' })
+  async getCompanyCategories(
+    @Param('companyId', ParseUUIDPipe) companyId: string,
+    @Query() query: QueryAnalyticsDto,
+    @CurrentUser() user: UserSessionDto,
+  ): Promise<IApiResponse<any>> {
+    const data = await this.reportsService.getCompanyCategories(
+      companyId,
+      query.date_from,
+      query.date_to,
+      query.limit || 10,
+      user,
+    );
+    return {
+      success: true,
+      message: 'Categorías de compañía obtenidas',
+      data,
+    };
+  }
+
+  /**
+   * Ranking de empleados cross-store de una compañía
+   */
+  @Get('company/:companyId/employees-ranking')
+  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER)
+  @UseGuards(ReportAccessGuard)
+  @Cacheable({ ttl: 120, strategy: 'per-tenant' })
+  @ApiOperation({
+    summary: 'Ranking de empleados por compañía (v1.1.0)',
+    description:
+      'Top empleados por ventas brutas consolidadas de TODAS las tiendas de la compañía. ' +
+      'Ideal para ranking ejecutivo cross-store.',
+  })
+  @ApiParam({ name: 'companyId', description: 'UUID de la compañía' })
+  @ApiQuery({ name: 'date_from', required: true, description: 'Fecha inicio (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'date_to', required: true, description: 'Fecha fin (YYYY-MM-DD)' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Máximo de resultados (default: 10, max: 50)',
+  })
+  @ApiResponse({ status: 200, description: 'Ranking de empleados obtenido exitosamente' })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  @ApiResponse({ status: 403, description: 'Sin acceso a esta compañía' })
+  async getCompanyEmployeesRanking(
+    @Param('companyId', ParseUUIDPipe) companyId: string,
+    @Query() query: QueryAnalyticsDto,
+    @CurrentUser() user: UserSessionDto,
+  ): Promise<IApiResponse<any>> {
+    const data = await this.reportsService.getCompanyEmployeesRanking(
+      companyId,
+      query.date_from,
+      query.date_to,
+      query.limit || 10,
+      user,
+    );
+    return {
+      success: true,
+      message: 'Ranking de empleados de compañía obtenido',
+      data,
     };
   }
 

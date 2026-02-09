@@ -27,6 +27,7 @@ import {
   RemoveUsersFromStoreDto,
 } from './dto';
 import { IStoreResponse, IStoreWithUsersResponse, IStoreStatsResponse } from './interfaces';
+import { BulkCreateStoreDto, IBulkCreateStoreResponse } from './dto/bulk-create-store.dto';
 
 /**
  * StoreController
@@ -117,6 +118,44 @@ export class StoreController {
     return {
       success: true,
       message: 'Estadísticas obtenidas exitosamente',
+      data,
+    };
+  }
+
+  /**
+   * Crear múltiples tiendas (bulk)
+   *
+   * @description
+   * Crea hasta 100 tiendas en una sola petición.
+   * Errores individuales no detienen la creación de las demás.
+   * Soporta geo_city_id para vincular al catálogo geográfico.
+   *
+   * @permission SUPER_ADMIN, ADMIN
+   */
+  @Post('bulk')
+  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN)
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Crear múltiples tiendas (bulk)',
+    description:
+      'Crea hasta 100 tiendas en una sola petición. ' +
+      'Cada tienda se procesa individualmente: errores en una no detienen las demás. ' +
+      'Retorna resultado detallado por cada tienda. Soporta geo_city_id.',
+  })
+  @ApiResponse({ status: 201, description: 'Proceso de creación masiva completado' })
+  @ApiResponse({
+    status: 400,
+    description: 'Datos de entrada inválidos o array vacío/excede máximo',
+  })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  @ApiResponse({ status: 403, description: 'Sin permisos suficientes' })
+  async bulkCreate(
+    @Body() dto: BulkCreateStoreDto,
+  ): Promise<IApiResponse<IBulkCreateStoreResponse>> {
+    const data = await this.storeService.bulkCreate(dto);
+    return {
+      success: true,
+      message: `Creación masiva completada: ${data.success_count} éxitos, ${data.failed_count} errores`,
       data,
     };
   }

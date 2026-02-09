@@ -368,6 +368,20 @@ export class CreateStoreDto {
   tags?: string[];
 
   // ============================================
+  // REFERENCIA GEOGRÁFICA (CATÁLOGO)
+  // ============================================
+
+  @ApiPropertyOptional({
+    description:
+      'ID de la ciudad en el catálogo geográfico. ' +
+      'Vincula la tienda al catálogo maestro para heredar timezone, moneda e impuestos del país.',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @IsUUID('4', { message: 'geo_city_id debe ser un UUID válido' })
+  @IsOptional()
+  geo_city_id?: string;
+
+  // ============================================
   // ESTADO Y METADATA
   // ============================================
 

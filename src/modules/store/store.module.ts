@@ -9,6 +9,7 @@ import { StoreController } from './store.controller';
 import { CommonModule } from '@shared/common';
 import { CompanyModule } from '@modules/company';
 import { UserModule } from '@modules/user';
+import { GeographyModule } from '@modules/geography';
 
 /**
  * StoreModule
@@ -29,6 +30,7 @@ import { UserModule } from '@modules/user';
  * - CommonModule: SanitizerService, HandleErrorService
  * - CompanyModule: Validar company_id
  * - UserModule: Validar user_ids
+ * - GeographyModule: Validar geo_city_id contra catálogo geográfico
  * - TypeOrmModule: StoreEntity
  *
  * Exporta:
@@ -36,7 +38,13 @@ import { UserModule } from '@modules/user';
  * - StoreRepository: Para uso en otros módulos
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([StoreEntity]), CommonModule, CompanyModule, UserModule],
+  imports: [
+    TypeOrmModule.forFeature([StoreEntity]),
+    CommonModule,
+    CompanyModule,
+    UserModule,
+    GeographyModule,
+  ],
   controllers: [StoreController],
   providers: [StoreRepository, StoreService],
   exports: [StoreService, StoreRepository],

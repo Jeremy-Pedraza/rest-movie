@@ -91,7 +91,7 @@ export class ReportsService {
     // Validar que la tienda pertenezca al tenant/compañía del usuario
     // Esto es CRÍTICO para escritura: el reporte se crea en el schema del tenant del usuario,
     // por lo que la tienda DEBE pertenecer a la misma compañía, incluso para ADMIN/SUPER_ADMIN
-    //await this.validateStoreBelongsToUserTenant(dto.store_id, user);
+    await this.validateStoreBelongsToUserTenant(dto.store_id, user);
 
     // Verificar idempotencia: store_id + report_date + employee_id
     const exists = await this.reportsRepository.exists(
@@ -1917,11 +1917,21 @@ export class ReportsService {
     }
 
     if (store.company_id !== user.companyId) {
+      this.logger.error(
+        `🚨 TENANT MISMATCH BLOCKED — Usuario ${user.email} (companyId=${user.companyId}, ` +
+          `schema=${user.schema}) intentó crear reporte para tienda ${storeId} ` +
+          `que pertenece a company_id=${store.company_id}. Bloqueado.`,
+      );
       this.handleError.forbidden(
         `La tienda ${storeId} no pertenece a la compañía del usuario. ` +
           `No se puede crear el reporte en un tenant diferente`,
       );
     }
+
+    this.logger.debug(
+      `Tenant validation OK: tienda ${storeId} pertenece a company ${store.company_id} ` +
+        `= usuario ${user.email} (companyId=${user.companyId})`,
+    );
   }
 
   private validateCompanyAccess(companyId: string, user: UserSessionDto): void {

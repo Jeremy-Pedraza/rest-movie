@@ -210,6 +210,14 @@ export class DatabaseMetricsDto {
   @IsString({ message: 'version debe ser una cadena de texto' })
   @IsOptional()
   version?: string;
+
+  @ApiPropertyOptional({
+    description: 'Tipo de motor de base de datos',
+    example: 'MySQL',
+  })
+  @IsString({ message: 'type debe ser una cadena de texto' })
+  @IsOptional()
+  type?: string;
 }
 
 /**
@@ -230,6 +238,13 @@ export class DatabaseMetricsDto {
  * ```
  */
 export class SystemMetricsDto {
+  @ApiPropertyOptional({
+    description: 'Timestamp de recolección de métricas',
+    example: '2026-02-04T06:00:00Z',
+  })
+  @IsOptional()
+  collectedAt?: any;
+
   @ApiPropertyOptional({
     description: 'Métricas del CPU',
     type: CpuMetricsDto,
@@ -329,6 +344,53 @@ export class ReportMetadataDto {
   @IsString({ message: 'timestamp debe ser una cadena de texto' })
   @IsOptional()
   timestamp?: string;
+
+  @ApiPropertyOptional({
+    description: 'Timestamp de generación del reporte por el agente',
+    example: '2026-02-04T06:00:00Z',
+  })
+  @IsOptional()
+  generatedAt?: any;
+
+  @ApiPropertyOptional({
+    description: 'Nombre de la tienda en el sistema origen',
+    example: 'Taco Bell Agora Mall SD',
+  })
+  @IsString({ message: 'storeName debe ser una cadena de texto' })
+  @IsOptional()
+  storeName?: string;
+
+  @ApiPropertyOptional({
+    description: 'Total de impuestos del reporte',
+    example: 1500.5,
+  })
+  @IsNumber({}, { message: 'tax debe ser un número' })
+  @IsOptional()
+  tax?: number;
+
+  @ApiPropertyOptional({
+    description: 'Total de cargos por servicio del reporte',
+    example: 250.0,
+  })
+  @IsNumber({}, { message: 'serviceCharge debe ser un número' })
+  @IsOptional()
+  serviceCharge?: number;
+
+  @ApiPropertyOptional({
+    description: 'Total de pagos del reporte',
+    example: 15000.0,
+  })
+  @IsNumber({}, { message: 'payment debe ser un número' })
+  @IsOptional()
+  payment?: number;
+
+  @ApiPropertyOptional({
+    description: 'Tasa de cambio aplicada',
+    example: 58.5,
+  })
+  @IsNumber({}, { message: 'exchangeRate debe ser un número' })
+  @IsOptional()
+  exchangeRate?: number;
 
   @ApiPropertyOptional({
     description: 'Métricas del sistema del agente',

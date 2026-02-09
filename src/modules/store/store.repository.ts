@@ -151,6 +151,23 @@ export class StoreRepository extends BaseRepository<StoreEntity> {
   }
 
   /**
+   * Buscar por ID con relación geo (ciudad → departamento → país)
+   *
+   * @param id - UUID de la tienda
+   * @returns StoreEntity con geo_city cargado (incluyendo department.country) o null
+   */
+  async findByIdWithGeo(id: string): Promise<StoreEntity | null> {
+    return await this.createStaticQueryBuilder('store')
+      .leftJoinAndSelect('store.company', 'company')
+      .leftJoinAndSelect('store.geo_city', 'geo_city')
+      .leftJoinAndSelect('geo_city.department', 'geo_dept')
+      .leftJoinAndSelect('geo_dept.country', 'geo_country')
+      .where('store.id = :id', { id })
+      .andWhere('store.deleted_at IS NULL')
+      .getOne();
+  }
+
+  /**
    * Buscar por ID con usuarios asignados
    *
    * @param id - UUID de la tienda
@@ -427,6 +444,8 @@ export class StoreRepository extends BaseRepository<StoreEntity> {
       'longitud',
       'activo',
       'metadata',
+      // Referencia geográfica
+      'geo_city_id',
       // Campos de segmentación (FASE 2)
       'region',
       'location_type',

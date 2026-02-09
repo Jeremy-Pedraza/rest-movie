@@ -11,6 +11,11 @@ import {
   RemoveUsersFromStoreDto,
 } from './dto';
 import {
+  BulkCreateStoreDto,
+  IBulkCreateStoreResponse,
+  IBulkCreateStoreResult,
+} from './dto/bulk-create-store.dto';
+import {
   IStoreResponse,
   IStoreWithUsersResponse,
   IStoreStatsResponse,
@@ -18,6 +23,7 @@ import {
   IStoreSegmentationResponse,
 } from './interfaces';
 import { StoreEntity } from './entities';
+import { GeographyRepository } from '@modules/geography/geography.repository';
 
 /**
  * StoreService
@@ -43,6 +49,7 @@ export class StoreService {
     private readonly storeRepository: StoreRepository,
     private readonly sanitizer: SanitizerService,
     private readonly handleError: HandleErrorService,
+    private readonly geographyRepository: GeographyRepository,
   ) {}
 
   /**
@@ -62,12 +69,32 @@ export class StoreService {
       this.handleError.conflict('El código de tienda ya está registrado', 'codigo');
     }
 
+    // Validar geo_city_id contra catálogo geográfico (si se proporcionó)
+    if (dto.geo_city_id) {
+      await this.validateGeoCity(dto.geo_city_id);
+    } else {
+      this.logger.warn(
+        `Tienda ${dto.codigo} creada sin geo_city_id. ` +
+          `Se recomienda vincular al catálogo geográfico para heredar timezone, moneda e impuestos.`,
+      );
+    }
+
     // Sanitizar inputs
     const sanitizedData = this.sanitizeCreateDto(dto);
 
     // Crear
     try {
       const store = await this.storeRepository.create(sanitizedData);
+
+      // Si tiene geo_city_id, cargar relación geo para la respuesta
+      if (dto.geo_city_id) {
+        const storeWithGeo = await this.storeRepository.findByIdWithGeo(store.id);
+        if (storeWithGeo) {
+          this.logger.log(`Tienda creada: ${store.id} (geo: ${storeWithGeo.geo_city?.name})`);
+          return this.toResponse(storeWithGeo);
+        }
+      }
+
       this.logger.log(`Tienda creada: ${store.id}`);
       return this.toResponse(store);
     } catch (error) {
@@ -168,6 +195,68 @@ export class StoreService {
   async findActiveByCompany(companyId: string): Promise<IStoreResponse[]> {
     const stores = await this.storeRepository.findActiveByCompany(companyId);
     return stores.map((s) => this.toResponse(s));
+  }
+
+  // ============================================
+  // CREACIÓN MASIVA
+  // ============================================
+
+  /**
+   * Crear múltiples tiendas en una sola petición
+   *
+   * @description
+   * Procesa cada tienda secuencialmente. Errores individuales no detienen
+   * la creación de las demás. Retorna resultado detallado por cada tienda.
+   *
+   * @param dto - Array de tiendas a crear (máx 100)
+   * @returns IBulkCreateStoreResponse con detalle por tienda
+   */
+  async bulkCreate(dto: BulkCreateStoreDto): Promise<IBulkCreateStoreResponse> {
+    this.logger.log(`Creación masiva iniciada: ${dto.stores.length} tiendas`);
+
+    const results: IBulkCreateStoreResult[] = [];
+    let successCount = 0;
+    let failedCount = 0;
+
+    for (let i = 0; i < dto.stores.length; i++) {
+      const storeDto = dto.stores[i];
+
+      try {
+        const created = await this.create(storeDto);
+
+        results.push({
+          index: i,
+          success: true,
+          codigo: storeDto.codigo,
+          store_id: created.id,
+          nombre: created.nombre,
+        });
+        successCount++;
+      } catch (error: any) {
+        const errorMessage = error?.response?.message || error?.message || 'Error desconocido';
+
+        results.push({
+          index: i,
+          success: false,
+          codigo: storeDto.codigo,
+          error: errorMessage,
+        });
+        failedCount++;
+
+        this.logger.warn(`Bulk: tienda ${storeDto.codigo} (índice ${i}) falló: ${errorMessage}`);
+      }
+    }
+
+    this.logger.log(
+      `Creación masiva completada: ${successCount} éxitos, ${failedCount} errores de ${dto.stores.length} total`,
+    );
+
+    return {
+      total: dto.stores.length,
+      success_count: successCount,
+      failed_count: failedCount,
+      results,
+    };
   }
 
   // ============================================
@@ -440,6 +529,25 @@ export class StoreService {
   // ============================================
 
   /**
+   * Validar que geo_city_id exista y esté activo en el catálogo geográfico
+   *
+   * @param geoCityId - UUID de la ciudad en el catálogo
+   * @throws NotFoundException si la ciudad no existe o no está activa
+   */
+  private async validateGeoCity(geoCityId: string): Promise<void> {
+    const city = await this.geographyRepository.findCityById(geoCityId);
+    if (!city) {
+      this.handleError.notFound('Ciudad en catálogo geográfico', geoCityId);
+    }
+
+    this.logger.debug(
+      `Geo validación OK: ciudad=${city.name}, ` +
+        `depto=${city.department?.name}, ` +
+        `país=${city.department?.country?.name} (${city.department?.country?.code})`,
+    );
+  }
+
+  /**
    * Sanitizar DTO de creación
    */
   private sanitizeCreateDto(dto: CreateStoreDto): Partial<StoreEntity> {
@@ -457,6 +565,9 @@ export class StoreService {
       longitud: dto.longitud,
       activo: dto.activo ?? true,
       metadata: dto.metadata,
+
+      // Referencia geográfica (catálogo)
+      geo_city_id: dto.geo_city_id || undefined,
 
       // Campos de segmentación (FASE 2)
       region: dto.region ? this.sanitizer.sanitizeString(dto.region) : undefined,
@@ -509,9 +620,10 @@ export class StoreService {
 
   /**
    * Convertir entidad a respuesta completa
+   * Si tiene geo_city cargado, enriquece con datos del catálogo geográfico
    */
   private toResponse(store: StoreEntity): IStoreResponse {
-    return {
+    const response: IStoreResponse = {
       id: store.id,
       company_id: store.company_id,
       company_name: store.company?.name,
@@ -542,6 +654,9 @@ export class StoreService {
       sales_tier: store.sales_tier,
       tags: store.tags,
 
+      // Referencia geográfica
+      geo_city_id: store.geo_city_id,
+
       // Estado
       activo: store.activo,
       metadata: store.metadata,
@@ -550,6 +665,24 @@ export class StoreService {
       created_at: store.created_at,
       updated_at: store.updated_at,
     };
+
+    // Enriquecer con datos del catálogo geográfico si está cargado
+    if (store.geo_city) {
+      const city = store.geo_city as any;
+      const country = city.department?.country;
+
+      response.geo_city_name = city.name;
+      response.geo_department_name = city.department?.name;
+      response.geo_country_code = country?.code;
+      response.geo_country_name = country?.name;
+      response.geo_timezone = city.timezone || country?.timezone;
+      response.geo_currency_code = country?.currency_code;
+      response.geo_currency_symbol = country?.currency_symbol;
+      response.geo_tax_name = country?.tax_name;
+      response.geo_tax_rate = country?.tax_rate ? Number(country.tax_rate) : undefined;
+    }
+
+    return response;
   }
 
   /**

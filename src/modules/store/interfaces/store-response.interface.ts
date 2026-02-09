@@ -58,6 +58,20 @@ export interface IStoreResponse {
   sales_tier?: string;
   tags?: string[];
 
+  // Referencia geográfica (catálogo)
+  geo_city_id?: string;
+
+  // Datos enriquecidos del catálogo geográfico (cuando geo_city_id está presente)
+  geo_city_name?: string;
+  geo_department_name?: string;
+  geo_country_code?: string;
+  geo_country_name?: string;
+  geo_timezone?: string;
+  geo_currency_code?: string;
+  geo_currency_symbol?: string;
+  geo_tax_name?: string;
+  geo_tax_rate?: number;
+
   // Estado
   activo: boolean;
   metadata?: Record<string, any>;

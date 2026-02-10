@@ -64,17 +64,18 @@ export class UserController {
    * Obtiene todos los usuarios con paginación
    */
   @Get()
-  @Roles(ROLES.ADMIN, ROLES.MANAGER)
+  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER)
   @ApiOperation({ summary: 'Listar usuarios con filtros' })
   @ApiResponse({ status: 200, description: 'Lista de usuarios' })
   async findAll(
     @Query() query: QueryUserDto,
-  ): Promise<IApiResponse<IPaginatedResponse<IUserResponse>>> {
+  ): Promise<IApiResponse<IUserResponse[]> & { meta: IPaginatedResponse<IUserResponse>['meta'] }> {
     const result = await this.userService.findAll(query);
     return {
       success: true,
       message: 'Usuarios obtenidos exitosamente',
-      data: result,
+      data: result.data,
+      meta: result.meta,
     };
   }
 

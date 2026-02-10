@@ -39,6 +39,9 @@ export interface UserSessionDto {
   /** Permisos del usuario */
   permissions: UserPermission[];
 
+  /** Tiendas asignadas al usuario (solo para rol USER) */
+  assigned_stores?: AssignedStore[];
+
   /** Estado del usuario */
   status: string;
   emailVerified: boolean;
@@ -77,4 +80,17 @@ export interface UserPermission {
   module: string; // Módulo (users, roles, etc.)
   action: string; // Acción (create, read, update, delete)
   description?: string; // Descripción opcional
+}
+
+/**
+ * Tienda asignada al usuario
+ *
+ * Solo los campos necesarios para validación de permisos en ReportAccessGuard.
+ * Los usuarios con rol USER solo pueden acceder a reportes de sus tiendas asignadas.
+ */
+export interface AssignedStore {
+  id: string;
+  codigo: string;
+  nombre: string;
+  company_id: string;
 }

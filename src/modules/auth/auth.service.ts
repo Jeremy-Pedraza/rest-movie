@@ -4,6 +4,9 @@
  * @fileoverview Service para autenticación y gestión de sesiones
  * @module modules/auth
  *
+ * ✅ FASE 1: Cache de usuario autenticado en login/refresh (TTL 55min)
+ * ✅ FASE 2: Logging de cache hit/miss para monitoreo
+ *
  * ⚠️ REGLAS:
  * - SIEMPRE inyectar SanitizerService y HandleErrorService
  * - Sanitizar todos los inputs
@@ -21,7 +24,24 @@ import { ERROR_CODES, RESPONSE_MESSAGES, ROLES } from '@constants';
 import { EmailProducer } from '@modules/queue';
 import { UserService } from '@modules/user';
 import { HandleErrorService, SanitizerService } from '@shared/common';
+import { RedisService } from '@shared/redis';
 import { UtilsService } from '@shared/utils';
+
+// ============================================
+// CACHE CONSTANTS
+// ============================================
+
+/**
+ * TTL del cache de usuario autenticado: 55 minutos
+ * (5 min menos que JWT de 60min para evitar edge cases)
+ */
+const AUTH_USER_CACHE_TTL = 3300;
+
+/** Prefijo para cache de usuario autenticado */
+const AUTH_CACHE_PREFIX = 'auth';
+
+/** Prefijo para cache de sesión (usado en JwtStrategy) */
+const SESSION_CACHE_PREFIX = 'session';
 
 import { AuthRepository } from './auth.repository';
 import {
@@ -57,6 +77,7 @@ export class AuthService {
     private readonly handleError: HandleErrorService, // ✅ OBLIGATORIO
     private readonly emailProducer: EmailProducer, // ✅ Para envío asíncrono de emails
     private readonly utils: UtilsService, // ✅ Utilidades (validación, formateo, crypto)
+    private readonly redisService: RedisService, // ✅ Cache de autenticación
   ) {}
 
   // ============================================
@@ -105,8 +126,10 @@ export class AuthService {
     // 7. Actualizar último login
     await this.userService.updateLastLogin(user.id);
 
-    // 8. Cargar usuario completo con company y roles para el token
-    const fullUser = await this.userService.findByIdWithCompanyAndRoles(user.id);
+    // 8. Cargar usuario completo con company y roles para el token (CON CACHE)
+    // ✅ FASE 2: Usa helper con logging de cache hit/miss
+    const fullUser = await this.getCachedUserWithCompany(user.id, 'login');
+
     if (!fullUser) {
       this.handleError.unauthorized(
         RESPONSE_MESSAGES.AUTH.USER_NOT_FOUND,
@@ -118,7 +141,7 @@ export class AuthService {
     const tokens = await this.generateTokens(
       fullUser.id,
       fullUser.email,
-      fullUser.roles.map((r) => r.name),
+      fullUser.roles.map((r: { name: string }) => r.name),
       fullUser.company_id,
       fullUser.company?.schema || null,
     );
@@ -276,8 +299,12 @@ export class AuthService {
       );
     }
 
-    // ✅ 4. Verificar estado del usuario y cargar company
-    const user = await this.userService.findByIdWithCompanyAndRoles(session.user_id);
+    // ✅ FASE 3 (Sesión 22): Decodificar token para obtener schema y optimizar cache
+    const decoded = this.jwtService.decode(dto.refreshToken);
+    const knownSchema = decoded?.schema || null;
+
+    // ✅ 4. Verificar estado del usuario y cargar company (CON CACHE + SCHEMA)
+    const user = await this.getCachedUserWithCompany(session.user_id, 'refresh', knownSchema);
     if (!user) {
       await this.authRepository.revokeSession(session.id);
       this.handleError.unauthorized(
@@ -292,7 +319,7 @@ export class AuthService {
     const newTokens = await this.generateTokens(
       user.id,
       user.email,
-      user.roles.map((r) => r.name),
+      user.roles.map((r: { name: string }) => r.name),
       user.company_id, // ✅ Incluir companyId
       user.company?.schema || null, // ✅ Incluir schema
     );
@@ -340,6 +367,9 @@ export class AuthService {
   async logoutAll(userId: string): Promise<ILogoutResponse> {
     const revokedCount = await this.authRepository.revokeAllByUserId(userId, 'Logout all sessions');
 
+    // ✅ FASE 1: Invalidar cache de autenticación
+    await this.invalidateUserAuthCache(userId);
+
     this.logger.log(`All sessions logged out for user: ${userId} (${revokedCount} sessions)`);
 
     return {
@@ -380,6 +410,9 @@ export class AuthService {
     // 5. Revocar todas las sesiones excepto la actual (opcional)
     // Por seguridad, forzar re-login en otros dispositivos
     await this.authRepository.revokeAllByUserId(userId, 'Password changed');
+
+    // ✅ FASE 1: Invalidar cache de autenticación
+    await this.invalidateUserAuthCache(userId);
 
     this.logger.log(`Password changed for user: ${userId}`);
 
@@ -484,6 +517,9 @@ export class AuthService {
 
     // 5. Revocar todas las sesiones por seguridad
     await this.authRepository.revokeAllByUserId(payload.userId, 'Password reset');
+
+    // ✅ FASE 1: Invalidar cache de autenticación
+    await this.invalidateUserAuthCache(payload.userId);
 
     this.logger.log(`Password reset for user: ${payload.userId}`);
 
@@ -679,5 +715,172 @@ export class AuthService {
       expiresAt: session.expires_at,
       isCurrent: false, // El controller determinará cuál es la actual
     };
+  }
+
+  // ============================================
+  // CACHE MANAGEMENT
+  // ============================================
+
+  /**
+   * Obtiene usuario completo con cache y logging de hit/miss
+   *
+   * ✅ FASE 3 (Sesión 22): ACTUALIZADO para incluir schema en cache key
+   *
+   * Estrategia de migración:
+   * 1. Si tenemos schema conocido, intentar cache con key nueva (auth:{schema}:user:{id})
+   * 2. Si no hay cache, buscar en BD
+   * 3. Cachear con schema obtenido de los datos
+   * 4. Durante migración: también intentar leer key legacy (auth:user:{id}:full)
+   *
+   * Key nueva: auth:{schema}:user:{userId}
+   * Key legacy: auth:user:{userId}:full
+   *
+   * @param userId - ID del usuario
+   * @param context - Contexto para el log (ej: 'login', 'refresh')
+   * @param knownSchema - Schema conocido (opcional, de JWT en refresh)
+   * @returns Usuario completo con company y roles
+   */
+  private async getCachedUserWithCompany(
+    userId: string,
+    context: string = 'auth',
+    knownSchema?: string | null,
+  ): Promise<any> {
+    // =============================================
+    // 1. Si tenemos schema, intentar cache con key nueva
+    // =============================================
+    if (knownSchema) {
+      const newCacheKey = this.redisService.buildKey(
+        AUTH_CACHE_PREFIX,
+        knownSchema,
+        'user',
+        userId,
+      );
+      const cached = await this.redisService.getJson(newCacheKey);
+
+      if (cached) {
+        this.logger.debug(`[${context}] Cache HIT for user: ${userId} (schema: ${knownSchema})`);
+        return cached;
+      }
+    }
+
+    // =============================================
+    // 2. Intentar leer key legacy (migración gradual)
+    // =============================================
+    const legacyCacheKey = this.redisService.buildKey(AUTH_CACHE_PREFIX, 'user', userId, 'full');
+    const legacyCached = await this.redisService.getJson(legacyCacheKey);
+
+    if (legacyCached) {
+      this.logger.debug(`[${context}] Cache HIT (legacy key) for user: ${userId}`);
+
+      // Migrar a nueva key si tenemos schema en los datos
+      const legacySchema = legacyCached?.company?.schema;
+      if (legacySchema) {
+        const newCacheKey = this.redisService.buildKey(
+          AUTH_CACHE_PREFIX,
+          legacySchema,
+          'user',
+          userId,
+        );
+        await this.redisService.setJson(newCacheKey, legacyCached, { ttl: AUTH_USER_CACHE_TTL });
+        // Eliminar key legacy
+        await this.redisService.del(legacyCacheKey);
+        this.logger.debug(
+          `[${context}] Migrated cache key to new format (schema: ${legacySchema})`,
+        );
+      }
+
+      return legacyCached;
+    }
+
+    // =============================================
+    // 3. Cache MISS - Buscar en BD
+    // =============================================
+    this.logger.debug(`[${context}] Cache MISS for user: ${userId} - fetching from DB`);
+
+    const user = await this.userService.findByIdWithCompanyAndRoles(userId);
+
+    if (!user) {
+      return null;
+    }
+
+    // =============================================
+    // 4. Cachear con schema obtenido de los datos
+    // =============================================
+    const userSchema = user.company?.schema || 'public';
+    const newCacheKey = this.redisService.buildKey(AUTH_CACHE_PREFIX, userSchema, 'user', userId);
+
+    await this.redisService.setJson(newCacheKey, user, { ttl: AUTH_USER_CACHE_TTL });
+    this.logger.debug(
+      `[${context}] Cached user: ${userId} (schema: ${userSchema}, TTL: ${AUTH_USER_CACHE_TTL}s)`,
+    );
+
+    return user;
+  }
+
+  /**
+   * Invalida el cache de autenticación de un usuario
+   *
+   * ✅ FASE 3 (Sesión 22): ACTUALIZADO para invalidar keys con schema
+   *
+   * Llamar cuando:
+   * - Cambia password
+   * - Reset password
+   * - Logout all
+   * - Cambian roles/permisos
+   * - Cambia estado del usuario
+   *
+   * @param userId - ID del usuario
+   * @param schema - Schema del tenant (opcional, para cache específico)
+   */
+  private async invalidateUserAuthCache(userId: string, schema?: string | null): Promise<void> {
+    const keysToDelete: string[] = [];
+
+    // =============================================
+    // 1. Key legacy (para migración)
+    // =============================================
+    keysToDelete.push(this.redisService.buildKey(AUTH_CACHE_PREFIX, 'user', userId, 'full'));
+
+    // =============================================
+    // 2. Key nueva con schema específico
+    // =============================================
+    if (schema) {
+      keysToDelete.push(this.redisService.buildKey(AUTH_CACHE_PREFIX, schema, 'user', userId));
+      keysToDelete.push(this.redisService.buildKey(SESSION_CACHE_PREFIX, schema, 'user', userId));
+    }
+
+    // =============================================
+    // 3. Eliminar keys conocidas
+    // =============================================
+    if (keysToDelete.length > 0) {
+      const deleted = await this.redisService.del(...keysToDelete);
+      if (deleted > 0) {
+        this.logger.debug(`Invalidated ${deleted} auth cache keys for user: ${userId}`);
+      }
+    }
+
+    // =============================================
+    // 4. Si no tenemos schema, invalidar por patrón
+    // =============================================
+    if (!schema) {
+      // Patrón para auth keys nuevas: auth:*:user:{userId}
+      const authPattern = this.redisService.buildPattern(AUTH_CACHE_PREFIX, '*', 'user', userId);
+      const deletedAuth = await this.redisService.invalidatePattern(authPattern);
+
+      // Patrón para session keys: session:*:user:{userId}
+      const sessionPattern = this.redisService.buildPattern(
+        SESSION_CACHE_PREFIX,
+        '*',
+        'user',
+        userId,
+      );
+      const deletedSession = await this.redisService.invalidatePattern(sessionPattern);
+
+      const totalDeleted = deletedAuth + deletedSession;
+      if (totalDeleted > 0) {
+        this.logger.debug(
+          `Invalidated ${totalDeleted} cache keys by pattern for user: ${userId} (auth: ${deletedAuth}, session: ${deletedSession})`,
+        );
+      }
+    }
   }
 }

@@ -3,126 +3,197 @@
 /**
  * @fileoverview Seed para crear companies de desarrollo
  * @module database/seeds
+ *
+ * Companies para el sistema Taco Bell Multi-Tenant:
+ * 1. Sistema - Public Schema (usuarios sin empresa)
+ * 2. Taco Bell República Dominicana (premium)
+ * 3. Taco Bell Colombia (basic)
+ * 4. Taco Bell Estados Unidos (free, inactiva)
  */
 
-import { DataSource } from 'typeorm';
+import { DataSource, DeepPartial } from 'typeorm';
 import { CompanyEntity } from '@modules/company/entities';
 
 /**
  * Seed de companies
  *
- * Crea companies de ejemplo para desarrollo y testing:
- * 1. Public Schema (ya creado en migration)
- * 2. Restaurante Demo
- * 3. Cafetería Demo
+ * Crea las companies del sistema Taco Bell multi-tenant
  */
 export async function seedCompanies(dataSource: DataSource): Promise<void> {
   const companyRepo = dataSource.getRepository(CompanyEntity);
 
-  console.log('🌱 Seeding companies...');
+  console.log('\n┌────────────────────────────────────────────────────┐');
+  console.log('│  🏢 SEEDING COMPANIES                              │');
+  console.log('└────────────────────────────────────────────────────┘');
 
-  // Verificar si ya existe la company public (creada en migration)
-  const publicCompany = await companyRepo.findOne({
-    where: { schema: 'public' },
+  // ============================================
+  // 1. Sistema - Public Schema
+  // ============================================
+  const publicExists = await companyRepo.findOne({
+    where: { subdomain: 'public' },
   });
 
-  if (!publicCompany) {
-    // Crear company public si no existe
-    const newPublicCompany = companyRepo.create({
+  if (!publicExists) {
+    const publicCompany: DeepPartial<CompanyEntity> = {
       name: 'Sistema - Public Schema',
-      schema: 'public',
       subdomain: 'public',
+      schema: 'public',
       is_active: true,
+      ruc: '000000000',
+      email: 'system@reports-tb.com',
+      pais: 'Sistema',
+      ciudad: 'Sistema',
+      timezone: 'America/Santo_Domingo',
+      country_code: 'DO',
+      currency_code: 'USD',
+      currency_symbol: '$',
+      date_format: 'DD/MM/YYYY',
       settings: {
         description: 'Schema público para usuarios sin empresa asignada',
       },
-    });
-    await companyRepo.save(newPublicCompany);
-    console.log('  ✅ Company "public" creada');
+    };
+
+    await companyRepo.save(companyRepo.create(publicCompany));
+    console.log('  ✅ Company "Sistema - Public Schema" creada');
   } else {
-    console.log('  ⏭️  Company "public" ya existe');
+    console.log('  ⏭️  Company "Sistema - Public Schema" ya existe');
   }
 
-  // Company 1: Restaurante Demo
-  const restaurantExists = await companyRepo.findOne({
-    where: { subdomain: 'restaurant-demo' },
+  // ============================================
+  // 2. Taco Bell República Dominicana (Premium)
+  // ============================================
+  const tacoBellRDExists = await companyRepo.findOne({
+    where: { subdomain: 'republica' },
   });
 
-  if (!restaurantExists) {
-    const restaurant = companyRepo.create({
-      name: 'Restaurante Valle Demo',
-      schema: 'restaurant_valle_schema',
-      domain: 'restaurant-demo.miapp.com',
-      subdomain: 'restaurant-demo',
+  if (!tacoBellRDExists) {
+    const tacoBellRD: DeepPartial<CompanyEntity> = {
+      name: 'Taco Bell Republica Dominicana',
+      subdomain: 'republica',
+      domain: 'republica.reports-tb.com',
+      schema: 'taco_bell_rd',
       is_active: true,
       plan: 'premium',
+      ruc: '101234567',
+      email: 'admin@tacobell.do',
+      pais: 'República Dominicana',
+      ciudad: 'Santo Domingo',
+      timezone: 'America/Santo_Domingo',
+      country_code: 'DO',
+      currency_code: 'DOP',
+      currency_symbol: 'RD$',
+      date_format: 'DD/MM/YYYY',
+      tax_config: {
+        tax_rate: 0.18,
+        tax_name: 'ITBIS',
+        tax_included: true,
+      },
       settings: {
         features: ['pos', 'inventory', 'reports', 'multi-user'],
         max_users: 20,
         max_products: 500,
-        timezone: 'America/Bogota',
-        currency: 'COP',
       },
-    });
-    await companyRepo.save(restaurant);
-    console.log('  ✅ Company "Restaurante Valle Demo" creada');
+    };
+
+    await companyRepo.save(companyRepo.create(tacoBellRD));
+    console.log('  ✅ Company "Taco Bell Republica Dominicana" creada (premium)');
   } else {
-    console.log('  ⏭️  Company "restaurant-demo" ya existe');
+    console.log('  ⏭️  Company "Taco Bell Republica Dominicana" ya existe');
   }
 
-  // Company 2: Cafetería Demo
-  const cafeExists = await companyRepo.findOne({
-    where: { subdomain: 'cafe-demo' },
+  // ============================================
+  // 3. Taco Bell Colombia (Basic)
+  // ============================================
+  const tacoBellCOExists = await companyRepo.findOne({
+    where: { subdomain: 'colombia' },
   });
 
-  if (!cafeExists) {
-    const cafe = companyRepo.create({
-      name: 'Cafetería Bogotá Demo',
-      schema: 'cafe_bogota_schema',
-      domain: 'cafe-demo.miapp.com',
-      subdomain: 'cafe-demo',
+  if (!tacoBellCOExists) {
+    const tacoBellCO: DeepPartial<CompanyEntity> = {
+      name: 'Taco Bell Colombia',
+      subdomain: 'colombia',
+      domain: 'colombia.reports-tb.com',
+      schema: 'taco_bell_co',
       is_active: true,
       plan: 'basic',
+      ruc: '900123456',
+      email: 'admin@tacobell.co',
+      pais: 'Colombia',
+      ciudad: 'Bogotá',
+      timezone: 'America/Bogota',
+      country_code: 'CO',
+      currency_code: 'COP',
+      currency_symbol: '$',
+      date_format: 'DD/MM/YYYY',
+      tax_config: {
+        tax_rate: 0.19,
+        tax_name: 'IVA',
+        tax_included: true,
+      },
       settings: {
         features: ['pos', 'inventory'],
         max_users: 5,
         max_products: 200,
-        timezone: 'America/Bogota',
-        currency: 'COP',
       },
-    });
-    await companyRepo.save(cafe);
-    console.log('  ✅ Company "Cafetería Bogotá Demo" creada');
+    };
+
+    await companyRepo.save(companyRepo.create(tacoBellCO));
+    console.log('  ✅ Company "Taco Bell Colombia" creada (basic)');
   } else {
-    console.log('  ⏭️  Company "cafe-demo" ya existe');
+    console.log('  ⏭️  Company "Taco Bell Colombia" ya existe');
   }
 
-  // Company 3: Tienda Demo (Inactiva para testing)
-  const tiendaExists = await companyRepo.findOne({
-    where: { subdomain: 'tienda-demo' },
+  // ============================================
+  // 4. Taco Bell Estados Unidos (Free - Inactiva)
+  // ============================================
+  const tacoBellUSExists = await companyRepo.findOne({
+    where: { subdomain: 'unitstates' },
   });
 
-  if (!tiendaExists) {
-    const tienda = companyRepo.create({
-      name: 'Tienda Cali Demo (Inactiva)',
-      schema: 'tienda_cali_schema',
-      domain: 'tienda-demo.miapp.com',
-      subdomain: 'tienda-demo',
-      is_active: false, // Inactiva para testing
+  if (!tacoBellUSExists) {
+    const tacoBellUS: DeepPartial<CompanyEntity> = {
+      name: 'Taco Bell Estados Unidos',
+      subdomain: 'unitstates',
+      domain: 'unitstates.reports-tb.com',
+      schema: 'taco_bell_eu',
+      is_active: false, // ❌ Inactiva para testing
       plan: 'free',
+      ruc: '123456789',
+      email: 'admin@tacobell.us',
+      pais: 'Estados Unidos',
+      ciudad: 'Miami',
+      timezone: 'America/New_York',
+      country_code: 'US',
+      currency_code: 'USD',
+      currency_symbol: '$',
+      date_format: 'MM/DD/YYYY',
+      tax_config: {
+        tax_rate: 0.07,
+        tax_name: 'Sales Tax',
+        tax_included: false,
+      },
       settings: {
         features: ['pos'],
         max_users: 2,
         max_products: 50,
-        timezone: 'America/Bogota',
-        currency: 'COP',
       },
-    });
-    await companyRepo.save(tienda);
-    console.log('  ✅ Company "Tienda Cali Demo" creada (INACTIVA)');
+    };
+
+    await companyRepo.save(companyRepo.create(tacoBellUS));
+    console.log('  ✅ Company "Taco Bell Estados Unidos" creada (free, INACTIVA)');
   } else {
-    console.log('  ⏭️  Company "tienda-demo" ya existe');
+    console.log('  ⏭️  Company "Taco Bell Estados Unidos" ya existe');
   }
 
-  console.log('✅ Companies seeded successfully');
+  // ============================================
+  // RESUMEN
+  // ============================================
+  const totalCompanies = await companyRepo.count();
+  const activeCompanies = await companyRepo.count({ where: { is_active: true } });
+
+  console.log('\n  📊 Resumen:');
+  console.log(`     Total companies: ${totalCompanies}`);
+  console.log(`     Activas: ${activeCompanies}`);
+  console.log(`     Inactivas: ${totalCompanies - activeCompanies}`);
+  console.log('\n  ✅ Companies seeded successfully');
 }

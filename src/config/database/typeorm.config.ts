@@ -11,7 +11,6 @@ export const typeOrmAsyncConfig: TypeOrmModuleAsyncOptions = {
     username: configService.get<string>('database.username'),
     password: configService.get<string>('database.password'),
     database: configService.get<string>('database.database'),
-    schema: configService.get<string>('database.schema'),
     synchronize: configService.get<boolean>('database.synchronize'),
     logging: configService.get<boolean>('database.logging'),
     ssl: configService.get<boolean>('database.ssl') ? { rejectUnauthorized: false } : false,

@@ -7,30 +7,18 @@
  * Características:
  * - Whitelist de dominios permitidos
  * - Whitelist de schemas de BD permitidos (multi-tenant)
- * - Integración con variables de entorno (.env)
- * - Hot-reload de configuración
- * - Logging de intentos no autorizados
  * - Búsqueda O(1) con Set
+ * - Type-safe con TypeScript
+ * - Sin I/O en runtime (import directo)
  */
 
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import * as fs from 'fs';
-import * as path from 'path';
-
-/**
- * Interfaz para la estructura del archivo security-whitelist.json
- */
-interface SecurityWhitelist {
-  allowedDomains: string[];
-  allowedSchemas: string[];
-  config?: {
-    maxSchemaLength?: number;
-    allowDynamicSchemas?: boolean;
-    logUnauthorizedAttempts?: boolean;
-    allowLocalhost?: boolean;
-  };
-}
+import {
+  SECURITY_WHITELIST,
+  ISecurityConfig,
+  AllowedSchema,
+  isValidSchema,
+} from './security-whitelist.config';
 
 /**
  * Resultado de validación de request
@@ -56,101 +44,32 @@ export interface ISecurityValidationResult {
  * if (!validation.isValid) {
  *   throw new ForbiddenException(validation.reason);
  * }
+ *
+ * // Usar schema tipado
+ * const schema = AllowedSchema.TACO_BELL_RD;
  * ```
  */
 @Injectable()
 export class SecurityConfigService implements OnModuleInit {
   private readonly logger = new Logger(SecurityConfigService.name);
-  private whitelist: SecurityWhitelist;
-  private allowedDomainsSet: Set<string>;
-  private allowedSchemasSet: Set<string>;
+  private readonly allowedDomainsSet: Set<string>;
+  private readonly allowedSchemasSet: Set<string>;
+  private readonly config: ISecurityConfig;
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor() {
+    // Inicializar Sets para búsqueda O(1)
+    this.allowedDomainsSet = new Set(SECURITY_WHITELIST.allowedDomains);
+    this.allowedSchemasSet = new Set(SECURITY_WHITELIST.allowedSchemas);
+    this.config = SECURITY_WHITELIST.config;
+  }
 
   /**
-   * Inicialización al cargar el módulo
+   * Log de inicialización al cargar el módulo
    */
   onModuleInit(): void {
-    this.loadWhitelist();
-  }
-
-  /**
-   * Carga la whitelist desde security-whitelist.json
-   */
-  private loadWhitelist(): void {
-    try {
-      const filePath = path.join(
-        process.cwd(),
-        'src',
-        'config',
-        'security',
-        'security-whitelist.json',
-      );
-
-      if (!fs.existsSync(filePath)) {
-        this.logger.error(`❌ Archivo no encontrado: ${filePath}`);
-        this.setDefaultWhitelist();
-        return;
-      }
-
-      const fileContent = fs.readFileSync(filePath, 'utf-8');
-      this.whitelist = JSON.parse(fileContent);
-
-      // Validar estructura
-      if (!this.whitelist.allowedDomains || !Array.isArray(this.whitelist.allowedDomains)) {
-        this.logger.error('❌ security-whitelist.json: allowedDomains inválido');
-        this.setDefaultWhitelist();
-        return;
-      }
-
-      if (!this.whitelist.allowedSchemas || !Array.isArray(this.whitelist.allowedSchemas)) {
-        this.logger.error('❌ security-whitelist.json: allowedSchemas inválido');
-        this.setDefaultWhitelist();
-        return;
-      }
-
-      // Convertir a Set para búsquedas O(1)
-      this.allowedDomainsSet = new Set(this.whitelist.allowedDomains);
-      this.allowedSchemasSet = new Set(this.whitelist.allowedSchemas);
-
-      this.logger.log(
-        `✅ Whitelist cargada: ${this.allowedDomainsSet.size} dominios, ${this.allowedSchemasSet.size} schemas`,
-      );
-    } catch (error) {
-      this.logger.error('❌ Error cargando security-whitelist.json', error);
-      this.setDefaultWhitelist();
-    }
-  }
-
-  /**
-   * Establece valores por defecto seguros en caso de error
-   */
-  private setDefaultWhitelist(): void {
-    this.logger.warn('⚠️ Usando whitelist por defecto (valores seguros)');
-
-    // Valores por defecto seguros para desarrollo
-    this.whitelist = {
-      allowedDomains: ['localhost', '127.0.0.1'],
-      allowedSchemas: ['public'],
-      config: {
-        maxSchemaLength: 63,
-        allowDynamicSchemas: false,
-        logUnauthorizedAttempts: true,
-        allowLocalhost: true,
-      },
-    };
-
-    this.allowedDomainsSet = new Set(this.whitelist.allowedDomains);
-    this.allowedSchemasSet = new Set(this.whitelist.allowedSchemas);
-  }
-
-  /**
-   * Recarga la whitelist desde el archivo
-   * Útil para hot-reload en desarrollo sin reiniciar el servidor
-   */
-  reloadWhitelist(): void {
-    this.logger.log('🔄 Recargando whitelist...');
-    this.loadWhitelist();
+    this.logger.log(
+      `✅ SecurityConfig inicializado: ${this.allowedDomainsSet.size} dominios, ${this.allowedSchemasSet.size} schemas`,
+    );
   }
 
   /**
@@ -165,19 +84,16 @@ export class SecurityConfigService implements OnModuleInit {
    * isDomainAllowed('evil.com')                  // false
    */
   isDomainAllowed(domain: string): boolean {
-    if (!this.allowedDomainsSet) {
-      this.logger.error('❌ allowedDomainsSet no inicializado');
-      return false;
-    }
+    if (!domain) return false;
 
     // Normalizar dominio (extraer hostname si tiene protocolo)
     const normalizedDomain = this.normalizeDomain(domain);
 
-    // Verificar en Set
+    // Verificar en Set O(1)
     const isAllowed = this.allowedDomainsSet.has(normalizedDomain);
 
     // Log de rechazos si está habilitado
-    if (!isAllowed && this.whitelist.config?.logUnauthorizedAttempts) {
+    if (!isAllowed && this.config.logUnauthorizedAttempts) {
       this.logger.warn(`⚠️ Dominio rechazado: ${normalizedDomain} (original: ${domain})`);
     }
 
@@ -192,23 +108,30 @@ export class SecurityConfigService implements OnModuleInit {
    *
    * @example
    * isSchemaAllowed('public')           // true
-   * isSchemaAllowed('tenant_schema')    // true (si está en whitelist)
+   * isSchemaAllowed('taco_bell_rd')     // true
    * isSchemaAllowed('hacker_schema')    // false
    */
   isSchemaAllowed(schema: string): boolean {
-    if (!this.allowedSchemasSet) {
-      this.logger.error('❌ allowedSchemasSet no inicializado');
-      return false;
-    }
+    if (!schema) return false;
 
     const isAllowed = this.allowedSchemasSet.has(schema);
 
     // Log de rechazos si está habilitado
-    if (!isAllowed && this.whitelist.config?.logUnauthorizedAttempts) {
+    if (!isAllowed && this.config.logUnauthorizedAttempts) {
       this.logger.warn(`⚠️ Schema rechazado: ${schema}`);
     }
 
     return isAllowed;
+  }
+
+  /**
+   * Verifica si un schema es válido usando el type guard
+   *
+   * @param schema - Schema a validar
+   * @returns true si es un AllowedSchema válido
+   */
+  isValidSchemaEnum(schema: string): schema is AllowedSchema {
+    return isValidSchema(schema);
   }
 
   /**
@@ -245,7 +168,7 @@ export class SecurityConfigService implements OnModuleInit {
    * @returns Array de dominios permitidos
    */
   getAllowedDomains(): string[] {
-    return Array.from(this.allowedDomainsSet || []);
+    return Array.from(this.allowedDomainsSet);
   }
 
   /**
@@ -254,7 +177,7 @@ export class SecurityConfigService implements OnModuleInit {
    * @returns Array de schemas permitidos
    */
   getAllowedSchemas(): string[] {
-    return Array.from(this.allowedSchemasSet || []);
+    return Array.from(this.allowedSchemasSet);
   }
 
   /**
@@ -262,15 +185,8 @@ export class SecurityConfigService implements OnModuleInit {
    *
    * @returns Objeto con configuración
    */
-  getConfig() {
-    return (
-      this.whitelist?.config || {
-        maxSchemaLength: 63,
-        allowDynamicSchemas: false,
-        logUnauthorizedAttempts: true,
-        allowLocalhost: true,
-      }
-    );
+  getConfig(): ISecurityConfig {
+    return { ...this.config };
   }
 
   /**
@@ -282,7 +198,7 @@ export class SecurityConfigService implements OnModuleInit {
    *
    * @example
    * ```typescript
-   * const validation = securityConfig.validateRequest(origin, 'tenant_schema');
+   * const validation = securityConfig.validateRequest(origin, 'taco_bell_rd');
    * if (!validation.isValid) {
    *   throw new ForbiddenException(validation.reason);
    * }

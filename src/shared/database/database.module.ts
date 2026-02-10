@@ -3,6 +3,11 @@
 /**
  * @fileoverview Módulo global de utilidades de base de datos
  * @module shared/database
+ *
+ * FASE 6: Documentación actualizada para multi-tenant
+ *
+ * NOTA: TenantInterceptor y TenantGuard están registrados GLOBALMENTE
+ * en AppModule, no aquí. Este módulo solo provee los servicios.
  */
 
 import { Global, Module } from '@nestjs/common';
@@ -10,6 +15,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { TransactionService } from './transaction.service';
 import { SchemaContext } from './schema.context';
 import { TenantExtractorService } from './tenant-extractor.service';
+import { TenantSchemaService } from './tenant-schema.service';
+import { TenantSchemaEntity } from './entities';
 import { UserEntity } from '@modules/user/entities';
 import { CompanyEntity } from '@modules/company/entities';
 
@@ -20,70 +27,58 @@ import { CompanyEntity } from '@modules/company/entities';
  * - Manejo de transacciones (TransactionService)
  * - Contexto de schema multi-tenant (SchemaContext)
  * - Extracción de información del tenant (TenantExtractorService)
+ * - Gestión dinámica de schemas (TenantSchemaService)
  *
  * Este módulo es @Global, por lo que sus exports están disponibles
  * en toda la aplicación sin necesidad de importarlo.
  *
- * Características multi-tenant:
- * - TenantExtractorService: Extrae schema desde userId o request
- * - SchemaContext: Mantiene contexto del tenant en AsyncLocalStorage
- * - Integración con SecurityConfigService para validar schemas
+ * Flujo Multi-Tenant (FASE 6):
+ * ```
+ * Request → JwtAuthGuard (establece request.user)
+ *         → TenantGuard (extrae tenant, establece request.tenant)
+ *         → TenantInterceptor (establece SchemaContext)
+ *         → Handler
+ *         → Repository usa SchemaContext.getSchema()
+ *         → Query con SET search_path TO {tenant_schema}
+ * ```
+ *
+ * IMPORTANTE:
+ * - TenantGuard y TenantInterceptor están en src/guards/ y src/interceptors/
+ * - Se registran globalmente en AppModule con APP_GUARD y APP_INTERCEPTOR
+ * - Este módulo solo provee los servicios que usan
  *
  * @example
  * ```typescript
- * // TransactionService
+ * // El interceptor establece el contexto automáticamente
+ * // El repository puede obtener el schema sin pasarlo como parámetro
+ *
  * @Injectable()
- * export class OrderService {
- *   constructor(private readonly transactionService: TransactionService) {}
- *
- *   async createOrder(dto: CreateOrderDto) {
- *     return this.transactionService.execute(async (manager) => {
- *       // operaciones en transacción...
- *     });
- *   }
- * }
- *
- * // SchemaContext
- * @Injectable()
- * export class ProductRepository {
- *   constructor(private readonly schemaContext: SchemaContext) {}
- *
+ * export class ProductRepository extends BaseRepository<ProductEntity> {
  *   async findAll() {
- *     const schema = this.schemaContext.getSchema(); // 'company_a_schema'
- *     await queryRunner.query(`SET search_path TO ${schema}`);
- *     // queries se ejecutan en el schema del tenant
- *   }
- * }
- *
- * // TenantExtractorService
- * @Injectable()
- * export class TenantGuard implements CanActivate {
- *   constructor(private readonly tenantExtractor: TenantExtractorService) {}
- *
- *   async canActivate(context: ExecutionContext) {
- *     const userId = request.user?.id;
- *     const tenant = await this.tenantExtractor.extractFromUser(userId);
- *     request.tenant = tenant;
- *     return true;
+ *     // withSchema() usa el contexto establecido por TenantInterceptor
+ *     return await this.withSchema(async () => {
+ *       return await this.repository.find();
+ *     });
  *   }
  * }
  * ```
  */
 @Global()
 @Module({
-  imports: [
-    // Importar entidades necesarias para TenantExtractorService
-    TypeOrmModule.forFeature([UserEntity, CompanyEntity]),
-  ],
+  imports: [TypeOrmModule.forFeature([UserEntity, CompanyEntity, TenantSchemaEntity])],
   providers: [
+    // Servicios core
     TransactionService,
-    SchemaContext, // Contexto para multi-tenant
-    TenantExtractorService, // ✅ NUEVO: Extracción de tenant
+    SchemaContext,
+    TenantExtractorService,
+    TenantSchemaService,
   ],
   exports: [
     TransactionService,
-    SchemaContext, // Disponible en toda la app
-    TenantExtractorService, // ✅ NUEVO: Disponible en toda la app
+    SchemaContext,
+    TenantExtractorService,
+    TenantSchemaService,
+    TypeOrmModule,
   ],
 })
 export class DatabaseModule {}

@@ -54,12 +54,12 @@ export class PaginationDto {
 
   @ApiPropertyOptional({
     description: 'Campo por el cual ordenar',
-    default: 'createdAt',
-    example: 'createdAt',
+    default: 'created_at',
+    example: 'created_at',
   })
   @IsOptional()
   @IsString({ message: 'El campo de ordenamiento debe ser texto' })
-  sortBy?: string = 'createdAt';
+  sortBy?: string = 'created_at';
 
   @ApiPropertyOptional({
     description: 'Dirección del ordenamiento',

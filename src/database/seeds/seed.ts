@@ -5,7 +5,9 @@
  * Ejecuta todos los seeds en orden:
  * 1. Permissions (primero, son independientes)
  * 2. Roles (dependen de permissions)
- * 3. Users (dependen de roles)
+ * 3. Companies (independientes)
+ * 4. Tenant Schemas (dependen de companies) ← NUEVO
+ * 5. Users (dependen de roles y companies)
  *
  * @example
  * # Ejecutar seeds
@@ -22,7 +24,9 @@ import { dataSourceOptions } from '@config/database/data-source';
 import { seedPermissions } from './permission.seed';
 import { seedRoles } from './role.seed';
 import { seedCompanies } from './company.seed';
+import { seedTenantSchemas } from './tenant-schema.seed';
 import { seedUsers } from './user.seed';
+import { seedGeography } from './latam-geography.seed';
 
 async function seed() {
   const startTime = Date.now();
@@ -51,8 +55,13 @@ async function seed() {
     // 3. Companies (independientes)
     await seedCompanies(dataSource);
 
-    // 4. Users (dependen de roles y companies)
+    // 4. Tenant Schemas (dependen de companies) ← NUEVO
+    await seedTenantSchemas(dataSource);
+
+    // 5. Users (dependen de roles y companies)
     await seedUsers(dataSource);
+
+    await seedGeography(dataSource);
 
     // Resumen
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);

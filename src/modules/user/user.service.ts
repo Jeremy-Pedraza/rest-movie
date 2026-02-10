@@ -9,6 +9,9 @@
  * - HandleErrorService: Manejo centralizado de errores
  * - TransactionService: Transacciones de BD (disponible para operaciones complejas)
  * - CacheService: Cache inteligente con tags e invalidación
+ * - SchemaContext: Contexto multi-tenant para cache keys (Sesión 22)
+ *
+ * ✅ FASE 4 (Sesión 22): Cache keys incluyen schema para multi-tenant
  */
 
 import { Injectable, Logger } from '@nestjs/common';
@@ -16,7 +19,7 @@ import * as bcrypt from 'bcrypt';
 
 import { CacheService } from '@modules/cache';
 import { HandleErrorService, IPaginatedResponse, SanitizerService } from '@shared/common';
-import { TransactionService } from '@shared/database';
+import { SchemaContext, TransactionService } from '@shared/database';
 import { UtilsService } from '@shared/utils';
 import { UpdatePasswordDto, CreateUserDto, QueryUserDto, UpdateUserDto } from './dto';
 import { UserEntity, UserStatus } from './entities/user.entity';
@@ -28,13 +31,47 @@ export class UserService {
   private readonly logger = new Logger(UserService.name);
 
   constructor(
-    private readonly userRepository: UserRepository,
-    private readonly sanitizer: SanitizerService,
-    private readonly handleError: HandleErrorService,
     private readonly transactionService: TransactionService,
+    private readonly handleError: HandleErrorService,
+    private readonly userRepository: UserRepository,
+    private readonly utilsService: UtilsService,
+    private readonly sanitizer: SanitizerService,
     private readonly cacheService: CacheService, // ✅ Cache inteligente
     private readonly utils: UtilsService, // ✅ Utilidades (validación, formateo, crypto)
+    private readonly schemaContext: SchemaContext, // ✅ FASE 4: Contexto multi-tenant
   ) {}
+
+  // ============================================
+  // CACHE HELPERS (FASE 4 - Sesión 22)
+  // ============================================
+
+  /**
+   * Obtiene el schema actual para cache keys
+   * @returns Schema actual o 'public'
+   */
+  private getCurrentSchema(): string {
+    return this.schemaContext.getSchema();
+  }
+
+  /**
+   * Construye cache key con schema
+   * @param parts - Partes de la key
+   * @returns Key con formato: user:{schema}:{parts}
+   */
+  private buildCacheKey(...parts: string[]): string {
+    const schema = this.getCurrentSchema();
+    return `user:${schema}:${parts.join(':')}`;
+  }
+
+  /**
+   * Construye tag con schema
+   * @param tag - Nombre del tag
+   * @returns Tag con formato: {tag}:{schema}
+   */
+  private buildTag(tag: string): string {
+    const schema = this.getCurrentSchema();
+    return `${tag}:${schema}`;
+  }
 
   // ============================================
   // CRUD OPERATIONS
@@ -76,8 +113,8 @@ export class UserService {
       const maskedEmail = this.utils.string.maskEmail(user.email);
       this.logger.log(`User created: ${user.id} (${maskedEmail})`);
 
-      // Invalidar cache de stats al crear usuario
-      await this.cacheService.invalidateTags(['users', 'user-stats']);
+      // ✅ FASE 4: Invalidar cache de stats con tags que incluyen schema
+      await this.cacheService.invalidateTags([this.buildTag('users'), this.buildTag('user-stats')]);
 
       return this.toUserResponse(user);
     } catch (error) {
@@ -90,7 +127,8 @@ export class UserService {
    * @param id - ID del usuario
    * @returns Usuario encontrado
    *
-   * ✅ Con cache: 1h TTL, tags: ['users', 'user:{id}']
+   * ✅ FASE 4 (Sesión 22): Cache key incluye schema: user:{schema}:{id}
+   * TTL: 1h, Tags: ['users:{schema}', 'user:{schema}:{id}']
    */
   async findById(id: string): Promise<IUserResponse> {
     // ✅ FASE 1: Validar UUID
@@ -98,9 +136,14 @@ export class UserService {
       this.handleError.badRequest('ID de usuario inválido', 'id');
     }
 
+    const schema = this.getCurrentSchema();
+
+    // ✅ FASE 4: Key con schema para aislamiento multi-tenant
+    const cacheKey = this.buildCacheKey(id);
+
     // remember() = obtener del cache o ejecutar callback
     return await this.cacheService.remember(
-      `user:${id}`, // Key
+      cacheKey,
       async () => {
         // Callback si no existe
         const user = await this.userRepository.findById(id);
@@ -111,7 +154,10 @@ export class UserService {
       },
       {
         ttl: 3600, // 1 hora
-        tags: ['users', `user:${id}`], // Tags para invalidación
+        tags: [
+          this.buildTag('users'), // users:{schema}
+          `user:${schema}:${id}`, // user:{schema}:{id}
+        ],
       },
     );
   }
@@ -148,8 +194,8 @@ export class UserService {
       query.search = this.utils.string.normalizeForSearch(query.search);
     }
 
-    const result = await this.userRepository.findAll(query);
-
+    let result = await this.userRepository.findAll(query);
+    result = this.utilsService.removeTimestamps(result);
     return {
       data: result.data.map((user) => this.toUserResponse(user)),
       meta: result.meta,
@@ -197,8 +243,13 @@ export class UserService {
       }
       this.logger.log(`User updated: ${user.id}`);
 
-      // Invalidar cache del usuario actualizado + stats
-      await this.cacheService.invalidateTags([`user:${id}`, 'users', 'user-stats']);
+      // ✅ FASE 4: Invalidar cache con tags que incluyen schema
+      const schema = this.getCurrentSchema();
+      await this.cacheService.invalidateTags([
+        `user:${schema}:${id}`, // user:{schema}:{id}
+        this.buildTag('users'), // users:{schema}
+        this.buildTag('user-stats'), // user-stats:{schema}
+      ]);
 
       return this.toUserResponse(user);
     } catch (error) {
@@ -228,8 +279,13 @@ export class UserService {
 
     this.logger.log(`User soft deleted: ${id}`);
 
-    // Invalidar cache del usuario eliminado + stats
-    await this.cacheService.invalidateTags([`user:${id}`, 'users', 'user-stats']);
+    // ✅ FASE 4: Invalidar cache con tags que incluyen schema
+    const schema = this.getCurrentSchema();
+    await this.cacheService.invalidateTags([
+      `user:${schema}:${id}`, // user:{schema}:{id}
+      this.buildTag('users'), // users:{schema}
+      this.buildTag('user-stats'), // user-stats:{schema}
+    ]);
   }
 
   /**
@@ -254,8 +310,13 @@ export class UserService {
 
     this.logger.log(`User restored: ${id}`);
 
-    // Invalidar cache del usuario restaurado + stats
-    await this.cacheService.invalidateTags([`user:${id}`, 'users', 'user-stats']);
+    // ✅ FASE 4: Invalidar cache con tags que incluyen schema
+    const schema = this.getCurrentSchema();
+    await this.cacheService.invalidateTags([
+      `user:${schema}:${id}`, // user:{schema}:{id}
+      this.buildTag('users'), // users:{schema}
+      this.buildTag('user-stats'), // user-stats:{schema}
+    ]);
 
     return this.toUserResponse(user);
   }
@@ -412,11 +473,15 @@ export class UserService {
    * Obtiene estadísticas de usuarios
    * @returns Estadísticas
    *
-   * ✅ Con cache: 5min TTL, tags: ['user-stats', 'users']
+   * ✅ FASE 4 (Sesión 22): Cache key incluye schema: user:{schema}:stats
+   * TTL: 5min, Tags: ['user-stats:{schema}', 'users:{schema}']
    */
   async getStats(): Promise<Record<string, unknown>> {
+    // ✅ FASE 4: Key con schema para aislamiento multi-tenant
+    const cacheKey = this.buildCacheKey('stats');
+
     return await this.cacheService.remember(
-      'user:stats',
+      cacheKey,
       async () => {
         const [total, byStatus] = await Promise.all([
           this.userRepository.count(),
@@ -430,7 +495,10 @@ export class UserService {
       },
       {
         ttl: 300, // 5 minutos (stats cambian poco)
-        tags: ['user-stats', 'users'], // Tags para invalidación
+        tags: [
+          this.buildTag('user-stats'), // user-stats:{schema}
+          this.buildTag('users'), // users:{schema}
+        ],
       },
     );
   }
@@ -495,8 +563,13 @@ export class UserService {
     await this.userRepository.updateStatus(id, status);
     this.logger.log(`User ${action}: ${id}`);
 
-    // Invalidar cache del usuario + stats (cambió el status)
-    await this.cacheService.invalidateTags([`user:${id}`, 'users', 'user-stats']);
+    // ✅ FASE 4: Invalidar cache con tags que incluyen schema
+    const schema = this.getCurrentSchema();
+    await this.cacheService.invalidateTags([
+      `user:${schema}:${id}`, // user:{schema}:{id}
+      this.buildTag('users'), // users:{schema}
+      this.buildTag('user-stats'), // user-stats:{schema}
+    ]);
   }
 
   /**
@@ -543,6 +616,7 @@ export class UserService {
   /**
    * Busca un usuario por email incluyendo password
    * ⚠️ Solo para uso interno de autenticación
+   * ⚠️ NO usa cache (se ejecuta antes de establecer contexto)
    * @param email - Email del usuario
    * @returns Usuario con password o null
    */
@@ -559,6 +633,7 @@ export class UserService {
   /**
    * Busca un usuario por ID incluyendo password
    * ⚠️ Solo para uso interno de autenticación
+   * ⚠️ NO usa cache (datos sensibles)
    * @param id - ID del usuario
    * @returns Usuario con password o null
    */
@@ -573,6 +648,7 @@ export class UserService {
 
   /**
    * Busca un usuario por ID incluyendo roles completos
+   * ⚠️ NO usa cache (se usa en auth)
    * @param id - ID del usuario
    * @returns Usuario con roles y permisos o null
    */
@@ -588,6 +664,7 @@ export class UserService {
   /**
    * Busca un usuario por ID incluyendo company, roles y permisos completos
    * ⚠️ Solo para uso interno de autenticación (JwtStrategy)
+   * ⚠️ NO usa cache aquí (AuthService maneja su propio cache)
    *
    * @param id - ID del usuario
    * @returns Usuario con company, roles y permisos o null
@@ -598,7 +675,8 @@ export class UserService {
       this.handleError.badRequest('ID de usuario inválido', 'id');
     }
 
-    return await this.userRepository.findByIdWithCompanyAndRoles(id);
+    const data = await this.userRepository.findByIdWithCompanyAndRoles(id);
+    return data;
   }
 
   /**

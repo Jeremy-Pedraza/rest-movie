@@ -518,8 +518,8 @@ export class QueueService implements OnModuleInit {
   async getMetrics(queueName: string): Promise<IQueueMetrics> {
     const queue = this.getQueue(queueName);
 
-    // Obtener jobs completados recientes
-    const completedJobs = await queue.getCompleted(0, 99);
+    // Obtener jobs completados recientes (Bull 4.x usa getJobs en lugar de getCompleted)
+    const completedJobs: Job<unknown>[] = await queue.getJobs(['completed'], 0, 99);
 
     // Calcular métricas de throughput
     const now = Date.now();
@@ -527,28 +527,28 @@ export class QueueService implements OnModuleInit {
     const oneDayAgo = now - 86400000;
 
     const jobsLastHour = completedJobs.filter(
-      (job) => job.finishedOn && job.finishedOn > oneHourAgo,
+      (job: Job<unknown>) => job.finishedOn && job.finishedOn > oneHourAgo,
     ).length;
     const jobsLastDay = completedJobs.filter(
-      (job) => job.finishedOn && job.finishedOn > oneDayAgo,
+      (job: Job<unknown>) => job.finishedOn && job.finishedOn > oneDayAgo,
     ).length;
 
     // Calcular tiempos de procesamiento
-    const processingTimes = completedJobs
-      .filter((job) => job.finishedOn && job.processedOn)
-      .map((job) => job.finishedOn! - job.processedOn!);
+    const processingTimes: number[] = completedJobs
+      .filter((job: Job<unknown>) => job.finishedOn && job.processedOn)
+      .map((job: Job<unknown>) => job.finishedOn! - job.processedOn!);
 
     const averageProcessingTime =
       processingTimes.length > 0
-        ? processingTimes.reduce((a, b) => a + b, 0) / processingTimes.length
+        ? processingTimes.reduce((a: number, b: number) => a + b, 0) / processingTimes.length
         : 0;
 
-    const sortedTimes = [...processingTimes].sort((a, b) => a - b);
+    const sortedTimes = [...processingTimes].sort((a: number, b: number) => a - b);
     const medianProcessingTime =
       sortedTimes.length > 0 ? sortedTimes[Math.floor(sortedTimes.length / 2)] : 0;
 
     const slowestJob = completedJobs.reduce(
-      (slowest, job) => {
+      (slowest: { id: string | number; duration: number }, job: Job<unknown>) => {
         if (job.finishedOn && job.processedOn) {
           const duration = job.finishedOn - job.processedOn;
           if (duration > slowest.duration) {
@@ -561,7 +561,7 @@ export class QueueService implements OnModuleInit {
     );
 
     const fastestJob = completedJobs.reduce(
-      (fastest, job) => {
+      (fastest: { id: string | number; duration: number }, job: Job<unknown>) => {
         if (job.finishedOn && job.processedOn) {
           const duration = job.finishedOn - job.processedOn;
           if (duration < fastest.duration || fastest.duration === Infinity) {

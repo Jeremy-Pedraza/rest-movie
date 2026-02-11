@@ -284,7 +284,6 @@ async getPublicStats() {
 | [QUEUE-MODULE.md](docs/QUEUE-MODULE.md)               | Sistema de colas asíncronas       |
 | [NOTIFICATION-MODULE.md](docs/NOTIFICATION-MODULE.md) | Notificaciones multi-canal        |
 | [INTEGRATION-STATUS.md](docs/INTEGRATION-STATUS.md)   | Componentes activos               |
-| [PROGRESS.md](docs/PROGRESS.md)                       | Historial de desarrollo           |
 
 ### 🔧 Ejemplos Funcionales
 

@@ -8,7 +8,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { AxiosError, AxiosRequestConfig } from 'axios';
-import { firstValueFrom, timeout, retry, catchError } from 'rxjs';
+import { firstValueFrom, timeout, catchError } from 'rxjs';
 
 import {
   HttpRequestConfig,
@@ -18,6 +18,39 @@ import {
   RequestStats,
 } from '../dto';
 import { RETRY_CONFIG, TIMEOUT_CONFIG, HTTP_ERROR_MESSAGES } from '../gateway';
+
+/** Campos sensibles que deben redactarse en logs */
+const SENSITIVE_FIELDS = new Set([
+  'password',
+  'token',
+  'authorization',
+  'secret',
+  'apikey',
+  'api_key',
+  'accesstoken',
+  'access_token',
+  'refreshtoken',
+  'refresh_token',
+  'creditcard',
+  'credit_card',
+  'cvv',
+  'ssn',
+]);
+
+/** Rangos de IP privadas / link-local / metadata para protección SSRF */
+const BLOCKED_HOST_PATTERNS = [
+  /^127\./,
+  /^10\./,
+  /^172\.(1[6-9]|2\d|3[01])\./,
+  /^192\.168\./,
+  /^169\.254\./,
+  /^0\./,
+  /^localhost$/i,
+  /^::1$/,
+  /^fc00:/i,
+  /^fe80:/i,
+  /^fd/i,
+];
 
 @Injectable()
 export class HttpClientService {
@@ -130,21 +163,20 @@ export class HttpClientService {
     this.stats.totalRequests++;
     this.stats.lastRequestAt = new Date();
 
+    // Validación SSRF: bloquear destinos internos
+    this.validateDestination(config.url, config.baseURL);
+
     const axiosConfig = this.buildAxiosConfig(config);
 
     try {
       this.logger.debug(
         `HTTP ${config.method || 'GET'} ${config.url}`,
-        config.data ? { data: config.data } : undefined,
+        config.data ? { bodySize: JSON.stringify(config.data).length } : undefined,
       );
 
       const response = await firstValueFrom(
         this.httpService.request<T>(axiosConfig).pipe(
           timeout(config.timeout || TIMEOUT_CONFIG.DEFAULT),
-          retry({
-            count: config.retries || 0,
-            delay: config.retryDelay || RETRY_CONFIG.INITIAL_DELAY,
-          }),
           catchError((error: AxiosError) => {
             throw error;
           }),
@@ -169,7 +201,6 @@ export class HttpClientService {
 
       this.logger.error(
         `HTTP Error ${httpError.status || 'N/A'} ${config.url}: ${httpError.message}`,
-        httpError.stack,
       );
 
       return {
@@ -187,7 +218,10 @@ export class HttpClientService {
    * @returns Resultado de la petición
    */
   async requestAdvanced<T = unknown>(options: AdvancedRequestOptions): Promise<HttpResult<T>> {
-    const result = await this.request<T>(options);
+    // Usar ruta con soporte signal/progress si se necesita, sino request normal
+    const result = (options.signal || options.onProgress)
+      ? await this.requestWithSignalAndProgress<T>(options)
+      : await this.request<T>(options);
 
     // Aplicar transformación si se especificó
     if (result.success && options.transformResponse && result.data) {
@@ -211,6 +245,93 @@ export class HttpClientService {
     }
 
     return result;
+  }
+
+  /**
+   * Request interno con soporte de signal y onProgress
+   */
+  private async requestWithSignalAndProgress<T = unknown>(
+    options: AdvancedRequestOptions,
+  ): Promise<HttpResult<T>> {
+    const startTime = Date.now();
+    this.stats.totalRequests++;
+    this.stats.lastRequestAt = new Date();
+
+    this.validateDestination(options.url, options.baseURL);
+
+    const axiosConfig = this.buildAxiosConfig(options);
+
+    // Aplicar AbortSignal
+    if (options.signal) {
+      const controller = new AbortController();
+      axiosConfig.signal = controller.signal;
+
+      options.signal.addEventListener('abort', () => controller.abort(), { once: true });
+
+      if (options.signal.aborted) {
+        return {
+          success: false,
+          error: { message: 'La petición fue cancelada', code: 'CANCELLED', isCancelled: true },
+          duration: 0,
+        };
+      }
+    }
+
+    // Aplicar callbacks de progreso
+    if (options.onProgress) {
+      const progressCb = options.onProgress;
+      axiosConfig.onUploadProgress = (event) => {
+        if (event.total) {
+          progressCb({ loaded: event.loaded, total: event.total, percent: Math.round((event.loaded / event.total) * 100) });
+        }
+      };
+      axiosConfig.onDownloadProgress = (event) => {
+        if (event.total) {
+          progressCb({ loaded: event.loaded, total: event.total, percent: Math.round((event.loaded / event.total) * 100) });
+        }
+      };
+    }
+
+    try {
+      this.logger.debug(
+        `HTTP Advanced ${options.method || 'GET'} ${options.url}`,
+        options.data ? { bodySize: JSON.stringify(options.data).length } : undefined,
+      );
+
+      const response = await firstValueFrom(
+        this.httpService.request<T>(axiosConfig).pipe(
+          timeout(options.timeout || TIMEOUT_CONFIG.DEFAULT),
+          catchError((error: AxiosError) => {
+            throw error;
+          }),
+        ),
+      );
+
+      const duration = Date.now() - startTime;
+      this.updateStats(true, duration);
+
+      return {
+        success: true,
+        data: response.data,
+        status: response.status,
+        duration,
+      };
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const httpError = this.handleError(error as AxiosError, options);
+      this.updateStats(false, duration, httpError);
+
+      this.logger.error(
+        `HTTP Advanced Error ${httpError.status || 'N/A'} ${options.url}: ${httpError.message}`,
+      );
+
+      return {
+        success: false,
+        error: httpError,
+        status: httpError.status,
+        duration,
+      };
+    }
   }
 
   // ============================================
@@ -276,10 +397,13 @@ export class HttpClientService {
       }
 
       if (attempt < maxRetries) {
+        // Añadir jitter ±25% para evitar thundering herd
+        const jitter = delay * 0.25 * (Math.random() * 2 - 1);
+        const actualDelay = Math.round(delay + jitter);
         this.logger.warn(
-          `Request failed, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`,
+          `Request failed, retrying in ${actualDelay}ms (attempt ${attempt + 1}/${maxRetries})`,
         );
-        await this.sleep(delay);
+        await this.sleep(actualDelay);
         delay = Math.min(delay * RETRY_CONFIG.BACKOFF_FACTOR, RETRY_CONFIG.MAX_DELAY);
       }
     }
@@ -312,14 +436,29 @@ export class HttpClientService {
   // ============================================
 
   /**
-   * Construye la configuración de Axios desde HttpRequestConfig
+   * Construye la configuración de Axios desde HttpRequestConfig.
+   * Content-Type se asigna condicionalmente según método y body.
    */
   private buildAxiosConfig(config: HttpRequestConfig): AxiosRequestConfig {
+    const method = (config.method || 'GET').toUpperCase();
+
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
       Accept: 'application/json',
-      ...config.headers,
     };
+
+    // Solo asignar Content-Type para métodos con body, y si no fue provisto por el consumidor
+    const hasBody = config.data !== undefined && config.data !== null;
+    const methodsWithBody = ['POST', 'PUT', 'PATCH'];
+
+    if (methodsWithBody.includes(method) && hasBody) {
+      // No sobreescribir si el consumidor ya proveyó Content-Type
+      if (!config.headers?.['Content-Type'] && !config.headers?.['content-type']) {
+        headers['Content-Type'] = 'application/json';
+      }
+    }
+
+    // Merge headers del consumidor (tienen prioridad)
+    Object.assign(headers, config.headers);
 
     // Agregar token de autorización si existe
     if (config.authToken) {
@@ -328,7 +467,7 @@ export class HttpClientService {
 
     return {
       url: config.url,
-      method: config.method || 'GET',
+      method,
       baseURL: config.baseURL,
       headers,
       params: config.params,
@@ -405,5 +544,55 @@ export class HttpClientService {
    */
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Valida que el destino de la URL no sea una IP/host privada o interna (SSRF).
+   * Lanza error si el destino está bloqueado.
+   */
+  private validateDestination(url?: string, baseURL?: string): void {
+    const target = url || baseURL;
+    if (!target) return;
+
+    try {
+      const parsed = new URL(target.startsWith('http') ? target : `https://${target}`);
+      const hostname = parsed.hostname;
+
+      for (const pattern of BLOCKED_HOST_PATTERNS) {
+        if (pattern.test(hostname)) {
+          throw new Error(
+            `Destino bloqueado por política SSRF: ${hostname}`,
+          );
+        }
+      }
+    } catch (error) {
+      if ((error as Error).message.startsWith('Destino bloqueado')) {
+        throw error;
+      }
+      // URL mal formada: no bloquear, dejar que Axios maneje el error
+    }
+  }
+
+  /**
+   * Redacta campos sensibles de un objeto para logging seguro.
+   */
+  static redactSensitiveFields(data: unknown): unknown {
+    if (!data || typeof data !== 'object') return data;
+
+    if (Array.isArray(data)) {
+      return data.map((item) => HttpClientService.redactSensitiveFields(item));
+    }
+
+    const redacted: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
+      if (SENSITIVE_FIELDS.has(key.toLowerCase())) {
+        redacted[key] = '[REDACTED]';
+      } else if (typeof value === 'object' && value !== null) {
+        redacted[key] = HttpClientService.redactSensitiveFields(value);
+      } else {
+        redacted[key] = value;
+      }
+    }
+    return redacted;
   }
 }

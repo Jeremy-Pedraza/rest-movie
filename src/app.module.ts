@@ -32,6 +32,7 @@ import { GeographyModule } from '@modules/geography'; // ✅ Catálogo geográfi
 import { CacheModule as CustomCacheModule } from '@modules/cache';
 import { QueueModule } from '@modules/queue';
 import { TasksModule } from '@modules/tasks';
+import { NotificationModule } from '@modules/notification';
 
 // Global Interceptors & Filters
 import { LoggingInterceptor } from '@interceptors/logging.interceptor';
@@ -100,13 +101,14 @@ import { bullConfig } from '@config/bull';
     }),
 
     // Event Emitter
+    // verboseMemoryLeak solo en no-producción para evitar ruido en logs productivos
     EventEmitterModule.forRoot({
       wildcard: false,
       delimiter: '.',
       newListener: false,
       removeListener: false,
       maxListeners: 10,
-      verboseMemoryLeak: true,
+      verboseMemoryLeak: process.env.NODE_ENV !== 'production',
       ignoreErrors: false,
     }),
 
@@ -149,6 +151,7 @@ import { bullConfig } from '@config/bull';
     CustomCacheModule, // Cache inteligente con tags
     QueueModule, // Sistema de colas genérico (email, notification, report)
     TasksModule, // Tareas programadas (cleanup, backup, session-cleanup, etc.)
+    NotificationModule, // ✅ Notificaciones multi-canal (email, SMS, push)
   ],
   controllers: [AppController],
   providers: [
@@ -259,8 +262,16 @@ import { bullConfig } from '@config/bull';
 })
 export class AppModule implements NestModule {
   /**
-   * Configura los middlewares globales
-   * Orden: RequestId -> Logger (Logger necesita requestId)
+   * Configura los middlewares globales.
+   *
+   * Orden de ejecución:
+   * 1. RequestIdMiddleware  → Genera/valida x-request-id
+   * 2. LoggerMiddleware     → Registra _startTime + log DEBUG de entrada
+   * 3. DomainValidationMiddleware → Valida origen contra whitelist
+   *
+   * NOTA: El logging principal de request/response se consolida en
+   * LoggingInterceptor (APP_INTERCEPTOR). LoggerMiddleware es ligero
+   * y solo registra el timestamp de entrada para medición de latencia.
    */
   configure(consumer: MiddlewareConsumer) {
     consumer

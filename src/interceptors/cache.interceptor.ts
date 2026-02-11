@@ -35,6 +35,16 @@ const DEFAULT_TTL = 60;
 /** Prefijo base para cache HTTP */
 const HTTP_CACHE_PREFIX = 'cache';
 
+/** Query params que NO deben incluirse en la cache key (tracking, timestamps, etc.) */
+const EXCLUDED_CACHE_PARAMS = new Set([
+  '_t',
+  '_',
+  'timestamp',
+  'nocache',
+  'cb',
+  'cache_bust',
+]);
+
 /** Estrategia de generación de cache key */
 export type CacheKeyStrategy =
   | 'public' // Solo URL (endpoints sin auth)
@@ -132,6 +142,9 @@ export class CacheInterceptor implements NestInterceptor {
               if (saved) {
                 this.logger.debug(`Cache SET: ${cacheKey} (TTL: ${options.ttl}s)`);
               }
+            })
+            .catch((err: Error) => {
+              this.logger.warn(`Cache SET error [${cacheKey}]: ${err.message}`);
             });
         }),
       );
@@ -143,21 +156,21 @@ export class CacheInterceptor implements NestInterceptor {
   }
 
   /**
-   * Genera una key única para el cache basada en la estrategia
+   * Genera una key única para el cache basada en la estrategia.
+   * La URL se canonicaliza: path normalizado + query params ordenados
+   * (excluyendo parámetros de tracking/cache-busting).
    *
    * Formato de keys (usando RedisService.buildKey):
-   * - public:     cache:http:{normalizedUrl}
-   * - per-tenant: cache:{schema}:http:{normalizedUrl}
-   * - per-user:   cache:{schema}:user:{userId}:http:{normalizedUrl}
+   * - public:     cache:http:{canonicalUrl}
+   * - per-tenant: cache:{schema}:http:{canonicalUrl}
+   * - per-user:   cache:{schema}:user:{userId}:http:{canonicalUrl}
    *
    * @param request - Request HTTP
    * @param options - Opciones de cache
    * @returns Cache key formateada
    */
   private generateCacheKey(request: Request, options: CacheOptions): string {
-    const { originalUrl } = request;
-    // Normalizar URL: remover trailing slash y espacios
-    const normalizedUrl = originalUrl.replace(/\/$/, '').trim();
+    const canonicalUrl = this.canonicalizeUrl(request.originalUrl);
 
     const prefix = options.prefix || HTTP_CACHE_PREFIX;
     const strategy = options.strategy || 'per-tenant';
@@ -169,19 +182,48 @@ export class CacheInterceptor implements NestInterceptor {
 
     switch (strategy) {
       case 'public':
-        // cache:http:/reports/public-stats
-        return this.redisService.buildKey(prefix, 'http', normalizedUrl);
+        return this.redisService.buildKey(prefix, 'http', canonicalUrl);
 
       case 'per-tenant':
-        // cache:tenant_schema:http:/reports/trends?from=2025-01-01
-        return this.redisService.buildKey(prefix, schema, 'http', normalizedUrl);
+        return this.redisService.buildKey(prefix, schema, 'http', canonicalUrl);
 
       case 'per-user':
-        // cache:tenant_schema:user:abc123:http:/reports/my-data
-        return this.redisService.buildKey(prefix, schema, 'user', userId, 'http', normalizedUrl);
+        return this.redisService.buildKey(prefix, schema, 'user', userId, 'http', canonicalUrl);
 
       default:
-        return this.redisService.buildKey(prefix, schema, 'http', normalizedUrl);
+        return this.redisService.buildKey(prefix, schema, 'http', canonicalUrl);
     }
+  }
+
+  /**
+   * Canonicaliza una URL para generar cache keys estables:
+   * - Remueve trailing slash
+   * - Ordena query params alfabéticamente
+   * - Excluye params de tracking/cache-busting
+   * - Normaliza encoding
+   */
+  private canonicalizeUrl(originalUrl: string): string {
+    const [path, queryString] = originalUrl.split('?');
+    const normalizedPath = path.replace(/\/$/, '').trim();
+
+    if (!queryString) return normalizedPath;
+
+    const params = new URLSearchParams(queryString);
+    const sortedEntries: string[] = [];
+
+    // Ordenar por key y excluir params no funcionales
+    const keys = Array.from(params.keys())
+      .filter((k) => !EXCLUDED_CACHE_PARAMS.has(k.toLowerCase()))
+      .sort();
+
+    for (const key of keys) {
+      const value = params.get(key);
+      if (value !== null && value !== '') {
+        sortedEntries.push(`${key}=${value}`);
+      }
+    }
+
+    if (sortedEntries.length === 0) return normalizedPath;
+    return `${normalizedPath}?${sortedEntries.join('&')}`;
   }
 }

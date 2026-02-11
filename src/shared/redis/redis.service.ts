@@ -30,6 +30,20 @@ export interface ScanOptions {
   pattern?: string;
   /** Cantidad por iteración */
   count?: number;
+  /** Límite máximo de keys a retornar (0 = sin límite) */
+  maxResults?: number;
+}
+
+/**
+ * Resultado paginado de SCAN
+ */
+export interface ScanPageResult {
+  /** Keys encontradas en esta página */
+  keys: string[];
+  /** Cursor para la siguiente página ('0' si no hay más) */
+  nextCursor: string;
+  /** Si hay más resultados disponibles */
+  hasMore: boolean;
 }
 
 /**
@@ -48,9 +62,21 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   private subscriber: Redis;
   private isConnected = false;
   private readonly defaultTTL: number;
+  private readonly errorPolicy: 'fail-open' | 'fail-fast';
+
+  /** Dispatcher de suscripciones Pub/Sub: channel -> Set<callbacks> */
+  private readonly subscriptionHandlers = new Map<
+    string,
+    Set<(message: string, channel: string) => void>
+  >();
+  private messageListenerAttached = false;
+
+  /** Single-flight: previene cache stampede en getOrSet concurrente */
+  private readonly inflightRequests = new Map<string, Promise<any>>();
 
   constructor(private readonly configService: ConfigService) {
     this.defaultTTL = this.configService.get<number>('redis.ttl') || 3600;
+    this.errorPolicy = this.configService.get<'fail-open' | 'fail-fast'>('redis.errorPolicy') || 'fail-open';
   }
 
   // ============================================
@@ -70,21 +96,34 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
    */
   async connect(): Promise<void> {
     try {
+      const maxRetries = this.configService.get<number>('redis.maxRetries') || 10;
+      const retryDelayMs = this.configService.get<number>('redis.retryDelayMs') || 200;
+      const retryMaxDelayMs = this.configService.get<number>('redis.retryMaxDelayMs') || 5000;
+      const maxRetriesPerRequest = this.configService.get<number>('redis.maxRetriesPerRequest') || 3;
+      const enableOfflineQueue = this.configService.get<boolean>('redis.enableOfflineQueue') !== false;
+
       const options: RedisOptions = {
         host: this.configService.get<string>('redis.host') || 'localhost',
         port: this.configService.get<number>('redis.port') || 6379,
         password: this.configService.get<string>('redis.password') || undefined,
         db: this.configService.get<number>('redis.db') || 0,
         retryStrategy: (times: number) => {
-          if (times > 3) {
-            this.logger.error('Redis connection failed after 3 retries');
+          if (times > maxRetries) {
+            this.logger.error(`Redis connection failed after ${maxRetries} retries`);
             return null;
           }
-          return Math.min(times * 200, 2000);
+          const delay = Math.min(times * retryDelayMs, retryMaxDelayMs);
+          this.logger.warn(`Redis reconnecting... attempt ${times}, delay ${delay}ms`);
+          return delay;
         },
-        maxRetriesPerRequest: 3,
+        maxRetriesPerRequest,
         enableReadyCheck: true,
         lazyConnect: false,
+        enableOfflineQueue,
+        reconnectOnError: (err) => {
+          const targetErrors = ['READONLY', 'LOADING'];
+          return targetErrors.some((e) => err.message.includes(e));
+        },
       };
 
       this.client = new Redis(options);
@@ -160,6 +199,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       return await this.client.get(key);
     } catch (error) {
       this.logger.error(`Redis GET error for key ${key}: ${error.message}`);
+      if (this.errorPolicy === 'fail-fast') throw error;
       return null;
     }
   }
@@ -176,6 +216,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       return JSON.parse(value) as T;
     } catch (error) {
       this.logger.error(`Redis GET JSON error for key ${key}: ${error.message}`);
+      if (this.errorPolicy === 'fail-fast') throw error;
       return null;
     }
   }
@@ -209,6 +250,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       return result === 'OK';
     } catch (error) {
       this.logger.error(`Redis SET error for key ${key}: ${error.message}`);
+      if (this.errorPolicy === 'fail-fast') throw error;
       return false;
     }
   }
@@ -226,6 +268,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       return await this.set(key, serialized, options);
     } catch (error) {
       this.logger.error(`Redis SET JSON error for key ${key}: ${error.message}`);
+      if (this.errorPolicy === 'fail-fast') throw error;
       return false;
     }
   }
@@ -273,12 +316,13 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
    */
   async mSet(pairs: Record<string, string | number>): Promise<boolean> {
     try {
-      const args: string[] = [];
-      for (const [key, value] of Object.entries(pairs)) {
-        args.push(key, value.toString());
+      const entries = Object.entries(pairs);
+      if (entries.length === 0) return true;
+      const mapped: Record<string, string> = {};
+      for (const [key, value] of entries) {
+        mapped[key] = value.toString();
       }
-      if (args.length === 0) return true;
-      const result = await this.client.mset(args);
+      const result = await this.client.mset(mapped);
       return result === 'OK';
     } catch (error) {
       this.logger.error(`Redis MSET error: ${error.message}`);
@@ -418,17 +462,13 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Busca claves por patrón
+   * Busca claves por patrón usando SCAN (seguro para producción)
+   * @deprecated Usar scan() o scanPage() en su lugar para control explícito
    * @param pattern - Patrón de búsqueda (ej: "user:*")
    * @returns Array de claves encontradas
    */
   async keys(pattern: string): Promise<string[]> {
-    try {
-      return await this.client.keys(pattern);
-    } catch (error) {
-      this.logger.error(`Redis KEYS error for pattern ${pattern}: ${error.message}`);
-      return [];
-    }
+    return this.scan({ pattern });
   }
 
   /**
@@ -438,7 +478,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
    */
   async scan(options: ScanOptions = {}): Promise<string[]> {
     try {
-      const { pattern = '*', count = 100 } = options;
+      const { pattern = '*', count = 100, maxResults = 0 } = options;
       const keys: string[] = [];
       let cursor = '0';
 
@@ -452,12 +492,44 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         );
         cursor = newCursor;
         keys.push(...foundKeys);
+
+        if (maxResults > 0 && keys.length >= maxResults) {
+          return keys.slice(0, maxResults);
+        }
       } while (cursor !== '0');
 
       return keys;
     } catch (error) {
       this.logger.error(`Redis SCAN error: ${error.message}`);
       return [];
+    }
+  }
+
+  /**
+   * Escaneo paginado por cursor (ideal para endpoints)
+   * @param cursor - Cursor de inicio ('0' para la primera página)
+   * @param options - Opciones de escaneo
+   * @returns Página de resultados con cursor para la siguiente
+   */
+  async scanPage(cursor: string = '0', options: ScanOptions = {}): Promise<ScanPageResult> {
+    try {
+      const { pattern = '*', count = 100 } = options;
+      const [newCursor, foundKeys] = await this.client.scan(
+        cursor,
+        'MATCH',
+        pattern,
+        'COUNT',
+        count,
+      );
+
+      return {
+        keys: foundKeys,
+        nextCursor: newCursor,
+        hasMore: newCursor !== '0',
+      };
+    } catch (error) {
+      this.logger.error(`Redis SCAN PAGE error: ${error.message}`);
+      return { keys: [], nextCursor: '0', hasMore: false };
     }
   }
 
@@ -535,12 +607,13 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
    */
   async hMSet(key: string, data: Record<string, string | number>): Promise<boolean> {
     try {
-      const args: string[] = [];
-      for (const [field, value] of Object.entries(data)) {
-        args.push(field, value.toString());
+      const entries = Object.entries(data);
+      if (entries.length === 0) return true;
+      const mapped: Record<string, string> = {};
+      for (const [field, value] of entries) {
+        mapped[field] = value.toString();
       }
-      if (args.length === 0) return true;
-      await this.client.hmset(key, args);
+      await this.client.hmset(key, mapped);
       return true;
     } catch (error) {
       this.logger.error(`Redis HMSET error: ${error.message}`);
@@ -888,13 +961,26 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         return cached;
       }
 
-      // Ejecutar función y cachear resultado
-      const value = await fn();
-      await this.setJson(key, value, { ttl: ttl || this.defaultTTL });
-      return value;
+      // Single-flight: si ya hay una petición en vuelo para esta key, esperar
+      const inflight = this.inflightRequests.get(key);
+      if (inflight) {
+        return inflight as Promise<T>;
+      }
+
+      // Ejecutar función y cachear resultado (single-flight)
+      const promise = fn()
+        .then(async (value) => {
+          await this.setJson(key, value, { ttl: ttl || this.defaultTTL });
+          return value;
+        })
+        .finally(() => {
+          this.inflightRequests.delete(key);
+        });
+
+      this.inflightRequests.set(key, promise);
+      return promise;
     } catch (error) {
       this.logger.error(`Redis getOrSet error for key ${key}: ${error.message}`);
-      // Si falla Redis, ejecutar función directamente
       return fn();
     }
   }
@@ -1021,7 +1107,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Suscribe a un canal
+   * Suscribe a un canal con dispatcher único (sin listeners acumulativos)
    * @param channel - Canal
    * @param callback - Callback para mensajes
    */
@@ -1030,12 +1116,30 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     callback: (message: string, channel: string) => void,
   ): Promise<void> {
     try {
-      await this.subscriber.subscribe(channel);
-      this.subscriber.on('message', (ch, msg) => {
-        if (ch === channel) {
-          callback(msg, ch);
-        }
-      });
+      // Registrar único listener de 'message' la primera vez
+      if (!this.messageListenerAttached) {
+        this.subscriber.on('message', (ch: string, msg: string) => {
+          const handlers = this.subscriptionHandlers.get(ch);
+          if (handlers) {
+            for (const handler of handlers) {
+              try {
+                handler(msg, ch);
+              } catch (err) {
+                this.logger.error(`Pub/Sub handler error on channel ${ch}: ${err.message}`);
+              }
+            }
+          }
+        });
+        this.messageListenerAttached = true;
+      }
+
+      // Registrar callback en el dispatcher
+      if (!this.subscriptionHandlers.has(channel)) {
+        this.subscriptionHandlers.set(channel, new Set());
+        await this.subscriber.subscribe(channel);
+      }
+      this.subscriptionHandlers.get(channel)!.add(callback);
+
       this.logger.log(`Subscribed to channel: ${channel}`);
     } catch (error) {
       this.logger.error(`Redis SUBSCRIBE error: ${error.message}`);
@@ -1043,12 +1147,32 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Cancela suscripción a un canal
+   * Cancela suscripción a un canal (limpia handlers)
    * @param channel - Canal
+   * @param callback - Callback específico a remover (si no se pasa, remueve todos)
    */
-  async unsubscribe(channel: string): Promise<void> {
+  async unsubscribe(
+    channel: string,
+    callback?: (message: string, channel: string) => void,
+  ): Promise<void> {
     try {
-      await this.subscriber.unsubscribe(channel);
+      const handlers = this.subscriptionHandlers.get(channel);
+      if (handlers) {
+        if (callback) {
+          handlers.delete(callback);
+        } else {
+          handlers.clear();
+        }
+
+        // Si no quedan handlers, desuscribir del canal
+        if (handlers.size === 0) {
+          this.subscriptionHandlers.delete(channel);
+          await this.subscriber.unsubscribe(channel);
+        }
+      } else {
+        await this.subscriber.unsubscribe(channel);
+      }
+
       this.logger.log(`Unsubscribed from channel: ${channel}`);
     } catch (error) {
       this.logger.error(`Redis UNSUBSCRIBE error: ${error.message}`);

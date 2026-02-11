@@ -785,6 +785,21 @@ export class UserService {
   }
 
   /**
+   * Obtiene los datos de reset token de un usuario
+   * @param id - ID del usuario
+   * @returns Datos del reset token o null
+   */
+  async getPasswordResetData(
+    id: string,
+  ): Promise<{ password_reset_token: string | null; password_reset_expires: Date | null } | null> {
+    if (!this.utils.validation.isUUID(id)) {
+      this.handleError.badRequest('ID de usuario inválido', 'id');
+    }
+
+    return await this.userRepository.getPasswordResetData(id);
+  }
+
+  /**
    * Invalida el token de reset de contraseña
    * @param id - ID del usuario
    */

@@ -42,10 +42,15 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     private readonly userService: UserService,
     private readonly redisService: RedisService,
   ) {
+    const jwtSecret = configService.get<string>('jwt.secret');
+    if (!jwtSecret) {
+      throw new Error('JWT secret not configured. Ensure JWT_SECRET env var is set.');
+    }
+
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('jwt.secret') || 'default-secret-change-in-production',
+      secretOrKey: jwtSecret,
       issuer: configService.get<string>('jwt.issuer'),
       audience: configService.get<string>('jwt.audience'),
     });

@@ -2,27 +2,40 @@
 
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
-import * as bodyParser from 'body-parser';
-import { IncomingMessage } from 'http';
+import { json } from 'express';
 
 /**
- * Request con rawBody para verificar callback
- */
-interface RawBodyRequest extends IncomingMessage {
-  rawBody?: Buffer;
-}
-
-/**
- * Middleware para preservar el raw body
- * Útil para verificar firmas de webhooks (Stripe, etc.)
+ * Middleware para preservar el raw body en rutas de webhook.
+ * Se aplica SOLO a rutas específicas que requieren verificación de firma
+ * (Stripe, MercadoPago, etc.) y NO globalmente.
+ *
+ * @usage
+ * ```typescript
+ * // En el módulo de webhook:
+ * configure(consumer: MiddlewareConsumer) {
+ *   consumer
+ *     .apply(RawBodyMiddleware)
+ *     .forRoutes('webhooks/*path');
+ * }
+ * ```
+ *
+ * El raw body queda disponible en `req.rawBody` como Buffer.
  */
 @Injectable()
 export class RawBodyMiddleware implements NestMiddleware {
+  private readonly jsonParser = json({
+    verify: (req: Request & { rawBody?: Buffer }, _res: Response, buf: Buffer) => {
+      req.rawBody = buf;
+    },
+    limit: '1mb',
+  });
+
   use(req: Request, res: Response, next: NextFunction): void {
-    bodyParser.json({
-      verify: (rawReq: RawBodyRequest, _res: Response, buf: Buffer) => {
-        rawReq.rawBody = buf;
-      },
-    })(req, res, next);
+    // Solo parsear si el body aún no fue procesado
+    if (req.readable) {
+      this.jsonParser(req, res, next);
+    } else {
+      next();
+    }
   }
 }

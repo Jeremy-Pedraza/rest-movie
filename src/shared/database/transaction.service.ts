@@ -78,18 +78,29 @@ export class TransactionService {
     const context = options?.context || 'Transaction';
 
     await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    // Configurar nivel de aislamiento si se especifica
+    // Configurar nivel de aislamiento DENTRO de la transacción activa
+    // PostgreSQL requiere SET TRANSACTION dentro de un bloque transaccional
     if (options?.isolationLevel) {
       await queryRunner.query(`SET TRANSACTION ISOLATION LEVEL ${options.isolationLevel}`);
     }
 
-    await queryRunner.startTransaction();
+    // Configurar timeout a nivel PostgreSQL (SET LOCAL se limita a la transacción actual)
+    if (options?.timeout && options.timeout > 0) {
+      await queryRunner.query(`SET LOCAL statement_timeout = ${Math.floor(options.timeout)}`);
+    }
 
     this.logger.debug(`[${context}] Transaction started`);
 
     try {
-      const result = await callback(queryRunner.manager);
+      // Ejecutar callback con timeout de aplicación si se especificó
+      let result: T;
+      if (options?.timeout && options.timeout > 0) {
+        result = await this.withTimeout(callback(queryRunner.manager), options.timeout, context);
+      } else {
+        result = await callback(queryRunner.manager);
+      }
 
       await queryRunner.commitTransaction();
 
@@ -137,12 +148,21 @@ export class TransactionService {
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
 
+        // Solo reintentar errores transitorios de PostgreSQL
+        if (!this.isTransientError(error)) {
+          this.logger.error(
+            `[${context}] Non-transient error, not retrying: ${lastError.message}`,
+          );
+          throw lastError;
+        }
+
         // Si es el último intento, no esperar
         if (attempt < maxRetries) {
-          // Espera exponencial: 100ms, 200ms, 400ms...
-          const delay = Math.pow(2, attempt - 1) * 100;
+          // Espera exponencial con jitter: base * 2^(attempt-1) + random(0..base)
+          const base = 100;
+          const delay = Math.pow(2, attempt - 1) * base + Math.floor(Math.random() * base);
           this.logger.warn(
-            `[${context}] Attempt ${attempt} failed, retrying in ${delay}ms: ${lastError.message}`,
+            `[${context}] Transient error on attempt ${attempt}, retrying in ${delay}ms: ${lastError.message}`,
           );
           await this.sleep(delay);
         }
@@ -151,6 +171,34 @@ export class TransactionService {
 
     this.logger.error(`[${context}] All ${maxRetries} attempts failed`, lastError.stack);
     throw lastError;
+  }
+
+  /**
+   * Determina si un error de PostgreSQL es transitorio y merece reintento.
+   *
+   * SQLSTATE codes considerados transitorios:
+   * - 40P01: deadlock_detected
+   * - 40001: serialization_failure
+   * - 08006: connection_failure
+   * - 08001: sqlclient_unable_to_establish_sqlconnection
+   * - 57P01: admin_shutdown (PostgreSQL reiniciándose)
+   *
+   * @param error - Error capturado
+   * @returns true si el error es transitorio
+   */
+  private isTransientError(error: unknown): boolean {
+    if (!error || typeof error !== 'object') return false;
+
+    const pgError = error as { code?: string };
+    const transientCodes = new Set([
+      '40P01', // deadlock_detected
+      '40001', // serialization_failure
+      '08006', // connection_failure
+      '08001', // sqlclient_unable_to_establish_sqlconnection
+      '57P01', // admin_shutdown
+    ]);
+
+    return typeof pgError.code === 'string' && transientCodes.has(pgError.code);
   }
 
   /**
@@ -216,5 +264,47 @@ export class TransactionService {
    */
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Ejecuta una promesa con timeout de aplicación.
+   * Doble protección junto con SET LOCAL statement_timeout de PostgreSQL.
+   *
+   * @param promise - Promesa a ejecutar
+   * @param timeoutMs - Timeout en milisegundos
+   * @param context - Contexto para logging
+   * @returns Resultado de la promesa
+   * @throws TransactionTimeoutError si se excede el timeout
+   */
+  private withTimeout<T>(promise: Promise<T>, timeoutMs: number, context: string): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        reject(
+          new TransactionTimeoutError(
+            `[${context}] Transaction timed out after ${timeoutMs}ms`,
+          ),
+        );
+      }, timeoutMs);
+
+      promise
+        .then((result) => {
+          clearTimeout(timer);
+          resolve(result);
+        })
+        .catch((err) => {
+          clearTimeout(timer);
+          reject(err);
+        });
+    });
+  }
+}
+
+/**
+ * Error lanzado cuando una transacción excede su timeout configurado
+ */
+export class TransactionTimeoutError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'TransactionTimeoutError';
   }
 }

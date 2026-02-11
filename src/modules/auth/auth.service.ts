@@ -146,13 +146,14 @@ export class AuthService {
       fullUser.company?.schema || null,
     );
 
-    // 10. Crear sesión
+    // 10. Crear sesión (usa TTL del refresh token, no del access token)
     await this.createSession(
       fullUser.id,
       tokens.refreshToken,
-      tokens.expiresIn,
+      tokens.refreshTokenExpiresIn,
       ipAddress,
       userAgent,
+      tokens.jti,
     );
 
     // 11. Retornar respuesta (sin password)
@@ -226,8 +227,15 @@ export class AuthService {
       null, // ✅ schema null en registro
     );
 
-    // 7. Crear sesión
-    await this.createSession(user.id, tokens.refreshToken, tokens.expiresIn, ipAddress, userAgent);
+    // 7. Crear sesión (usa TTL del refresh token, no del access token)
+    await this.createSession(
+      user.id,
+      tokens.refreshToken,
+      tokens.refreshTokenExpiresIn,
+      ipAddress,
+      userAgent,
+      tokens.jti,
+    );
 
     // 8. Encolar email de bienvenida (asíncrono, no bloquea el registro)
     const activationUrl = `${this.configService.get<string>('APP_URL')}/auth/verify-email?token=${tokens.accessToken}`;
@@ -270,8 +278,19 @@ export class AuthService {
    * ✅ FASE 4: ACTUALIZADO para incluir companyId y schema en tokens nuevos
    */
   async refreshToken(dto: RefreshTokenDto): Promise<IRefreshTokenResponse> {
-    // 1. Buscar sesión por refresh token
-    const session = await this.authRepository.findByRefreshToken(dto.refreshToken);
+    // 1. Decodificar token para obtener jti y schema
+    const decoded = this.jwtService.decode(dto.refreshToken);
+    if (!decoded || !decoded.jti) {
+      this.handleError.unauthorized(
+        RESPONSE_MESSAGES.AUTH.TOKEN_INVALID,
+        ERROR_CODES.AUTH_REFRESH_TOKEN_INVALID,
+      );
+    }
+
+    const knownSchema = decoded?.schema || null;
+
+    // 2. Buscar sesión por JTI (identificador único del token)
+    const session = await this.authRepository.findByTokenJti(decoded.jti);
 
     if (!session) {
       this.handleError.unauthorized(
@@ -280,7 +299,25 @@ export class AuthService {
       );
     }
 
-    // 2. Verificar que la sesión sea válida
+    // 3. Detección de reuse: si el token ya fue consumido o revocado => atacante
+    if (session.consumed_at || session.is_revoked) {
+      // Token fue reusado - revocar TODA la familia de tokens
+      if (session.refresh_token_family) {
+        await this.authRepository.revokeByFamily(
+          session.refresh_token_family,
+          'Token reuse detected - family revoked',
+        );
+      }
+      this.logger.warn(
+        `Token reuse detected for user: ${session.user_id}, family: ${session.refresh_token_family}`,
+      );
+      this.handleError.unauthorized(
+        RESPONSE_MESSAGES.AUTH.TOKEN_INVALID,
+        ERROR_CODES.AUTH_REFRESH_TOKEN_INVALID,
+      );
+    }
+
+    // 4. Verificar que la sesión sea válida (no expirada)
     if (!session.isValid()) {
       await this.authRepository.revokeSession(session.id, 'Sesión inválida');
       this.handleError.unauthorized(
@@ -289,21 +326,7 @@ export class AuthService {
       );
     }
 
-    // 3. Verificar token reuse (seguridad)
-    if (session.is_revoked) {
-      // Token fue reusado - revocar toda la familia de tokens
-      await this.authRepository.revokeAllByUserId(session.user_id, 'Token reuse detected');
-      this.handleError.unauthorized(
-        RESPONSE_MESSAGES.AUTH.TOKEN_INVALID,
-        ERROR_CODES.AUTH_REFRESH_TOKEN_INVALID,
-      );
-    }
-
-    // ✅ FASE 3 (Sesión 22): Decodificar token para obtener schema y optimizar cache
-    const decoded = this.jwtService.decode(dto.refreshToken);
-    const knownSchema = decoded?.schema || null;
-
-    // ✅ 4. Verificar estado del usuario y cargar company (CON CACHE + SCHEMA)
+    // 5. Verificar estado del usuario y cargar company (CON CACHE + SCHEMA)
     const user = await this.getCachedUserWithCompany(session.user_id, 'refresh', knownSchema);
     if (!user) {
       await this.authRepository.revokeSession(session.id);
@@ -315,20 +338,28 @@ export class AuthService {
 
     this.validateUserStatus(user);
 
-    // ✅ 5. Generar nuevos tokens con companyId y schema (rotación)
+    // 6. Generar nuevos tokens con companyId y schema (rotación)
     const newTokens = await this.generateTokens(
       user.id,
       user.email,
       user.roles.map((r: { name: string }) => r.name),
-      user.company_id, // ✅ Incluir companyId
-      user.company?.schema || null, // ✅ Incluir schema
+      user.company_id,
+      user.company?.schema || null,
     );
 
-    // 6. Actualizar sesión con nuevo refresh token
-    await this.authRepository.updateRefreshToken(
-      session.id,
+    // 7. Consumir el token actual (marcarlo como usado)
+    await this.authRepository.consumeSession(session.id);
+
+    // 8. Crear nueva sesión en la misma familia con el nuevo token
+    await this.createSession(
+      user.id,
       newTokens.refreshToken,
-      new Date(Date.now() + newTokens.expiresIn * 1000),
+      newTokens.refreshTokenExpiresIn,
+      session.ip_address,
+      session.user_agent || undefined,
+      newTokens.jti,
+      session.refresh_token_family || undefined, // Misma familia
+      session.id, // Parent = sesión actual consumida
     );
 
     this.logger.log(`Token refreshed for user: ${user.email}`);
@@ -346,14 +377,24 @@ export class AuthService {
   /**
    * Logout - revocar sesión actual
    */
-  async logout(refreshToken: string): Promise<ILogoutResponse> {
-    const revoked = await this.authRepository.revokeByRefreshToken(refreshToken, 'User logout');
+  async logout(userId: string, refreshToken: string): Promise<ILogoutResponse> {
+    // 1. Buscar sesión por refresh token (hasheado)
+    const hashedToken = this.hashToken(refreshToken);
+    const session = await this.authRepository.findByRefreshToken(hashedToken);
 
-    if (!revoked) {
-      this.handleError.notFound('Sesión', refreshToken);
+    if (!session) {
+      this.handleError.notFound('Sesión', 'no encontrada');
     }
 
-    this.logger.log(`User logged out`);
+    // 2. Validar ownership: la sesión debe pertenecer al usuario autenticado
+    if (session.user_id !== userId) {
+      this.handleError.forbidden('No tienes permiso para cerrar esta sesión');
+    }
+
+    // 3. Revocar la sesión
+    await this.authRepository.revokeSession(session.id, 'User logout');
+
+    this.logger.log(`User logged out: ${userId}`);
 
     return {
       message: 'Sesión cerrada exitosamente',
@@ -463,8 +504,8 @@ export class AuthService {
         },
       });
 
-      // 5. Guardar token en metadata del usuario o en tabla separada
-      await this.userService.savePasswordResetToken(user.id, resetToken);
+      // 5. Guardar hash del token (nunca texto plano)
+      await this.userService.savePasswordResetToken(user.id, this.hashToken(resetToken));
 
       // ✅ Log con email enmascarado (GDPR/Privacidad)
       const maskedEmail = this.utils.string.maskEmail(email);
@@ -488,7 +529,7 @@ export class AuthService {
    * Resetear contraseña con token
    */
   async resetPassword(dto: ResetPasswordDto): Promise<IResetPasswordResponse> {
-    // 1. Verificar y decodificar token
+    // 1. Verificar y decodificar token (firma JWT)
     let payload: { userId: string; exp: number };
     try {
       payload = this.jwtService.verify(dto.token, {
@@ -501,7 +542,7 @@ export class AuthService {
       );
     }
 
-    // 2. Verificar que el token no haya expirado
+    // 2. Verificar que el token no haya expirado (JWT)
     if (payload.exp * 1000 < Date.now()) {
       this.handleError.unauthorized(
         RESPONSE_MESSAGES.AUTH.TOKEN_EXPIRED,
@@ -509,10 +550,39 @@ export class AuthService {
       );
     }
 
-    // 3. Actualizar contraseña
+    // 3. Validar contra persistencia (one-time use)
+    const resetData = await this.userService.getPasswordResetData(payload.userId);
+
+    if (!resetData || !resetData.password_reset_token) {
+      // Token ya fue usado o no existe
+      this.handleError.unauthorized(
+        RESPONSE_MESSAGES.AUTH.TOKEN_INVALID,
+        ERROR_CODES.AUTH_TOKEN_INVALID,
+      );
+    }
+
+    // 4. Comparar hash del token recibido con el almacenado
+    const hashedToken = this.hashToken(dto.token);
+    if (hashedToken !== resetData.password_reset_token) {
+      this.handleError.unauthorized(
+        RESPONSE_MESSAGES.AUTH.TOKEN_INVALID,
+        ERROR_CODES.AUTH_TOKEN_INVALID,
+      );
+    }
+
+    // 5. Verificar expiración en BD (doble check)
+    if (resetData.password_reset_expires && resetData.password_reset_expires < new Date()) {
+      await this.userService.invalidatePasswordResetToken(payload.userId);
+      this.handleError.unauthorized(
+        RESPONSE_MESSAGES.AUTH.TOKEN_EXPIRED,
+        ERROR_CODES.AUTH_TOKEN_EXPIRED,
+      );
+    }
+
+    // 6. Actualizar contraseña
     await this.userService.updatePassword(payload.userId, dto.password);
 
-    // 4. Invalidar token de reset
+    // 7. Invalidar token de reset (one-time use - atómico)
     await this.userService.invalidatePasswordResetToken(payload.userId);
 
     // 5. Revocar todas las sesiones por seguridad
@@ -576,6 +646,13 @@ export class AuthService {
   // ============================================
 
   /**
+   * Hashea un token usando SHA-256 para almacenamiento seguro
+   */
+  private hashToken(token: string): string {
+    return this.utils.crypto.sha256(token);
+  }
+
+  /**
    * Generar access token y refresh token
    *
    * ✅ FASE 4: ACTUALIZADO para incluir companyId y schema en JWT payload
@@ -596,25 +673,30 @@ export class AuthService {
     accessToken: string;
     refreshToken: string;
     expiresIn: number;
+    refreshTokenExpiresIn: number;
+    jti: string;
   }> {
     // ✅ Payload con companyId y schema para multi-tenancy
     const payload: IJwtPayload = {
       sub: userId,
       email,
       roles,
-      companyId, // ✅ Incluir companyId
-      schema, // ✅ Incluir schema
+      companyId,
+      schema,
     };
 
     const accessTokenExpiresIn = this.configService.get<number>('jwt.expiresIn') || 900; // 15 min
     const refreshTokenExpiresIn = this.configService.get<number>('jwt.refreshExpiresIn') || 604800; // 7 days
+
+    // Generar JTI único para el refresh token (detección de reuse)
+    const jti = this.utils.generateId();
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
         expiresIn: accessTokenExpiresIn,
       }),
       this.jwtService.signAsync(
-        { ...payload, tokenId: this.utils.generateId() },
+        { ...payload, jti },
         {
           expiresIn: refreshTokenExpiresIn,
         },
@@ -625,6 +707,8 @@ export class AuthService {
       accessToken,
       refreshToken,
       expiresIn: accessTokenExpiresIn,
+      refreshTokenExpiresIn,
+      jti,
     };
   }
 
@@ -634,16 +718,21 @@ export class AuthService {
   private async createSession(
     userId: string,
     refreshToken: string,
-    expiresIn: number,
+    refreshTokenExpiresIn: number,
     ipAddress: string,
     userAgent?: string,
+    tokenJti?: string,
+    refreshTokenFamily?: string,
+    parentSessionId?: string,
   ): Promise<SessionEntity> {
-    const expiresAt = new Date(Date.now() + expiresIn * 1000);
+    const expiresAt = new Date(Date.now() + refreshTokenExpiresIn * 1000);
 
     return await this.authRepository.createSession({
       user_id: userId,
-      refresh_token: refreshToken,
-      refresh_token_family: this.utils.generateId(), // ✅ UUIDv7 para detectar token reuse
+      refresh_token: this.hashToken(refreshToken),
+      refresh_token_family: refreshTokenFamily || this.utils.generateId(),
+      token_jti: tokenJti || null,
+      parent_session_id: parentSessionId || null,
       expires_at: expiresAt,
       ip_address: ipAddress,
       user_agent: userAgent || null,

@@ -97,15 +97,25 @@ export class TenantInterceptor implements NestInterceptor {
       return next.handle();
     }
 
+    // Validar consistencia tenant vs user cuando ambos están presentes
+    const user = request.user as { schema?: string } | undefined;
+    if (user?.schema && user.schema !== tenant.schema) {
+      this.logger.error(
+        'Inconsistencia tenant: request.user.schema difiere de request.tenant.schema',
+      );
+    }
+
     // Establecer contexto en AsyncLocalStorage y ejecutar handler
+    // Se almacena la subscription para propagar unsubscribe (teardown)
     return new Observable((observer) => {
+      let innerSub: { unsubscribe: () => void } | undefined;
+
       this.schemaContext.run(tenant, () => {
-        this.logger.debug(
-          `SchemaContext establecido: schema=${tenant.schema}, company=${tenant.companyId}, user=${tenant.userId}`,
-        );
+        // Log sin exponer IDs internos; solo schema como referencia
+        this.logger.debug(`SchemaContext establecido: schema=${tenant.schema}`);
 
         // Ejecutar handler dentro del contexto
-        next.handle().subscribe({
+        innerSub = next.handle().subscribe({
           next: (data) => observer.next(data),
           error: (err: Error) => {
             this.logger.error(
@@ -113,12 +123,12 @@ export class TenantInterceptor implements NestInterceptor {
             );
             observer.error(err);
           },
-          complete: () => {
-            this.logger.debug(`Request completado con schema ${tenant.schema}`);
-            observer.complete();
-          },
+          complete: () => observer.complete(),
         });
       });
+
+      // Teardown: propagar unsubscribe al inner observable
+      return () => innerSub?.unsubscribe();
     });
   }
 

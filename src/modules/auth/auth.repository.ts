@@ -115,6 +115,56 @@ export class AuthRepository extends BaseRepository<SessionEntity> {
   }
 
   /**
+   * Buscar sesión por token JTI (JWT ID)
+   */
+  async findByTokenJti(tokenJti: string): Promise<SessionEntity | null> {
+    return await this.createStaticQueryBuilder('session')
+      .leftJoinAndSelect('session.user', 'user')
+      .where('session.token_jti = :token_jti', { token_jti: tokenJti })
+      .andWhere('session.deleted_at IS NULL')
+      .getOne();
+  }
+
+  /**
+   * Marcar sesión como consumida (token fue usado para rotar)
+   */
+  async consumeSession(sessionId: string): Promise<boolean> {
+    const result = await this.repository
+      .createQueryBuilder()
+      .update()
+      .set({
+        consumed_at: new Date(),
+        is_active: false,
+      })
+      .where('session.id = :session_id', { session_id: sessionId })
+      .andWhere('session.deleted_at IS NULL')
+      .execute();
+
+    return (result.affected ?? 0) > 0;
+  }
+
+  /**
+   * Revocar toda la familia de refresh tokens (detección de reuse)
+   */
+  async revokeByFamily(family: string, reason?: string): Promise<number> {
+    const result = await this.repository
+      .createQueryBuilder()
+      .update()
+      .set({
+        is_revoked: true,
+        revoked_at: new Date(),
+        revoked_reason: reason || 'Token reuse detected - family revoked',
+        is_active: false,
+      })
+      .where('session.refresh_token_family = :family', { family })
+      .andWhere('session.deleted_at IS NULL')
+      .andWhere('session.is_revoked = :is_revoked', { is_revoked: false })
+      .execute();
+
+    return result.affected ?? 0;
+  }
+
+  /**
    * Verificar si existe sesión válida para refresh token
    */
   async existsValidSession(refreshToken: string): Promise<boolean> {

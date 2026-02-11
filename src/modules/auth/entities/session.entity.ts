@@ -54,7 +54,18 @@ export class SessionEntity {
   refresh_token: string;
 
   @Column({ type: 'text', nullable: true, name: 'refresh_token_family' })
-  refresh_token_family: string | null; // Para detectar token reuse
+  @Index()
+  refresh_token_family: string | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'token_jti' })
+  @Index({ unique: true })
+  token_jti: string | null;
+
+  @Column({ type: 'uuid', nullable: true, name: 'parent_session_id' })
+  parent_session_id: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true, name: 'consumed_at' })
+  consumed_at: Date | null;
 
   // ============================================
   // INFORMACIÓN DE SESIÓN

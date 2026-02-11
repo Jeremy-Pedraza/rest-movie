@@ -20,3 +20,6 @@ export * from './bull';
 
 // Security
 export * from './security';
+
+// Router
+export * from './router';

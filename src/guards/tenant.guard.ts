@@ -9,7 +9,7 @@
  * y la establece en request.tenant
  */
 
-import { Injectable, CanActivate, ExecutionContext, Logger } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, ForbiddenException, Logger } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import { TenantExtractorService, ITenantContext } from '@shared/database';
@@ -152,23 +152,26 @@ export class TenantGuard implements CanActivate {
 
           if (tenantContext) {
             request.tenant = tenantContext;
-            this.logger.debug(`✅ Tenant extraído desde request: schema=${tenantContext.schema}`);
+            this.logger.debug(`Tenant extraído desde request: schema=${tenantContext.schema}`);
             return true;
           }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
-          this.logger.debug(`No se pudo extraer tenant: ${errorMessage}`);
+          this.logger.warn(`Fail-closed: señal de tenant presente pero extracción falló: ${errorMessage}`);
         }
+
+        // Fail-closed: hay señal de tenant pero no se pudo resolver => 403
+        throw new ForbiddenException('Tenant inválido o no encontrado');
       }
 
-      // Fallback a public
+      // Sin señal de tenant => fallback a public permitido
       request.tenant = {
         schema: 'public',
         companyId: null,
         userId: null,
       };
 
-      this.logger.debug('Usando schema public (sin autenticación)');
+      this.logger.debug('Usando schema public (sin señal de tenant)');
       return true;
     }
 

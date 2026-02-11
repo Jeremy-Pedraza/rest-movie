@@ -1,19 +1,21 @@
 // src/pipes/parse-uuid.pipe.ts
 
 /**
- * @fileoverview Pipe para validación de UUIDs
+ * @fileoverview Pipe custom para validación de UUIDs con ERROR_CODES.
  * @module pipes
  *
- * Valida que un parámetro sea un UUID válido (v1-v7).
- * Usa ERROR_CODES para códigos consistentes.
+ * Nombre distinto al built-in de NestJS (`StrictParseUUIDPipe`) para evitar
+ * colisiones de import. Si no se requieren códigos de error personalizados,
+ * usar el `ParseUUIDPipe` built-in de `@nestjs/common`.
  *
  * @example
  * ```typescript
- * // Uso en controller
+ * // Uso con pipe custom (incluye code/field en error)
  * @Get(':id')
- * findOne(@Param('id', ParseUUIDPipe) id: string) {}
+ * findOne(@Param('id', StrictParseUUIDPipe) id: string) {}
  *
- * // El pipe de NestJS también funciona bien:
+ * // Uso con pipe built-in (recomendado para la mayoría de casos)
+ * import { ParseUUIDPipe } from '@nestjs/common';
  * @Get(':id')
  * findOne(@Param('id', ParseUUIDPipe) id: string) {}
  * ```
@@ -26,8 +28,10 @@ import { ERROR_CODES } from '@constants/error-codes.constant';
 import { RESPONSE_MESSAGES } from '@constants/response-messages.constant';
 
 @Injectable()
-export class ParseUUIDPipe implements PipeTransform<string> {
+export class StrictParseUUIDPipe implements PipeTransform<string> {
   transform(value: string, metadata?: ArgumentMetadata): string {
+    const field = metadata?.data || 'id';
+
     if (!value) {
       throw new BadRequestException({
         success: false,
@@ -35,7 +39,7 @@ export class ParseUUIDPipe implements PipeTransform<string> {
         message: RESPONSE_MESSAGES.VALIDATION.REQUIRED_FIELD,
         error: 'Bad Request',
         code: ERROR_CODES.VALIDATION_REQUIRED_FIELD,
-        field: metadata?.data || 'id',
+        field,
       });
     }
 
@@ -43,13 +47,18 @@ export class ParseUUIDPipe implements PipeTransform<string> {
       throw new BadRequestException({
         success: false,
         statusCode: 400,
-        message: `${RESPONSE_MESSAGES.VALIDATION.INVALID_UUID}: "${value}"`,
+        message: `El campo "${field}" debe ser un UUID válido`,
         error: 'Bad Request',
         code: ERROR_CODES.VALIDATION_INVALID_UUID,
-        field: metadata?.data || 'id',
+        field,
       });
     }
 
     return value;
   }
 }
+
+/**
+ * @deprecated Usar StrictParseUUIDPipe o el ParseUUIDPipe built-in de @nestjs/common
+ */
+export { StrictParseUUIDPipe as ParseUUIDPipe };

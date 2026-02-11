@@ -25,7 +25,8 @@
  * await this.cacheService.invalidateTag('user:123');
  */
 
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { RedisService } from '@shared/redis';
 import { CacheStatsDto } from './dto';
 import { ICacheConfig, ICacheOptions, ICacheResult, ICacheStats } from './interfaces';
@@ -41,6 +42,11 @@ const TAG_PREFIX = 'cache:tag:';
 const STATS_PREFIX = 'cache:stats:';
 
 /**
+ * Prefijo para índice inverso key->tags
+ */
+const KEY_TAGS_PREFIX = 'cache:keytags:';
+
+/**
  * Key para estadísticas globales
  */
 const GLOBAL_STATS_KEY = `${STATS_PREFIX}global`;
@@ -50,9 +56,17 @@ const GLOBAL_STATS_KEY = `${STATS_PREFIX}global`;
  */
 const DEFAULT_TTL = 3600;
 
+/**
+ * Límite de concurrencia para operaciones batch
+ */
+const BATCH_CONCURRENCY = 10;
+
 @Injectable()
 export class CacheService implements OnModuleInit {
   private readonly logger = new Logger(CacheService.name);
+
+  /** Single-flight: previene stampede en remember() concurrente */
+  private readonly inflightCallbacks = new Map<string, Promise<any>>();
 
   /**
    * Configuración de TTL por tipo
@@ -76,7 +90,10 @@ export class CacheService implements OnModuleInit {
     },
   };
 
-  constructor(private readonly redis: RedisService) {}
+  constructor(
+    private readonly redis: RedisService,
+    private readonly configService: ConfigService,
+  ) {}
 
   async onModuleInit() {
     this.logger.log('✅ CacheService initialized');
@@ -121,21 +138,37 @@ export class CacheService implements OnModuleInit {
       }
     }
 
-    // MISS - Ejecutar callback
+    // MISS - Single-flight: si ya hay un callback en vuelo para esta key, esperar
+    const inflight = this.inflightCallbacks.get(key);
+    if (inflight) {
+      this.logger.debug(`Cache COALESCE: ${key}`);
+      return inflight as Promise<T>;
+    }
+
     await this.incrementMiss(tags);
     this.logger.debug(`Cache MISS: ${key}`);
 
-    const value = await callback();
+    // Ejecutar callback con single-flight
+    const promise = callback()
+      .then(async (value) => {
+        // No cachear null/undefined si skipNull=true
+        if (skipNull && (value === null || value === undefined)) {
+          return value;
+        }
 
-    // No cachear null/undefined si skipNull=true
-    if (skipNull && (value === null || value === undefined)) {
-      return value;
-    }
+        // TTL jitter: +/- 10% para evitar expiración sincronizada
+        const jitter = Math.floor(ttl * 0.1 * (Math.random() * 2 - 1));
+        const finalTtl = Math.max(1, ttl + jitter);
 
-    // Guardar en cache
-    await this.set(key, value, ttl, tags);
+        await this.set(key, value, finalTtl, tags);
+        return value;
+      })
+      .finally(() => {
+        this.inflightCallbacks.delete(key);
+      });
 
-    return value;
+    this.inflightCallbacks.set(key, promise);
+    return promise;
   }
 
   // ============================================
@@ -214,15 +247,16 @@ export class CacheService implements OnModuleInit {
   // ============================================
 
   /**
-   * Eliminar key específica
+   * Eliminar key específica (con limpieza de tags)
    */
   async forget(key: string): Promise<void> {
+    await this.cleanupKeyFromAllTags(key);
     await this.redis.del(key);
     this.logger.debug(`Cache FORGET: ${key}`);
   }
 
   /**
-   * Invalidar todas las keys con un tag
+   * Invalidar todas las keys con un tag (limpieza bidireccional)
    */
   async invalidateTag(tag: string): Promise<number> {
     const tagKey = `${TAG_PREFIX}${tag}`;
@@ -232,10 +266,17 @@ export class CacheService implements OnModuleInit {
       return 0;
     }
 
-    // Eliminar todas las keys
-    await Promise.all(keys.map((key: string) => this.redis.del(key)));
+    // Para cada key: limpiar membresía en otros tags + eliminar índice inverso + la key misma
+    await this.processInChunks(
+      keys,
+      async (key) => {
+        await this.cleanupKeyFromAllTags(key, tag);
+        await this.redis.del(key);
+      },
+      BATCH_CONCURRENCY,
+    );
 
-    // Eliminar el tag
+    // Eliminar el tag set
     await this.redis.del(tagKey);
 
     this.logger.log(`Cache INVALIDATE TAG: ${tag} (${keys.length} keys)`);
@@ -255,35 +296,54 @@ export class CacheService implements OnModuleInit {
   }
 
   /**
-   * Invalidar por patrón
+   * Invalidar por patrón (usa SCAN incremental)
    */
   async invalidatePattern(pattern: string): Promise<number> {
-    const keys = await this.redis.keys(pattern);
+    let totalDeleted = 0;
+    let cursor = '0';
 
-    if (keys.length === 0) {
-      return 0;
+    do {
+      const page = await this.redis.scanPage(cursor, { pattern, count: 100 });
+      cursor = page.nextCursor;
+
+      if (page.keys.length > 0) {
+        await this.redis.del(...page.keys);
+        totalDeleted += page.keys.length;
+      }
+    } while (cursor !== '0');
+
+    if (totalDeleted > 0) {
+      this.logger.log(`Cache INVALIDATE PATTERN: ${pattern} (${totalDeleted} keys)`);
     }
-
-    await Promise.all(keys.map((key) => this.redis.del(key)));
-
-    this.logger.log(`Cache INVALIDATE PATTERN: ${pattern} (${keys.length} keys)`);
-    return keys.length;
+    return totalDeleted;
   }
 
   /**
-   * Limpiar todo el cache
+   * Limpiar todo el cache (protegido por feature flag en producción)
    */
   async flush(): Promise<void> {
+    const isProduction = this.configService.get<string>('app.nodeEnv') === 'production';
+    const flushEnabled = this.configService.get<boolean>('redis.flushEnabled');
+
+    if (isProduction && !flushEnabled) {
+      this.logger.warn('Cache FLUSH bloqueado: CACHE_FLUSH_ENABLED no está habilitado en producción');
+      throw new ForbiddenException('Flush de cache no permitido en este ambiente');
+    }
+
+    this.logger.warn(`Cache FLUSH ejecutado en ambiente: ${this.configService.get<string>('app.nodeEnv')}`);
     await this.redis.flushDb();
     await this.initializeStats();
     this.logger.warn('Cache FLUSH: All keys deleted');
   }
 
   /**
-   * Limpiar cache de un módulo específico
+   * Limpiar cache de un módulo específico (con validación runtime)
    */
   async flushModule(module: keyof ICacheConfig['prefixes']): Promise<number> {
     const prefix = this.config.prefixes[module];
+    if (!prefix) {
+      throw new Error(`Módulo de cache inválido: ${module}`);
+    }
     return await this.invalidatePattern(`${prefix}*`);
   }
 
@@ -292,33 +352,71 @@ export class CacheService implements OnModuleInit {
   // ============================================
 
   /**
-   * Asociar tags a una key
+   * Asociar tags a una key (mantiene índice directo e inverso)
    */
   private async associateTags(key: string, tags: string[], ttl: number): Promise<void> {
+    const inverseKey = `${KEY_TAGS_PREFIX}${key}`;
+
     for (const tag of tags) {
+      // Índice directo: tag -> keys
       const tagKey = `${TAG_PREFIX}${tag}`;
       await this.redis.sAdd(tagKey, key);
-      // El tag expira un poco después que la key
       await this.redis.expire(tagKey, ttl + 300);
+
+      // Índice inverso: key -> tags
+      await this.redis.sAdd(inverseKey, tag);
     }
+    // El índice inverso expira junto con la key
+    await this.redis.expire(inverseKey, ttl + 300);
   }
 
   /**
-   * Obtener tags de una key
+   * Obtener tags de una key (usa índice inverso si existe, fallback a SCAN)
    */
   private async getKeyTags(key: string): Promise<string[]> {
-    // Buscar en todos los tags (esto es costoso, solo para debug)
-    const tagKeys = await this.redis.keys(`${TAG_PREFIX}*`);
-    const tags: string[] = [];
-
-    for (const tagKey of tagKeys) {
-      const isMember = await this.redis.sIsMember(tagKey, key);
-      if (isMember) {
-        tags.push(tagKey.replace(TAG_PREFIX, ''));
-      }
+    // Primero intentar índice inverso
+    const inverseKey = `${KEY_TAGS_PREFIX}${key}`;
+    const inverseTags = await this.redis.sMembers(inverseKey);
+    if (inverseTags.length > 0) {
+      return inverseTags;
     }
 
+    // Fallback: escanear tags (costoso, solo para keys legacy sin índice inverso)
+    const tags: string[] = [];
+    let cursor = '0';
+
+    do {
+      const page = await this.redis.scanPage(cursor, { pattern: `${TAG_PREFIX}*`, count: 100 });
+      cursor = page.nextCursor;
+
+      for (const tagKey of page.keys) {
+        const isMember = await this.redis.sIsMember(tagKey, key);
+        if (isMember) {
+          tags.push(tagKey.replace(TAG_PREFIX, ''));
+        }
+      }
+    } while (cursor !== '0');
+
     return tags;
+  }
+
+  /**
+   * Limpia la membresía de una key en todos sus tags asociados + elimina índice inverso
+   * @param key - La key de cache a limpiar
+   * @param excludeTag - Tag que ya se está eliminando (evitar trabajo doble)
+   */
+  private async cleanupKeyFromAllTags(key: string, excludeTag?: string): Promise<void> {
+    const inverseKey = `${KEY_TAGS_PREFIX}${key}`;
+    const tags = await this.redis.sMembers(inverseKey);
+
+    for (const tag of tags) {
+      if (tag === excludeTag) continue;
+      const tagKey = `${TAG_PREFIX}${tag}`;
+      await this.redis.sRem(tagKey, key);
+    }
+
+    // Eliminar índice inverso
+    await this.redis.del(inverseKey);
   }
 
   /**
@@ -334,101 +432,113 @@ export class CacheService implements OnModuleInit {
   // ============================================
 
   /**
-   * Inicializar estadísticas
+   * Inicializar estadísticas (hash atómico)
    */
   private async initializeStats(): Promise<void> {
     const exists = await this.redis.exists(GLOBAL_STATS_KEY);
     if (!exists) {
-      const initialStats: ICacheStats = {
+      await this.redis.hMSet(GLOBAL_STATS_KEY, {
         hits: 0,
         misses: 0,
-        hitRatio: 0,
-        totalKeys: 0,
-        byTag: {},
-        lastUpdated: new Date(),
-      };
-      await this.redis.set(GLOBAL_STATS_KEY, JSON.stringify(initialStats));
+        lastUpdated: new Date().toISOString(),
+      });
     }
   }
 
   /**
-   * Incrementar hit
+   * Incrementar hit (atómico con HINCRBY)
    */
   private async incrementHit(tags: string[]): Promise<void> {
     await this.incrementStat('hits', tags);
   }
 
   /**
-   * Incrementar miss
+   * Incrementar miss (atómico con HINCRBY)
    */
   private async incrementMiss(tags: string[]): Promise<void> {
     await this.incrementStat('misses', tags);
   }
 
   /**
-   * Incrementar estadística
+   * Incrementar estadística de forma atómica
    */
   private async incrementStat(stat: 'hits' | 'misses', tags: string[]): Promise<void> {
     try {
-      const statsStr = await this.redis.get(GLOBAL_STATS_KEY);
-      if (!statsStr) return;
+      // Incremento atómico global
+      await this.redis.hIncr(GLOBAL_STATS_KEY, stat, 1);
+      await this.redis.hSet(GLOBAL_STATS_KEY, 'lastUpdated', new Date().toISOString());
 
-      const stats: ICacheStats = JSON.parse(statsStr);
-      stats[stat]++;
-
-      // Actualizar ratio
-      const total = stats.hits + stats.misses;
-      stats.hitRatio = total > 0 ? stats.hits / total : 0;
-      stats.lastUpdated = new Date();
-
-      // Actualizar stats por tag
+      // Incremento atómico por tag
       for (const tag of tags) {
-        if (!stats.byTag) stats.byTag = {};
-        if (!stats.byTag[tag]) {
-          stats.byTag[tag] = { hits: 0, misses: 0, keys: 0 };
-        }
-        stats.byTag[tag][stat]++;
+        const tagStatsKey = `${STATS_PREFIX}tag:${tag}`;
+        await this.redis.hIncr(tagStatsKey, stat, 1);
       }
-
-      await this.redis.set(GLOBAL_STATS_KEY, JSON.stringify(stats));
     } catch (error) {
       this.logger.error('Error updating stats', error);
     }
   }
 
   /**
-   * Obtener estadísticas
+   * Obtener estadísticas (ratios calculados en lectura)
    */
   async getStats(): Promise<CacheStatsDto> {
-    const statsStr = await this.redis.get(GLOBAL_STATS_KEY);
-    if (!statsStr) {
-      return {
-        hits: 0,
-        misses: 0,
-        hitRatio: 0,
-        totalKeys: 0,
-        lastUpdated: new Date(),
-      };
-    }
+    const raw = await this.redis.hGetAll(GLOBAL_STATS_KEY);
+    const hits = parseInt(raw.hits || '0', 10);
+    const misses = parseInt(raw.misses || '0', 10);
+    const total = hits + misses;
+    const hitRatio = total > 0 ? hits / total : 0;
 
-    const stats: ICacheStats = JSON.parse(statsStr);
+    // Contar keys actuales via SCAN (excluir internas)
+    let totalKeys = 0;
+    let scanCursor = '0';
+    do {
+      const page = await this.redis.scanPage(scanCursor, { pattern: '*', count: 200 });
+      scanCursor = page.nextCursor;
+      totalKeys += page.keys.filter(
+        (k) =>
+          !k.startsWith(STATS_PREFIX) &&
+          !k.startsWith(TAG_PREFIX) &&
+          !k.startsWith(KEY_TAGS_PREFIX),
+      ).length;
+    } while (scanCursor !== '0');
 
-    // Contar keys actuales
-    const allKeys = await this.redis.keys('*');
-    stats.totalKeys = allKeys.filter(
-      (k) => !k.startsWith(STATS_PREFIX) && !k.startsWith(TAG_PREFIX),
-    ).length;
+    // Recopilar stats por tag desde hashes individuales
+    const byTag: Record<string, any> = {};
+    let tagCursor = '0';
+    do {
+      const page = await this.redis.scanPage(tagCursor, {
+        pattern: `${STATS_PREFIX}tag:*`,
+        count: 100,
+      });
+      tagCursor = page.nextCursor;
 
-    // Contar keys por tag
-    if (stats.byTag) {
-      for (const tag of Object.keys(stats.byTag)) {
+      for (const tagStatsKey of page.keys) {
+        const tag = tagStatsKey.replace(`${STATS_PREFIX}tag:`, '');
+        const tagRaw = await this.redis.hGetAll(tagStatsKey);
+        const tagHits = parseInt(tagRaw.hits || '0', 10);
+        const tagMisses = parseInt(tagRaw.misses || '0', 10);
+        const tagTotal = tagHits + tagMisses;
         const tagKeys = await this.getTagKeys(tag);
-        stats.byTag[tag].keys = tagKeys.length;
 
-        // Calcular hit ratio del tag
-        const tagTotal = stats.byTag[tag].hits + stats.byTag[tag].misses;
-        (stats.byTag[tag] as any).hitRatio = tagTotal > 0 ? stats.byTag[tag].hits / tagTotal : 0;
+        byTag[tag] = {
+          hits: tagHits,
+          misses: tagMisses,
+          keys: tagKeys.length,
+          hitRatio: tagTotal > 0 ? tagHits / tagTotal : 0,
+        };
       }
+    } while (tagCursor !== '0');
+
+    const stats: any = {
+      hits,
+      misses,
+      hitRatio,
+      totalKeys,
+      lastUpdated: raw.lastUpdated ? new Date(raw.lastUpdated) : new Date(),
+    };
+
+    if (Object.keys(byTag).length > 0) {
+      stats.byTag = byTag;
     }
 
     // Intentar obtener uso de memoria (opcional)
@@ -446,10 +556,30 @@ export class CacheService implements OnModuleInit {
   }
 
   /**
-   * Resetear estadísticas
+   * Resetear estadísticas (overwrite real, no condicional)
    */
   async resetStats(): Promise<void> {
-    await this.initializeStats();
+    // Eliminar stats globales y recrear
+    await this.redis.del(GLOBAL_STATS_KEY);
+    await this.redis.hMSet(GLOBAL_STATS_KEY, {
+      hits: 0,
+      misses: 0,
+      lastUpdated: new Date().toISOString(),
+    });
+
+    // Eliminar stats por tag
+    let cursor = '0';
+    do {
+      const page = await this.redis.scanPage(cursor, {
+        pattern: `${STATS_PREFIX}tag:*`,
+        count: 100,
+      });
+      cursor = page.nextCursor;
+      if (page.keys.length > 0) {
+        await this.redis.del(...page.keys);
+      }
+    } while (cursor !== '0');
+
     this.logger.log('Cache stats reset');
   }
 
@@ -470,15 +600,17 @@ export class CacheService implements OnModuleInit {
   }
 
   /**
-   * Warmup masivo de múltiples keys
+   * Warmup masivo de múltiples keys (con concurrencia limitada)
    */
   async warmupBatch(
     items: Array<{ key: string; callback: () => Promise<any>; options?: ICacheOptions }>,
   ): Promise<void> {
     this.logger.log(`Cache WARMUP BATCH: ${items.length} items`);
 
-    await Promise.all(
-      items.map((item) => this.warmup(item.key, item.callback, item.options || {})),
+    await this.processInChunks(
+      items,
+      (item) => this.warmup(item.key, item.callback, item.options || {}),
+      BATCH_CONCURRENCY,
     );
   }
 
@@ -501,19 +633,37 @@ export class CacheService implements OnModuleInit {
   }
 
   /**
-   * Contar keys por patrón
+   * Contar keys por patrón (usa SCAN incremental)
    */
   async countKeys(pattern: string = '*'): Promise<number> {
-    const keys = await this.redis.keys(pattern);
-    return keys.length;
+    let count = 0;
+    let cursor = '0';
+
+    do {
+      const page = await this.redis.scanPage(cursor, { pattern, count: 200 });
+      cursor = page.nextCursor;
+      count += page.keys.length;
+    } while (cursor !== '0');
+
+    return count;
   }
 
   /**
-   * Listar todas las keys (cuidado en producción)
+   * Listar keys con paginación por cursor
    */
   async listKeys(pattern: string = '*', limit: number = 100): Promise<string[]> {
-    const keys = await this.redis.keys(pattern);
-    return keys.slice(0, limit);
+    return this.redis.scan({ pattern, maxResults: limit });
+  }
+
+  /**
+   * Listar keys con paginación por cursor (para endpoints)
+   */
+  async listKeysPaginated(
+    pattern: string = '*',
+    cursor: string = '0',
+    count: number = 100,
+  ): Promise<{ keys: string[]; nextCursor: string; hasMore: boolean }> {
+    return this.redis.scanPage(cursor, { pattern, count });
   }
 
   /**
@@ -533,5 +683,23 @@ export class CacheService implements OnModuleInit {
         ttlByType: this.config.ttlByType,
       },
     };
+  }
+
+  // ============================================
+  // UTILIDADES INTERNAS
+  // ============================================
+
+  /**
+   * Procesa items en chunks con concurrencia limitada
+   */
+  private async processInChunks<T>(
+    items: T[],
+    fn: (item: T) => Promise<any>,
+    concurrency: number,
+  ): Promise<void> {
+    for (let i = 0; i < items.length; i += concurrency) {
+      const chunk = items.slice(i, i + concurrency);
+      await Promise.all(chunk.map(fn));
+    }
   }
 }

@@ -1,13 +1,13 @@
-// src/shared/database/guards/tenant.guard.ts
+// src/shared/database/guards/cross-tenant.guard.ts
 
 /**
- * @fileoverview Guard para validar acceso al tenant
+ * @fileoverview Guard para validar acceso cross-tenant
  * @module shared/database/guards
  *
- * ARQUITECTURA MULTI-TENANT (FASE 6):
+ * NOTA: Este guard es DIFERENTE al TenantGuard global (src/guards/tenant.guard.ts).
  *
- * Este guard valida que el usuario tenga acceso al tenant correcto.
- * Se usa en endpoints que operan sobre datos de un tenant específico.
+ * - TenantGuard global: Extrae y establece request.tenant (contexto del tenant)
+ * - CrossTenantGuard (este): Valida que el usuario no acceda a datos de otro tenant
  *
  * Casos de uso:
  * 1. Validar que store pertenece a la company del usuario
@@ -16,12 +16,10 @@
  *
  * @example
  * ```typescript
- * // En controller
- * @UseGuards(TenantGuard)
+ * @UseGuards(CrossTenantGuard)
  * @Get(':storeId/reports')
  * async getReports(@Param('storeId') storeId: string) {
  *   // El guard ya validó que storeId pertenece a la company del usuario
- *   return this.reportsService.findByStore(storeId);
  * }
  * ```
  */
@@ -32,46 +30,41 @@ import {
   ExecutionContext,
   ForbiddenException,
   Logger,
+  SetMetadata,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { SchemaContext } from '../schema.context';
 import { UserSessionDto } from '@modules/auth/interfaces';
 
 /**
- * Decorator key para especificar el parámetro que contiene el tenant ID
+ * Metadata key para bypass del CrossTenantGuard
  */
-export const TENANT_PARAM_KEY = 'tenant_param';
+export const SKIP_CROSS_TENANT_CHECK_KEY = 'skip_cross_tenant_check';
 
 /**
- * Metadata key para bypass del guard
- */
-export const SKIP_TENANT_CHECK_KEY = 'skip_tenant_check';
-
-/**
- * TenantGuard - Valida acceso al tenant
- *
- * Funcionalidades:
- * - Verifica que el usuario tenga company asignada
- * - Valida que el schema del contexto coincida con el del usuario
- * - Permite bypass con @SkipTenantCheck() decorator
- * - Compatible con roles SUPER_ADMIN (acceso a todos los tenants)
+ * Decorator para bypass del CrossTenantGuard
  *
  * @example
  * ```typescript
- * // Aplicar a un endpoint
- * @UseGuards(TenantGuard)
- * @Get('stores/:storeId/reports')
- * async getStoreReports(@Param('storeId') storeId: string) {}
- *
- * // Bypass para endpoints públicos o admin
- * @SkipTenantCheck()
+ * @SkipCrossTenantCheck()
  * @Get('admin/all-reports')
  * async getAllReports() {}
  * ```
  */
+export const SkipCrossTenantCheck = () => SetMetadata(SKIP_CROSS_TENANT_CHECK_KEY, true);
+
+/**
+ * CrossTenantGuard - Valida que el usuario no acceda a datos de otro tenant
+ *
+ * Funcionalidades:
+ * - Verifica que el usuario tenga company asignada
+ * - Valida que el schema del contexto coincida con el del usuario
+ * - Permite bypass con @SkipCrossTenantCheck() decorator
+ * - Compatible con roles SUPER_ADMIN (acceso a todos los tenants)
+ */
 @Injectable()
-export class TenantGuard implements CanActivate {
-  private readonly logger = new Logger(TenantGuard.name);
+export class CrossTenantGuard implements CanActivate {
+  private readonly logger = new Logger(CrossTenantGuard.name);
 
   constructor(
     private readonly reflector: Reflector,
@@ -80,13 +73,13 @@ export class TenantGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     // Verificar si el endpoint tiene bypass
-    const skipCheck = this.reflector.getAllAndOverride<boolean>(SKIP_TENANT_CHECK_KEY, [
+    const skipCheck = this.reflector.getAllAndOverride<boolean>(SKIP_CROSS_TENANT_CHECK_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
 
     if (skipCheck) {
-      this.logger.debug('TenantGuard: bypass habilitado para este endpoint');
+      this.logger.debug('CrossTenantGuard: bypass habilitado para este endpoint');
       return true;
     }
 
@@ -95,19 +88,19 @@ export class TenantGuard implements CanActivate {
 
     // Si no hay usuario (ruta pública), permitir
     if (!user) {
-      this.logger.debug('TenantGuard: No hay usuario autenticado, permitiendo');
+      this.logger.debug('CrossTenantGuard: No hay usuario autenticado, permitiendo');
       return true;
     }
 
     // Super admin puede acceder a todos los tenants
     if (this.isSuperAdmin(user)) {
-      this.logger.debug(`TenantGuard: Usuario ${user.id} es SUPER_ADMIN, acceso permitido`);
+      this.logger.debug(`CrossTenantGuard: Usuario ${user.id} es SUPER_ADMIN, acceso permitido`);
       return true;
     }
 
     // Validar que el usuario tenga company asignada
     if (!user.companyId && !user.company?.id) {
-      this.logger.warn(`TenantGuard: Usuario ${user.id} no tiene company asignada`);
+      this.logger.warn(`CrossTenantGuard: Usuario ${user.id} no tiene company asignada`);
       throw new ForbiddenException('Acceso denegado: Usuario no pertenece a ninguna compañía');
     }
 
@@ -117,7 +110,7 @@ export class TenantGuard implements CanActivate {
 
     if (contextSchema !== userSchema && contextSchema !== 'public') {
       this.logger.warn(
-        `TenantGuard: Intento de acceso cross-tenant detectado. ` +
+        `CrossTenantGuard: Intento de acceso cross-tenant detectado. ` +
           `Usuario ${user.id} (schema: ${userSchema}) intentó acceder a schema: ${contextSchema}`,
       );
       throw new ForbiddenException(
@@ -126,7 +119,7 @@ export class TenantGuard implements CanActivate {
     }
 
     this.logger.debug(
-      `TenantGuard: Acceso permitido para usuario ${user.id} al schema ${contextSchema}`,
+      `CrossTenantGuard: Acceso permitido para usuario ${user.id} al schema ${contextSchema}`,
     );
 
     return true;
@@ -139,16 +132,3 @@ export class TenantGuard implements CanActivate {
     return user.roles?.includes('SUPER_ADMIN') || user.roles?.includes('super_admin');
   }
 }
-
-/**
- * Decorator para bypass del TenantGuard
- *
- * @example
- * ```typescript
- * @SkipTenantCheck()
- * @Get('public-data')
- * async getPublicData() {}
- * ```
- */
-import { SetMetadata } from '@nestjs/common';
-export const SkipTenantCheck = () => SetMetadata(SKIP_TENANT_CHECK_KEY, true);

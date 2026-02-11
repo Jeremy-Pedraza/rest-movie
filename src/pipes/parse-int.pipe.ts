@@ -1,18 +1,28 @@
 // src/pipes/parse-int.pipe.ts
 
 /**
- * @fileoverview Pipes para validación de números enteros
+ * @fileoverview Pipes custom para validación estricta de números enteros.
  * @module pipes
+ *
+ * Estos pipes aplican parseo estricto (rechazan "12abc", " ", "+10", etc.)
+ * a diferencia de parseInt que acepta prefijos numéricos.
+ *
+ * Nombre distinto al built-in de NestJS (`StrictParseIntPipe`) para evitar
+ * colisiones de import. Si no se requiere parseo estricto, usar el built-in.
  *
  * @example
  * ```typescript
- * // Entero cualquiera
+ * // Entero cualquiera (estricto)
  * @Get('items')
- * findAll(@Query('page', ParseIntPipe) page: number) {}
+ * findAll(@Query('page', StrictParseIntPipe) page: number) {}
  *
- * // Solo positivos
+ * // Solo positivos (> 0)
  * @Get('items')
- * findAll(@Query('limit', ParsePositiveIntPipe) limit: number) {}
+ * findAll(@Query('limit', StrictParsePositiveIntPipe) limit: number) {}
+ *
+ * // Opcional (undefined si vacío)
+ * @Get('items')
+ * findAll(@Query('offset', StrictParseOptionalIntPipe) offset?: number) {}
  * ```
  */
 
@@ -20,19 +30,35 @@ import { PipeTransform, Injectable, BadRequestException, ArgumentMetadata } from
 
 import { ERROR_CODES } from '@constants/error-codes.constant';
 
-@Injectable()
-export class ParseIntPipe implements PipeTransform<string, number> {
-  transform(value: string, metadata?: ArgumentMetadata): number {
-    const val = parseInt(value, 10);
+/** Patrón para entero canónico: dígitos opcionales con signo negativo, sin espacios */
+const STRICT_INT_PATTERN = /^-?\d+$/;
 
-    if (isNaN(val)) {
+/**
+ * Parsea un string a entero de forma estricta.
+ * Rechaza: "12abc", " 10 ", "+10", "1.5", "", NaN.
+ */
+function strictParseInt(value: string): number | null {
+  const trimmed = value.trim();
+  if (!STRICT_INT_PATTERN.test(trimmed)) return null;
+  const num = Number(trimmed);
+  if (!Number.isFinite(num) || !Number.isInteger(num)) return null;
+  return num;
+}
+
+@Injectable()
+export class StrictParseIntPipe implements PipeTransform<string, number> {
+  transform(value: string, metadata?: ArgumentMetadata): number {
+    const val = strictParseInt(value);
+    const field = metadata?.data || 'value';
+
+    if (val === null) {
       throw new BadRequestException({
         success: false,
         statusCode: 400,
-        message: `"${value}" no es un número entero válido`,
+        message: `El campo "${field}" debe ser un número entero válido`,
         error: 'Bad Request',
         code: ERROR_CODES.VALIDATION_INVALID_FORMAT,
-        field: metadata?.data || 'value',
+        field,
       });
     }
 
@@ -41,29 +67,30 @@ export class ParseIntPipe implements PipeTransform<string, number> {
 }
 
 @Injectable()
-export class ParsePositiveIntPipe implements PipeTransform<string, number> {
+export class StrictParsePositiveIntPipe implements PipeTransform<string, number> {
   transform(value: string, metadata?: ArgumentMetadata): number {
-    const val = parseInt(value, 10);
+    const val = strictParseInt(value);
+    const field = metadata?.data || 'value';
 
-    if (isNaN(val)) {
+    if (val === null) {
       throw new BadRequestException({
         success: false,
         statusCode: 400,
-        message: `"${value}" no es un número entero válido`,
+        message: `El campo "${field}" debe ser un número entero válido`,
         error: 'Bad Request',
         code: ERROR_CODES.VALIDATION_INVALID_FORMAT,
-        field: metadata?.data || 'value',
+        field,
       });
     }
 
-    if (val < 0) {
+    if (val <= 0) {
       throw new BadRequestException({
         success: false,
         statusCode: 400,
-        message: `"${value}" debe ser un número positivo`,
+        message: `El campo "${field}" debe ser un número entero positivo (mayor a 0)`,
         error: 'Bad Request',
         code: ERROR_CODES.VALIDATION_ERROR,
-        field: metadata?.data || 'value',
+        field,
       });
     }
 
@@ -72,25 +99,41 @@ export class ParsePositiveIntPipe implements PipeTransform<string, number> {
 }
 
 @Injectable()
-export class ParseOptionalIntPipe implements PipeTransform<string | undefined, number | undefined> {
+export class StrictParseOptionalIntPipe implements PipeTransform<string | undefined, number | undefined> {
   transform(value: string | undefined, metadata?: ArgumentMetadata): number | undefined {
     if (value === undefined || value === null || value === '') {
       return undefined;
     }
 
-    const val = parseInt(value, 10);
+    const val = strictParseInt(value);
+    const field = metadata?.data || 'value';
 
-    if (isNaN(val)) {
+    if (val === null) {
       throw new BadRequestException({
         success: false,
         statusCode: 400,
-        message: `"${value}" no es un número entero válido`,
+        message: `El campo "${field}" debe ser un número entero válido`,
         error: 'Bad Request',
         code: ERROR_CODES.VALIDATION_INVALID_FORMAT,
-        field: metadata?.data || 'value',
+        field,
       });
     }
 
     return val;
   }
 }
+
+/**
+ * @deprecated Usar StrictParseIntPipe en su lugar
+ */
+export const ParseIntPipe = StrictParseIntPipe;
+
+/**
+ * @deprecated Usar StrictParsePositiveIntPipe en su lugar
+ */
+export const ParsePositiveIntPipe = StrictParsePositiveIntPipe;
+
+/**
+ * @deprecated Usar StrictParseOptionalIntPipe en su lugar
+ */
+export const ParseOptionalIntPipe = StrictParseOptionalIntPipe;

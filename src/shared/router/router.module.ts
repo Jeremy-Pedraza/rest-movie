@@ -12,15 +12,17 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { HttpClientService } from './api/http-client.service';
 import { ApiService } from './api/api.service';
 import { RouterService } from './router.service';
+import routerConfig from '../../config/router/router.config';
 
 @Global()
 @Module({
   imports: [
+    ConfigModule.forFeature(routerConfig),
     HttpModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        timeout: configService.get<number>('app.httpTimeout') || 30000,
+        timeout: configService.get<number>('router.timeout.default') || 30000,
         maxRedirects: 5,
         headers: {
           'User-Agent': `RestBackend/${configService.get<string>('app.version') || '1.0.0'}`,

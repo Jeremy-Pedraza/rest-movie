@@ -1,87 +1,46 @@
 // src/shared/router/gateway/endpoints.constant.ts
 
 /**
- * @fileoverview Constantes de endpoints para APIs externas
+ * @fileoverview Constantes de endpoints para APIs externas.
+ * Las URLs base, versiones y timeouts ahora se leen desde ConfigService('router.externalServices').
+ * Este archivo solo define rutas de endpoints y constantes estáticas.
  * @module shared/router/gateway
  */
 
 /**
- * Configuración de servicios externos
+ * Rutas de endpoints por servicio externo.
+ * baseUrl/version/timeout se obtienen de ConfigService('router.externalServices.<service>').
  */
-export const EXTERNAL_SERVICES = {
-  /**
-   * Ejemplo: API de pagos
-   */
-  PAYMENT_API: {
-    BASE_URL: process.env.PAYMENT_API_URL || 'https://api.payment.example.com',
-    VERSION: 'v1',
-    TIMEOUT: 30000,
-    ENDPOINTS: {
-      CREATE_PAYMENT: '/payments',
-      GET_PAYMENT: '/payments/:id',
-      REFUND: '/payments/:id/refund',
-      WEBHOOKS: '/webhooks',
-    },
+export const SERVICE_ENDPOINTS = {
+  PAYMENT: {
+    CREATE_PAYMENT: '/payments',
+    GET_PAYMENT: '/payments/:id',
+    REFUND: '/payments/:id/refund',
+    WEBHOOKS: '/webhooks',
   },
-
-  /**
-   * Ejemplo: API de notificaciones
-   */
-  NOTIFICATION_API: {
-    BASE_URL: process.env.NOTIFICATION_API_URL || 'https://api.notifications.example.com',
-    VERSION: 'v1',
-    TIMEOUT: 10000,
-    ENDPOINTS: {
-      SEND_EMAIL: '/email/send',
-      SEND_SMS: '/sms/send',
-      SEND_PUSH: '/push/send',
-      TEMPLATES: '/templates',
-    },
+  NOTIFICATION: {
+    SEND_EMAIL: '/email/send',
+    SEND_SMS: '/sms/send',
+    SEND_PUSH: '/push/send',
+    TEMPLATES: '/templates',
   },
-
-  /**
-   * Ejemplo: API de autenticación externa (OAuth)
-   */
-  AUTH_API: {
-    BASE_URL: process.env.AUTH_API_URL || 'https://auth.example.com',
-    VERSION: 'v2',
-    TIMEOUT: 15000,
-    ENDPOINTS: {
-      TOKEN: '/oauth/token',
-      AUTHORIZE: '/oauth/authorize',
-      USERINFO: '/userinfo',
-      REVOKE: '/oauth/revoke',
-    },
+  AUTH: {
+    TOKEN: '/oauth/token',
+    AUTHORIZE: '/oauth/authorize',
+    USERINFO: '/userinfo',
+    REVOKE: '/oauth/revoke',
   },
-
-  /**
-   * Ejemplo: API de almacenamiento
-   */
-  STORAGE_API: {
-    BASE_URL: process.env.STORAGE_API_URL || 'https://storage.example.com',
-    VERSION: 'v1',
-    TIMEOUT: 60000,
-    ENDPOINTS: {
-      UPLOAD: '/files/upload',
-      DOWNLOAD: '/files/:id/download',
-      DELETE: '/files/:id',
-      LIST: '/files',
-    },
+  STORAGE: {
+    UPLOAD: '/files/upload',
+    DOWNLOAD: '/files/:id/download',
+    DELETE: '/files/:id',
+    LIST: '/files',
   },
-
-  /**
-   * Ejemplo: API de geolocalización
-   */
-  GEO_API: {
-    BASE_URL: process.env.GEO_API_URL || 'https://api.geo.example.com',
-    VERSION: 'v1',
-    TIMEOUT: 5000,
-    ENDPOINTS: {
-      GEOCODE: '/geocode',
-      REVERSE: '/reverse',
-      PLACES: '/places',
-      DISTANCE: '/distance',
-    },
+  GEO: {
+    GEOCODE: '/geocode',
+    REVERSE: '/reverse',
+    PLACES: '/places',
+    DISTANCE: '/distance',
   },
 } as const;
 

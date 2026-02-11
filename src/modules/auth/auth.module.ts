@@ -46,16 +46,19 @@ import { JwtStrategy, LocalStrategy } from './strategies';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService): JwtModuleOptions => {
-        const secret =
-          configService.get<string>('jwt.secret') || 'default-secret-change-in-production';
-        const expiresIn = Number(configService.get<string>('jwt.expiresInString') || '15m');
+        const secret = configService.get<string>('jwt.secret');
+        if (!secret) {
+          throw new Error('JWT secret not configured. Ensure JWT_SECRET env var is set.');
+        }
+
+        const expiresIn = configService.get<number>('jwt.expiresIn');
         const issuer = configService.get<string>('jwt.issuer');
         const audience = configService.get<string>('jwt.audience');
 
         return {
           secret,
           signOptions: {
-            expiresIn: expiresIn, // ✅ FIX: Type assertion explícito
+            expiresIn,
             issuer,
             audience,
           },

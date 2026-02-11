@@ -37,28 +37,47 @@ function parseTimeToSeconds(timeStr: string): number {
   return value * multipliers[unit];
 }
 
-export default registerAs('jwt', () => ({
+export default registerAs('jwt', () => {
   // ============================================
-  // ACCESS TOKEN (Autenticación)
+  // VALIDACIÓN OBLIGATORIA DE SECRETS
   // ============================================
-  secret: process.env.JWT_SECRET || 'default_jwt_secret_change_in_production',
-  expiresIn: parseTimeToSeconds(process.env.JWT_EXPIRES_IN || '15m'), // Número en segundos
-  expiresInString: process.env.JWT_EXPIRES_IN || '15m', // String para JwtModule
-  issuer: process.env.JWT_ISSUER || 'Rest-api',
-  audience: process.env.JWT_AUDIENCE || 'Rest-client',
+  const secret = process.env.JWT_SECRET;
+  const refreshSecret = process.env.JWT_REFRESH_SECRET;
+  const resetSecret = process.env.JWT_RESET_SECRET;
 
-  // ============================================
-  // REFRESH TOKEN (Renovación de sesión)
-  // ============================================
-  refreshSecret: process.env.JWT_REFRESH_SECRET || 'default_refresh_secret_change_in_production',
-  refreshExpiresIn: parseTimeToSeconds(process.env.JWT_REFRESH_EXPIRES_IN || '7d'), // Número
-  refreshExpiresInString: process.env.JWT_REFRESH_EXPIRES_IN || '7d', // String
-  refreshLongExpiresIn: parseTimeToSeconds(process.env.JWT_REFRESH_LONG_EXPIRES_IN || '30d'),
+  if (!secret) {
+    throw new Error('JWT_SECRET is required. Set it as an environment variable.');
+  }
+  if (!refreshSecret) {
+    throw new Error('JWT_REFRESH_SECRET is required. Set it as an environment variable.');
+  }
+  if (!resetSecret) {
+    throw new Error('JWT_RESET_SECRET is required. Set it as an environment variable.');
+  }
 
-  // ============================================
-  // RESET TOKEN (Recuperación de contraseña)
-  // ============================================
-  resetSecret: process.env.JWT_RESET_SECRET || 'default_reset_secret_change_in_production',
-  resetExpiresIn: parseTimeToSeconds(process.env.JWT_RESET_EXPIRES_IN || '1h'), // Número
-  resetExpiresInString: process.env.JWT_RESET_EXPIRES_IN || '1h', // String
-}));
+  return {
+    // ============================================
+    // ACCESS TOKEN (Autenticación)
+    // ============================================
+    secret,
+    expiresIn: parseTimeToSeconds(process.env.JWT_EXPIRES_IN || '15m'),
+    expiresInString: process.env.JWT_EXPIRES_IN || '15m',
+    issuer: process.env.JWT_ISSUER || 'Rest-api',
+    audience: process.env.JWT_AUDIENCE || 'Rest-client',
+
+    // ============================================
+    // REFRESH TOKEN (Renovación de sesión)
+    // ============================================
+    refreshSecret,
+    refreshExpiresIn: parseTimeToSeconds(process.env.JWT_REFRESH_EXPIRES_IN || '7d'),
+    refreshExpiresInString: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
+    refreshLongExpiresIn: parseTimeToSeconds(process.env.JWT_REFRESH_LONG_EXPIRES_IN || '30d'),
+
+    // ============================================
+    // RESET TOKEN (Recuperación de contraseña)
+    // ============================================
+    resetSecret,
+    resetExpiresIn: parseTimeToSeconds(process.env.JWT_RESET_EXPIRES_IN || '1h'),
+    resetExpiresInString: process.env.JWT_RESET_EXPIRES_IN || '1h',
+  };
+});

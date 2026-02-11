@@ -8,6 +8,7 @@
 
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { createHash } from 'crypto';
 
 import { HttpClientService } from './http-client.service';
 import {
@@ -84,8 +85,8 @@ export class ApiService {
     // Realizar petición
     const result = await this.httpClient.get<T>(url, config);
 
-    // Guardar en cache si fue exitoso
-    if (result.success && cache?.enabled && result.data) {
+    // Guardar en cache si fue exitoso (incluye falsy válidos: 0, false, '')
+    if (result.success && cache?.enabled && result.data !== undefined) {
       await this.redisService.setJson(cacheKey, result.data, {
         ttl: cache.ttl || this.defaultCacheTTL,
       });
@@ -300,20 +301,40 @@ export class ApiService {
   }
 
   /**
-   * Ejecuta múltiples requests y retorna el primero exitoso
+   * Ejecuta múltiples requests en paralelo y retorna el primero exitoso
    * @param requests - Array de configuraciones
-   * @returns Primer resultado exitoso o el último fallido
+   * @returns Primer resultado exitoso o error agregado si todos fallan
    */
   async race<T = unknown>(requests: HttpRequestConfig[]): Promise<HttpResult<T>> {
-    for (const config of requests) {
-      const result = await this.httpClient.request<T>(config);
-      if (result.success) {
-        return result;
-      }
+    if (requests.length === 0) {
+      return {
+        success: false,
+        error: { message: 'No se proporcionaron requests para race()' },
+      };
     }
 
-    // Si ninguno fue exitoso, retornar el último error
-    return this.httpClient.request<T>(requests[requests.length - 1]);
+    if (requests.length === 1) {
+      return this.httpClient.request<T>(requests[0]);
+    }
+
+    const promises = requests.map((config) =>
+      this.httpClient.request<T>(config).then((result) => {
+        if (result.success) return result;
+        throw result;
+      }),
+    );
+
+    try {
+      return await Promise.any(promises);
+    } catch (aggregateError) {
+      // Todos fallaron - retornar el último error del AggregateError
+      const errors = (aggregateError as AggregateError).errors as HttpResult<T>[];
+      const lastError = errors[errors.length - 1];
+      this.logger.warn(
+        `race(): todos los ${requests.length} requests fallaron`,
+      );
+      return lastError;
+    }
   }
 
   // ============================================
@@ -321,13 +342,27 @@ export class ApiService {
   // ============================================
 
   /**
-   * Genera un hash para una URL con parámetros
+   * Genera un hash canónico y estable para una URL con parámetros.
+   * Ordena las keys de params para garantizar determinismo.
    */
   private hashUrl(
     url: string,
     params?: Record<string, string | number | boolean | undefined>,
   ): string {
-    const paramsStr = params ? JSON.stringify(params) : '';
-    return `${url}:${paramsStr}`.replace(/[^a-zA-Z0-9:]/g, '_');
+    let canonical = url;
+
+    if (params) {
+      const sorted = Object.keys(params)
+        .filter((k) => params[k] !== undefined)
+        .sort()
+        .map((k) => `${k}=${String(params[k])}`)
+        .join('&');
+      if (sorted) {
+        canonical += `?${sorted}`;
+      }
+    }
+
+    const hash = createHash('sha256').update(canonical).digest('hex').slice(0, 16);
+    return hash;
   }
 }

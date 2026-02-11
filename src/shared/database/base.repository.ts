@@ -74,6 +74,29 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
   }
 
   // ============================================
+  // SCHEMA VALIDATION
+  // ============================================
+
+  /** Regex canónica para schemas válidos: letras, números, underscores */
+  private static readonly VALID_SCHEMA_REGEX = /^[a-zA-Z_][a-zA-Z0-9_]{0,62}$/;
+
+  /**
+   * Valida y quotea un identificador de schema para uso seguro en SQL.
+   * Previene SQL injection en SET search_path.
+   *
+   * @param schema - Nombre del schema a validar
+   * @returns Schema quoted con comillas dobles PostgreSQL
+   * @throws Error si el schema contiene caracteres inválidos
+   */
+  protected static safeSchemaIdentifier(schema: string): string {
+    if (!BaseRepository.VALID_SCHEMA_REGEX.test(schema)) {
+      throw new Error(`Invalid schema name: "${schema}". Only alphanumeric and underscores allowed.`);
+    }
+    // PostgreSQL double-quote identifier escaping
+    return `"${schema}"`;
+  }
+
+  // ============================================
   // MÉTODOS PRINCIPALES
   // ============================================
 
@@ -118,11 +141,11 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
       // Conectar el QueryRunner
       await queryRunner.connect();
 
-      // Establecer search_path (primero tenant, luego public como fallback)
-      const searchPath = schema === 'public' ? 'public' : `${schema}`;
-      await queryRunner.query(`SET search_path TO ${searchPath}`);
+      // Establecer search_path con identificador validado y seguro
+      const safeSchema = BaseRepository.safeSchemaIdentifier(schema);
+      await queryRunner.query(`SET search_path TO ${safeSchema}, "public"`);
 
-      this.logger.debug(`search_path establecido: ${searchPath}`);
+      this.logger.debug(`search_path establecido: ${safeSchema}`);
 
       // Ejecutar callback pasando el manager del QueryRunner
       // ✅ CRÍTICO: El manager del QueryRunner tiene el search_path aplicado
@@ -176,11 +199,11 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
     await queryRunner.startTransaction();
 
     try {
-      // Establecer search_path (SIN fallback a public para consistencia con withSchema())
-      const searchPath = schema === 'public' ? 'public' : `${schema}`;
-      await queryRunner.query(`SET search_path TO ${searchPath}`);
+      // Establecer search_path con identificador validado y seguro
+      const safeSchema = BaseRepository.safeSchemaIdentifier(schema);
+      await queryRunner.query(`SET search_path TO ${safeSchema}, "public"`);
 
-      this.logger.debug(`Transacción iniciada con search_path: ${searchPath}`);
+      this.logger.debug(`Transacción iniciada con search_path: ${safeSchema}`);
 
       // Ejecutar callback con el manager de la transacción
       const result = await callback(queryRunner.manager);
@@ -263,18 +286,12 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
    * @param alias - Alias de la tabla
    * @returns Promise<QueryBuilder>
    */
-  protected async createTenantQueryBuilder(alias: string): Promise<SelectQueryBuilder<T>> {
-    this.logger.warn(
-      'createTenantQueryBuilder() está deprecated. Usar manager.getRepository(Entity).createQueryBuilder() dentro de withSchema() en su lugar.',
+  protected async createTenantQueryBuilder(_alias: string): Promise<SelectQueryBuilder<T>> {
+    throw new Error(
+      'createTenantQueryBuilder() ha sido eliminado por ser inseguro (no thread-safe). ' +
+        'Usar manager.getRepository(Entity).createQueryBuilder() dentro de withSchema() en su lugar. ' +
+        'Ver docs/BASE-REPOSITORY.md para guía de migración.',
     );
-    const schema = this.schemaContext.getSchema();
-    const manager = this.repository.manager;
-
-    // SET search_path antes de crear query builder (SIN fallback a public)
-    const searchPath = schema === 'public' ? 'public' : `${schema}`;
-    await manager.query(`SET search_path TO ${searchPath}`);
-
-    return this.repository.createQueryBuilder(alias);
   }
 
   // ============================================
@@ -316,16 +333,9 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
    * @returns EntityManager con search_path configurado
    */
   protected async getSchemaManager(): Promise<EntityManager> {
-    this.logger.warn(
-      'getSchemaManager() está deprecated. Usar withSchema() en su lugar. Este método NO es thread-safe.',
+    throw new Error(
+      'getSchemaManager() ha sido eliminado por ser inseguro (no thread-safe). ' +
+        'Usar withSchema() en su lugar. Ver docs/BASE-REPOSITORY.md para guía de migración.',
     );
-    const schema = this.schemaContext.getSchema();
-    const manager = this.repository.manager;
-
-    // SIN fallback a public para consistencia
-    const searchPath = schema === 'public' ? 'public' : `${schema}`;
-    await manager.query(`SET search_path TO ${searchPath}`);
-
-    return manager;
   }
 }

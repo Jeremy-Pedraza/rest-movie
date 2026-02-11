@@ -136,8 +136,11 @@ export class AuthController {
   @ApiOperation({ summary: 'Logout - cerrar sesión actual' })
   @ApiResponse({ status: 200, description: 'Sesión cerrada exitosamente' })
   @ApiResponse({ status: 401, description: 'No autorizado' })
-  async logout(@Body() dto: RefreshTokenDto): Promise<IApiResponse<ILogoutResponse>> {
-    const data = await this.authService.logout(dto.refreshToken);
+  async logout(
+    @CurrentUser('id') userId: string,
+    @Body() dto: RefreshTokenDto,
+  ): Promise<IApiResponse<ILogoutResponse>> {
+    const data = await this.authService.logout(userId, dto.refreshToken);
 
     return {
       success: true,

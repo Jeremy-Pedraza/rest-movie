@@ -40,10 +40,10 @@ import { NOTIFICATION_QUEUE_CONFIG } from './queues/notification.queue';
   imports: [
     ConfigModule, // Para acceder a variables de entorno
     CommonModule, // SanitizerService, HandleErrorService
-    // Bull Queue
+    // Bull Queue — usa la conexión Redis global de BullModule.forRootAsync (app.module.ts).
+    // NO se pasa `redis:` aquí para evitar duplicar configuración y riesgo de NOAUTH.
     BullModule.registerQueue({
       name: NOTIFICATION_QUEUE_CONFIG.name,
-      redis: NOTIFICATION_QUEUE_CONFIG.redis,
       defaultJobOptions: NOTIFICATION_QUEUE_CONFIG.defaultJobOptions,
       limiter: NOTIFICATION_QUEUE_CONFIG.limiter,
       settings: NOTIFICATION_QUEUE_CONFIG.settings,

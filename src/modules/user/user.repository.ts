@@ -477,6 +477,22 @@ export class UserRepository extends BaseRepository<UserEntity> {
   }
 
   /**
+   * Obtiene los campos de reset token de un usuario
+   * @param id - ID del usuario
+   * @returns Campos password_reset_token y password_reset_expires
+   */
+  async getPasswordResetData(
+    id: string,
+  ): Promise<{ password_reset_token: string | null; password_reset_expires: Date | null } | null> {
+    return this.createStaticQueryBuilder('user')
+      .select(['user.id', 'user.password_reset_token', 'user.password_reset_expires'])
+      .addSelect('user.password_reset_token')
+      .addSelect('user.password_reset_expires')
+      .where('user.id = :id', { id })
+      .getOne();
+  }
+
+  /**
    * Invalida el token de reset de contraseña
    * @param id - ID del usuario
    */

@@ -3,24 +3,10 @@
 /**
  * @fileoverview Controller para gestión y monitoreo de cache
  * @module modules/cache
- *
- * 🔧 ENDPOINTS:
- * - GET /cache/stats - Estadísticas de cache
- * - GET /cache/info - Información general
- * - POST /cache/invalidate/tag/:tag - Invalidar por tag
- * - POST /cache/invalidate/tags - Invalidar múltiples tags
- * - DELETE /cache/flush - Limpiar todo
- * - GET /cache/keys - Listar keys
- * - GET /cache/tags/:tag/keys - Keys de un tag
- *
- * 🔐 SEGURIDAD:
- * - Todos los endpoints requieren autenticación
- * - Stats/Info: Admin, Manager
- * - Invalidación: Solo Admin
- * - Flush: Solo Admin
  */
 
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -28,15 +14,14 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseEnumPipe,
   Post,
   Query,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
-  ApiBody,
   ApiOperation,
   ApiParam,
-  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -46,14 +31,14 @@ import { Roles } from '@decorators/roles.decorator';
 import { IApiResponse } from '@shared/common';
 
 import { CacheService } from './cache.service';
-import { CacheStatsDto } from './dto';
-
-/**
- * DTO para invalidar múltiples tags
- */
-class InvalidateTagsDto {
-  tags: string[];
-}
+import {
+  CacheModuleName,
+  CacheStatsDto,
+  CountKeysQueryDto,
+  InvalidatePatternDto,
+  InvalidateTagsDto,
+  ListKeysQueryDto,
+} from './dto';
 
 @ApiTags('Cache')
 @ApiBearerAuth()
@@ -65,9 +50,6 @@ export class CacheController {
   // ESTADÍSTICAS Y MONITOREO
   // ============================================
 
-  /**
-   * Obtiene estadísticas de cache
-   */
   @Get('stats')
   @Roles(ROLES.ADMIN, ROLES.MANAGER)
   @ApiOperation({
@@ -88,9 +70,6 @@ export class CacheController {
     };
   }
 
-  /**
-   * Obtiene información general del cache
-   */
   @Get('info')
   @Roles(ROLES.ADMIN, ROLES.MANAGER)
   @ApiOperation({
@@ -114,9 +93,6 @@ export class CacheController {
   // INVALIDACIÓN
   // ============================================
 
-  /**
-   * Invalida todas las keys con un tag específico
-   */
   @Post('invalidate/tag/:tag')
   @Roles(ROLES.ADMIN)
   @HttpCode(HttpStatus.OK)
@@ -136,6 +112,7 @@ export class CacheController {
   async invalidateTag(
     @Param('tag') tag: string,
   ): Promise<IApiResponse<{ keysInvalidated: number }>> {
+    this.validateTagParam(tag);
     const keysInvalidated = await this.cacheService.invalidateTag(tag);
     return {
       success: true,
@@ -144,28 +121,12 @@ export class CacheController {
     };
   }
 
-  /**
-   * Invalida múltiples tags
-   */
   @Post('invalidate/tags')
   @Roles(ROLES.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Invalidar múltiples tags',
     description: 'Elimina todas las keys asociadas a los tags especificados',
-  })
-  @ApiBody({
-    description: 'Lista de tags a invalidar',
-    schema: {
-      type: 'object',
-      properties: {
-        tags: {
-          type: 'array',
-          items: { type: 'string' },
-          example: ['users', 'user-stats', 'products'],
-        },
-      },
-    },
   })
   @ApiResponse({
     status: 200,
@@ -182,9 +143,6 @@ export class CacheController {
     };
   }
 
-  /**
-   * Invalida cache por patrón
-   */
   @Post('invalidate/pattern')
   @Roles(ROLES.ADMIN)
   @HttpCode(HttpStatus.OK)
@@ -192,29 +150,17 @@ export class CacheController {
     summary: 'Invalidar cache por patrón',
     description: 'Elimina todas las keys que coincidan con el patrón (ej: user:*)',
   })
-  @ApiBody({
-    description: 'Patrón de keys a invalidar',
-    schema: {
-      type: 'object',
-      properties: {
-        pattern: {
-          type: 'string',
-          example: 'user:*',
-        },
-      },
-    },
-  })
   @ApiResponse({
     status: 200,
     description: 'Keys invalidadas',
   })
   async invalidatePattern(
-    @Body() body: { pattern: string },
+    @Body() dto: InvalidatePatternDto,
   ): Promise<IApiResponse<{ keysInvalidated: number }>> {
-    const keysInvalidated = await this.cacheService.invalidatePattern(body.pattern);
+    const keysInvalidated = await this.cacheService.invalidatePattern(dto.pattern);
     return {
       success: true,
-      message: `Patrón '${body.pattern}' invalidado: ${keysInvalidated} keys eliminadas`,
+      message: `Patrón '${dto.pattern}' invalidado: ${keysInvalidated} keys eliminadas`,
       data: { keysInvalidated },
     };
   }
@@ -223,15 +169,12 @@ export class CacheController {
   // LIMPIEZA TOTAL
   // ============================================
 
-  /**
-   * Limpia todo el cache
-   */
   @Delete('flush')
   @Roles(ROLES.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Limpiar todo el cache',
-    description: '⚠️ PELIGROSO: Elimina todas las keys del cache. Solo admin.',
+    description: 'Elimina todas las keys del cache. Solo admin. Bloqueado en producción si CACHE_FLUSH_ENABLED != true.',
   })
   @ApiResponse({
     status: 200,
@@ -246,9 +189,6 @@ export class CacheController {
     };
   }
 
-  /**
-   * Limpia cache de un módulo específico
-   */
   @Delete('flush/:module')
   @Roles(ROLES.ADMIN)
   @HttpCode(HttpStatus.OK)
@@ -259,14 +199,14 @@ export class CacheController {
   @ApiParam({
     name: 'module',
     description: 'Módulo a limpiar',
-    enum: ['user', 'auth', 'product', 'stats'],
+    enum: CacheModuleName,
   })
   @ApiResponse({
     status: 200,
     description: 'Cache del módulo limpiado',
   })
   async flushModule(
-    @Param('module') module: 'user' | 'auth' | 'product' | 'stats',
+    @Param('module', new ParseEnumPipe(CacheModuleName)) module: CacheModuleName,
   ): Promise<IApiResponse<{ keysInvalidated: number }>> {
     const keysInvalidated = await this.cacheService.flushModule(module);
     return {
@@ -280,50 +220,30 @@ export class CacheController {
   // CONSULTAS
   // ============================================
 
-  /**
-   * Lista keys del cache
-   */
   @Get('keys')
   @Roles(ROLES.ADMIN)
   @ApiOperation({
-    summary: 'Listar keys del cache',
-    description: 'Lista todas las keys o las que coincidan con el patrón',
-  })
-  @ApiQuery({
-    name: 'pattern',
-    required: false,
-    description: 'Patrón para filtrar keys (ej: user:*)',
-    example: 'user:*',
-  })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    description: 'Límite de keys a retornar',
-    example: 100,
+    summary: 'Listar keys del cache (paginado)',
+    description: 'Lista keys con paginación por cursor usando SCAN. Enviar cursor=0 para la primera página.',
   })
   @ApiResponse({
     status: 200,
-    description: 'Lista de keys',
+    description: 'Lista de keys paginada',
   })
   async listKeys(
-    @Query('pattern') pattern: string = '*',
-    @Query('limit') limit: string = '100',
-  ): Promise<IApiResponse<{ keys: string[]; total: number }>> {
-    const limitNum = parseInt(limit, 10) || 100;
-    const keys = await this.cacheService.listKeys(pattern, limitNum);
+    @Query() query: ListKeysQueryDto,
+  ): Promise<IApiResponse<{ keys: string[]; nextCursor: string; hasMore: boolean }>> {
+    const pattern = query.pattern || '*';
+    const cursor = query.cursor || '0';
+    const countNum = Math.min(parseInt(query.count || '100', 10) || 100, 500);
+    const result = await this.cacheService.listKeysPaginated(pattern, cursor, countNum);
     return {
       success: true,
-      message: `${keys.length} keys encontradas`,
-      data: {
-        keys,
-        total: keys.length,
-      },
+      message: `${result.keys.length} keys encontradas`,
+      data: result,
     };
   }
 
-  /**
-   * Obtiene las keys de un tag específico
-   */
   @Get('tags/:tag/keys')
   @Roles(ROLES.ADMIN)
   @ApiOperation({
@@ -342,6 +262,7 @@ export class CacheController {
   async getTagKeys(
     @Param('tag') tag: string,
   ): Promise<IApiResponse<{ keys: string[]; total: number }>> {
+    this.validateTagParam(tag);
     const keys = await this.cacheService.getTagKeys(tag);
     return {
       success: true,
@@ -353,28 +274,20 @@ export class CacheController {
     };
   }
 
-  /**
-   * Cuenta keys por patrón
-   */
   @Get('count')
   @Roles(ROLES.ADMIN)
   @ApiOperation({
     summary: 'Contar keys',
     description: 'Cuenta las keys que coincidan con el patrón',
   })
-  @ApiQuery({
-    name: 'pattern',
-    required: false,
-    description: 'Patrón para filtrar keys',
-    example: 'user:*',
-  })
   @ApiResponse({
     status: 200,
     description: 'Conteo de keys',
   })
   async countKeys(
-    @Query('pattern') pattern: string = '*',
+    @Query() query: CountKeysQueryDto,
   ): Promise<IApiResponse<{ count: number; pattern: string }>> {
+    const pattern = query.pattern || '*';
     const count = await this.cacheService.countKeys(pattern);
     return {
       success: true,
@@ -390,9 +303,6 @@ export class CacheController {
   // UTILIDADES
   // ============================================
 
-  /**
-   * Resetea las estadísticas de cache
-   */
   @Post('stats/reset')
   @Roles(ROLES.ADMIN)
   @HttpCode(HttpStatus.OK)
@@ -411,5 +321,17 @@ export class CacheController {
       message: 'Estadísticas de cache reseteadas',
       data: null,
     };
+  }
+
+  // ============================================
+  // VALIDACIÓN HELPERS
+  // ============================================
+
+  private validateTagParam(tag: string): void {
+    if (!tag || tag.length > 100 || !/^[a-zA-Z0-9_:\-\.]+$/.test(tag)) {
+      throw new BadRequestException(
+        'El tag solo puede contener letras, números, _, :, - y . (máx 100 caracteres)',
+      );
+    }
   }
 }

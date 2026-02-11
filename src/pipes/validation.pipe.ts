@@ -1,5 +1,20 @@
 // src/pipes/validation.pipe.ts
 
+/**
+ * @fileoverview Pipe de validación custom con formato de errores agrupado por campo.
+ *
+ * @deprecated NO usar en nuevos endpoints.
+ * El proyecto usa `ValidationPipe` global de `@nestjs/common` (configurado en main.ts)
+ * con `transform: true`, `whitelist: true`, `forbidNonWhitelisted: true`.
+ * Los errores se formatean por `ValidationExceptionFilter`.
+ *
+ * Este pipe existe solo como referencia. Si se usa, su formato de error
+ * difiere del global y puede causar inconsistencias en el cliente.
+ *
+ * @see src/main.ts (app.useGlobalPipes)
+ * @see src/filters/validation-exception.filter.ts
+ */
+
 import { PipeTransform, Injectable, ArgumentMetadata, BadRequestException } from '@nestjs/common';
 import { validate, ValidationError } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
@@ -9,6 +24,9 @@ import { plainToInstance } from 'class-transformer';
  */
 type ClassConstructor<T = unknown> = new (...args: unknown[]) => T;
 
+/**
+ * @deprecated Usar `ValidationPipe` global de `@nestjs/common` en su lugar.
+ */
 @Injectable()
 export class CustomValidationPipe implements PipeTransform<unknown> {
   async transform(value: unknown, { metatype }: ArgumentMetadata): Promise<unknown> {

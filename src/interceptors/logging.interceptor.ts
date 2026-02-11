@@ -22,6 +22,18 @@ import { Request, Response } from 'express';
 import { LoggerService } from '@modules/logger';
 import { LogDbLevel } from '@config/app.config';
 
+/** Query params sensibles que deben redactarse en logs */
+const SENSITIVE_QUERY_PARAMS = new Set([
+  'token',
+  'apikey',
+  'api_key',
+  'secret',
+  'password',
+  'access_token',
+  'refresh_token',
+  'authorization',
+]);
+
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
   private readonly logger = new Logger('HTTP');
@@ -53,6 +65,10 @@ export class LoggingInterceptor implements NestInterceptor {
     const requestId = request.requestId || '-';
     const userId = request.user?.id;
 
+    // Redactar query params sensibles para consola; path limpio para DB
+    const safeUrl = this.redactUrl(url);
+    const pathOnly = url.split('?')[0];
+
     const startTime = Date.now();
 
     return next.handle().pipe(
@@ -66,21 +82,23 @@ export class LoggingInterceptor implements NestInterceptor {
           // Log en consola (si está habilitado)
           if (this.logConsole) {
             this.logger.log(
-              `${method} ${url} ${statusCode} ${contentLength} - ${responseTime}ms - ${ip} [${requestId}]`,
+              `${method} ${safeUrl} ${statusCode} ${contentLength} - ${responseTime}ms [${requestId}]`,
             );
           }
 
-          // Log en base de datos (según configuración)
+          // Log en base de datos (según configuración) — solo path, sin query
           if (this.shouldLogToDb(statusCode)) {
             void this.loggerService?.logHttpRequest({
               method,
-              url,
+              url: pathOnly,
               statusCode,
               responseTime,
               requestId: requestId !== '-' ? requestId : undefined,
               userId,
               ip: ip || undefined,
               userAgent: userAgent || undefined,
+            }).catch((err: Error) => {
+              this.logger.warn(`Error al escribir log HTTP en DB: ${err.message}`);
             });
           }
         },
@@ -90,21 +108,22 @@ export class LoggingInterceptor implements NestInterceptor {
 
           // Log en consola (siempre para errores)
           this.logger.error(
-            `${method} ${url} ${statusCode} - ${responseTime}ms - ${ip} [${requestId}]`,
+            `${method} ${safeUrl} ${statusCode} - ${responseTime}ms [${requestId}]`,
           );
 
           // Log en base de datos (según configuración)
-          // Nota: Los errores también se loggean en AllExceptionsFilter con más detalle
           if (this.shouldLogToDb(statusCode)) {
             void this.loggerService?.logHttpRequest({
               method,
-              url,
+              url: pathOnly,
               statusCode,
               responseTime,
               requestId: requestId !== '-' ? requestId : undefined,
               userId,
               ip: ip || undefined,
               userAgent: userAgent || undefined,
+            }).catch((err: Error) => {
+              this.logger.warn(`Error al escribir log HTTP en DB: ${err.message}`);
             });
           }
         },
@@ -143,5 +162,22 @@ export class LoggingInterceptor implements NestInterceptor {
     // Extraer solo el path (sin query params)
     const path = url.split('?')[0];
     return this.ignorePaths.some((ignorePath) => path.startsWith(ignorePath));
+  }
+
+  /**
+   * Redacta parámetros sensibles de la URL para logging seguro.
+   */
+  private redactUrl(url: string): string {
+    const [path, queryString] = url.split('?');
+    if (!queryString) return path;
+
+    const params = new URLSearchParams(queryString);
+    for (const key of params.keys()) {
+      if (SENSITIVE_QUERY_PARAMS.has(key.toLowerCase())) {
+        params.set(key, '[REDACTED]');
+      }
+    }
+
+    return `${path}?${params.toString()}`;
   }
 }

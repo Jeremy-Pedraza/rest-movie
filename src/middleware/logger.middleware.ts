@@ -11,51 +11,30 @@
  */
 
 import { Injectable, NestMiddleware, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Request, Response, NextFunction } from 'express';
-
-/** Campos de URL query que deben redactarse */
-const SENSITIVE_QUERY_PARAMS = new Set([
-  'token',
-  'apikey',
-  'api_key',
-  'secret',
-  'password',
-  'access_token',
-]);
+import { redactUrl } from '@config/logging-policy';
 
 @Injectable()
 export class LoggerMiddleware implements NestMiddleware {
   private readonly logger = new Logger('HTTP');
+  private readonly logConsole: boolean;
 
-  use(req: Request, res: Response, next: NextFunction): void {
-    const { method } = req;
-    const requestId = req.requestId || '-';
-
-    // Registrar startTime para que LoggingInterceptor lo use si lo necesita
-    (req as any)._startTime = Date.now();
-
-    // Log de entrada ligero (sin user-agent completo, sin response logging)
-    this.logger.debug(
-      `-> ${method} ${this.redactUrl(req.originalUrl)} [${requestId}]`,
-    );
-
-    next();
+  constructor(private readonly configService: ConfigService) {
+    this.logConsole = this.configService.get<boolean>('app.logging.console') ?? true;
   }
 
-  /**
-   * Redacta parámetros sensibles de la URL para logging seguro.
-   */
-  private redactUrl(url: string): string {
-    const [path, queryString] = url.split('?');
-    if (!queryString) return path;
+  use(req: Request, res: Response, next: NextFunction): void {
+    // Registrar startTime para que LoggingInterceptor lo use si lo necesita
+    req.startTime = Date.now();
 
-    const params = new URLSearchParams(queryString);
-    for (const key of params.keys()) {
-      if (SENSITIVE_QUERY_PARAMS.has(key.toLowerCase())) {
-        params.set(key, '[REDACTED]');
-      }
+    // Log de entrada ligero (respeta LOG_CONSOLE)
+    if (this.logConsole) {
+      const { method } = req;
+      const requestId = req.requestId || '-';
+      this.logger.debug(`-> ${method} ${redactUrl(req.originalUrl)} [${requestId}]`);
     }
 
-    return `${path}?${params.toString()}`;
+    next();
   }
 }

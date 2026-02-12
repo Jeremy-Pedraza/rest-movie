@@ -67,7 +67,7 @@ export class LoggerRepository extends BaseRepository<LogEntity> {
    * @returns Log creado
    */
   async create(dto: CreateLogDto): Promise<LogEntity> {
-    const log = this.repository.create(dto);
+    const log = this.repository.create(this.mapDtoToEntity(dto));
     return this.repository.save(log);
   }
 
@@ -77,8 +77,32 @@ export class LoggerRepository extends BaseRepository<LogEntity> {
    * @returns Logs creados
    */
   async createBatch(dtos: CreateLogDto[]): Promise<LogEntity[]> {
-    const logs = this.repository.create(dtos);
+    const logs = this.repository.create(dtos.map((dto) => this.mapDtoToEntity(dto)));
     return this.repository.save(logs);
+  }
+
+  /**
+   * Mapea CreateLogDto (camelCase) a propiedades de LogEntity (snake_case)
+   */
+  private mapDtoToEntity(dto: CreateLogDto): Partial<LogEntity> {
+    return {
+      level: dto.level,
+      context: dto.context,
+      message: dto.message,
+      metadata: dto.metadata ?? null,
+      stack: dto.stack ?? null,
+      request_id: dto.requestId ?? null,
+      user_id: dto.userId ?? null,
+      ip: dto.ip ?? null,
+      user_agent: dto.userAgent ?? null,
+      method: dto.method ?? null,
+      url: dto.url ?? null,
+      status_code: dto.statusCode ?? null,
+      response_time: dto.responseTime ?? null,
+      service: dto.service ?? null,
+      action: dto.action ?? null,
+      error_code: dto.errorCode ?? null,
+    };
   }
 
   /**
@@ -110,7 +134,7 @@ export class LoggerRepository extends BaseRepository<LogEntity> {
       toDate,
       page = 1,
       limit = 20,
-      sortBy = 'createdAt',
+      sortBy = 'created_at',
       sortOrder = 'DESC',
     } = query;
 

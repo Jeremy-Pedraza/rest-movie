@@ -21,9 +21,12 @@ import {
   Inject,
   Optional,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Request, Response } from 'express';
 
 import { LoggerService, LogContext } from '@modules/logger';
+import { LogDbLevel } from '@config/app.config';
+import { shouldLogToDb as checkShouldLogToDb } from '@config/logging-policy';
 import { ERROR_CODES, ErrorCode } from '@constants/error-codes.constant';
 
 /**
@@ -55,12 +58,16 @@ interface ValidationErrorResponse {
 @Catch(BadRequestException)
 export class ValidationExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(ValidationExceptionFilter.name);
+  private readonly dbLevel: LogDbLevel;
 
   constructor(
+    private readonly configService: ConfigService,
     @Optional()
     @Inject(LoggerService)
     private readonly loggerService?: LoggerService,
-  ) {}
+  ) {
+    this.dbLevel = this.configService.get<LogDbLevel>('app.logging.dbLevel') || 'all';
+  }
 
   catch(exception: BadRequestException, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
@@ -108,8 +115,8 @@ export class ValidationExceptionFilter implements ExceptionFilter {
       validationErrors ? JSON.stringify(validationErrors, null, 2) : undefined,
     );
 
-    // Log en base de datos (solo warnings)
-    if (this.loggerService) {
+    // Log en base de datos (según configuración LOG_DB_LEVEL)
+    if (this.loggerService && checkShouldLogToDb(this.dbLevel, status)) {
       const userId = request.user?.id;
 
       void this.loggerService.warn(message, {

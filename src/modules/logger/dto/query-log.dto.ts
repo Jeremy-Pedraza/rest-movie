@@ -13,6 +13,7 @@ import {
   IsUUID,
   IsDateString,
   IsInt,
+  IsIn,
   Min,
   Max,
 } from 'class-validator';
@@ -136,12 +137,12 @@ export class QueryLogDto {
 
   @ApiPropertyOptional({
     description: 'Campo para ordenar',
-    default: 'createdAt',
-    enum: ['createdAt', 'level', 'context', 'statusCode', 'responseTime'],
+    default: 'created_at',
+    enum: ['created_at', 'level', 'context', 'status_code', 'response_time'],
   })
   @IsOptional()
-  @IsString()
-  sortBy?: string = 'createdAt';
+  @IsIn(['created_at', 'level', 'context', 'status_code', 'response_time'])
+  sortBy?: string = 'created_at';
 
   @ApiPropertyOptional({
     description: 'Orden',
@@ -149,7 +150,7 @@ export class QueryLogDto {
     enum: ['ASC', 'DESC'],
   })
   @IsOptional()
-  @IsString()
+  @IsIn(['ASC', 'DESC'])
   sortOrder?: 'ASC' | 'DESC' = 'DESC';
 }
 

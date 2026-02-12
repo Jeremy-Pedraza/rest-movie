@@ -21,18 +21,10 @@ import { Request, Response } from 'express';
 
 import { LoggerService } from '@modules/logger';
 import { LogDbLevel } from '@config/app.config';
-
-/** Query params sensibles que deben redactarse en logs */
-const SENSITIVE_QUERY_PARAMS = new Set([
-  'token',
-  'apikey',
-  'api_key',
-  'secret',
-  'password',
-  'access_token',
-  'refresh_token',
-  'authorization',
-]);
+import {
+  shouldLogToDb as checkShouldLogToDb,
+  redactUrl as redactSensitiveUrl,
+} from '@config/logging-policy';
 
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
@@ -88,18 +80,20 @@ export class LoggingInterceptor implements NestInterceptor {
 
           // Log en base de datos (según configuración) — solo path, sin query
           if (this.shouldLogToDb(statusCode)) {
-            void this.loggerService?.logHttpRequest({
-              method,
-              url: pathOnly,
-              statusCode,
-              responseTime,
-              requestId: requestId !== '-' ? requestId : undefined,
-              userId,
-              ip: ip || undefined,
-              userAgent: userAgent || undefined,
-            }).catch((err: Error) => {
-              this.logger.warn(`Error al escribir log HTTP en DB: ${err.message}`);
-            });
+            void this.loggerService
+              ?.logHttpRequest({
+                method,
+                url: pathOnly,
+                statusCode,
+                responseTime,
+                requestId: requestId !== '-' ? requestId : undefined,
+                userId,
+                ip: ip || undefined,
+                userAgent: userAgent || undefined,
+              })
+              .catch((err: Error) => {
+                this.logger.warn(`Error al escribir log HTTP en DB: ${err.message}`);
+              });
           }
         },
         error: (error: Error & { status?: number }) => {
@@ -113,18 +107,20 @@ export class LoggingInterceptor implements NestInterceptor {
 
           // Log en base de datos (según configuración)
           if (this.shouldLogToDb(statusCode)) {
-            void this.loggerService?.logHttpRequest({
-              method,
-              url: pathOnly,
-              statusCode,
-              responseTime,
-              requestId: requestId !== '-' ? requestId : undefined,
-              userId,
-              ip: ip || undefined,
-              userAgent: userAgent || undefined,
-            }).catch((err: Error) => {
-              this.logger.warn(`Error al escribir log HTTP en DB: ${err.message}`);
-            });
+            void this.loggerService
+              ?.logHttpRequest({
+                method,
+                url: pathOnly,
+                statusCode,
+                responseTime,
+                requestId: requestId !== '-' ? requestId : undefined,
+                userId,
+                ip: ip || undefined,
+                userAgent: userAgent || undefined,
+              })
+              .catch((err: Error) => {
+                this.logger.warn(`Error al escribir log HTTP en DB: ${err.message}`);
+              });
           }
         },
       }),
@@ -136,23 +132,7 @@ export class LoggingInterceptor implements NestInterceptor {
    */
   private shouldLogToDb(statusCode: number): boolean {
     if (!this.loggerService) return false;
-
-    switch (this.dbLevel) {
-      case 'none':
-        return false;
-
-      case 'errors':
-        // Solo 5xx
-        return statusCode >= 500;
-
-      case 'warnings':
-        // 4xx y 5xx
-        return statusCode >= 400;
-
-      case 'all':
-      default:
-        return true;
-    }
+    return checkShouldLogToDb(this.dbLevel, statusCode);
   }
 
   /**
@@ -168,16 +148,6 @@ export class LoggingInterceptor implements NestInterceptor {
    * Redacta parámetros sensibles de la URL para logging seguro.
    */
   private redactUrl(url: string): string {
-    const [path, queryString] = url.split('?');
-    if (!queryString) return path;
-
-    const params = new URLSearchParams(queryString);
-    for (const key of params.keys()) {
-      if (SENSITIVE_QUERY_PARAMS.has(key.toLowerCase())) {
-        params.set(key, '[REDACTED]');
-      }
-    }
-
-    return `${path}?${params.toString()}`;
+    return redactSensitiveUrl(url);
   }
 }

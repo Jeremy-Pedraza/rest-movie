@@ -27,6 +27,7 @@ import { QueryFailedError } from 'typeorm';
 
 import { LoggerService, LogContext } from '@modules/logger';
 import { LogDbLevel } from '@config/app.config';
+import { shouldLogToDb as checkShouldLogToDb } from '@config/logging-policy';
 import { ERROR_CODES, ErrorCode } from '@constants/error-codes.constant';
 import { RESPONSE_MESSAGES } from '@constants/response-messages.constant';
 
@@ -409,18 +410,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
    */
   private shouldLogToDb(statusCode: number): boolean {
     if (!this.loggerService) return false;
-
-    switch (this.dbLevel) {
-      case 'none':
-        return false;
-      case 'errors':
-        return statusCode >= 500;
-      case 'warnings':
-        return statusCode >= 400;
-      case 'all':
-      default:
-        return statusCode >= 400;
-    }
+    return checkShouldLogToDb(this.dbLevel, statusCode);
   }
 
   /**

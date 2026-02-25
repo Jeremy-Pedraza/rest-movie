@@ -69,7 +69,7 @@ export interface IMetricsWithDifferences extends IComparedMetrics {
  * @updated 2025-01-28 - order_type_breakdown y payment_method_breakdown cambiaron a string
  */
 export interface IStoreComparisonData {
-  store_id: string;
+  storeId: string;
   store_name: string;
   store_code: string;
   store_city?: string;
@@ -171,7 +171,7 @@ export interface IPeriodComparisonData {
  */
 export interface IPeriodsComparisonResponse {
   comparison_type: ComparisonTypeEnum.PERIODS;
-  store_id?: string;
+  storeId?: string;
   store_name?: string;
   company_id?: string;
   company_name?: string;
@@ -210,7 +210,7 @@ export interface IPeriodsComparisonResponse {
  */
 export interface IYearOverYearComparisonResponse {
   comparison_type: ComparisonTypeEnum.YEAR_OVER_YEAR;
-  store_id?: string;
+  storeId?: string;
   store_name?: string;
   company_id?: string;
   company_name?: string;
@@ -253,7 +253,7 @@ export interface IYearOverYearComparisonResponse {
  */
 export interface IMonthOverMonthComparisonResponse {
   comparison_type: ComparisonTypeEnum.MONTH_OVER_MONTH;
-  store_id?: string;
+  storeId?: string;
   company_id?: string;
   consolidation_level: ConsolidationLevelEnum;
   generated_at: Date;
@@ -305,7 +305,7 @@ export interface IDayOfWeekData {
  */
 export interface IDaysOfWeekComparisonResponse {
   comparison_type: ComparisonTypeEnum.DAYS_OF_WEEK;
-  store_id?: string;
+  storeId?: string;
   company_id?: string;
   consolidation_level: ConsolidationLevelEnum;
   date_from: Date;

@@ -692,10 +692,8 @@ export class AuthService {
       roles,
       companyId,
       schema,
-      // Compatibilidad con contratos de agentes que esperan claim de tienda
-      store_id: storeId,
+      // Claim canónico de tienda según estándar interno (camelCase)
       storeId: storeId,
-      store: storeId,
     };
 
     const accessTokenExpiresIn = this.configService.get<number>('jwt.expiresIn') || 900; // 15 min

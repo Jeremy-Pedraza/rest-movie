@@ -38,7 +38,7 @@ export enum ComparisonTypeEnum {
  * // Comparar 3 tiendas durante enero 2025
  * const dto: CompareReportsDto = {
  *   comparison_type: ComparisonTypeEnum.STORES,
- *   store_ids: ['uuid-1', 'uuid-2', 'uuid-3'],
+ *   storeIds: ['uuid-1', 'uuid-2', 'uuid-3'],
  *   date_from: '2025-01-01',
  *   date_to: '2025-01-31',
  * };
@@ -46,7 +46,7 @@ export enum ComparisonTypeEnum {
  * // Comparar enero 2025 vs enero 2024
  * const dto2: CompareReportsDto = {
  *   comparison_type: ComparisonTypeEnum.YEAR_OVER_YEAR,
- *   store_id: 'uuid-store',
+ *   storeId: 'uuid-store',
  *   date_from: '2025-01-01',
  *   date_to: '2025-01-31',
  * };
@@ -74,12 +74,12 @@ export class CompareReportsDto {
     type: [String],
     example: ['uuid-1', 'uuid-2', 'uuid-3'],
   })
-  @IsArray({ message: 'store_ids debe ser un array' })
+  @IsArray({ message: 'storeIds debe ser un array' })
   @ArrayMinSize(2, { message: 'Debe proporcionar al menos 2 tiendas para comparar' })
   @ArrayMaxSize(10, { message: 'Máximo 10 tiendas para comparar' })
-  @IsUUID('4', { each: true, message: 'Cada store_id debe ser un UUID válido' })
+  @IsUUID('4', { each: true, message: 'Cada storeId debe ser un UUID válido' })
   @IsOptional()
-  store_ids?: string[];
+  storeIds?: string[];
 
   // ============================================
   // PARA COMPARACIÓN DE PERÍODOS
@@ -89,9 +89,9 @@ export class CompareReportsDto {
     description: 'ID de tienda (para comparaciones temporales)',
     example: '123e4567-e89b-12d3-a456-426614174000',
   })
-  @IsUUID('4', { message: 'store_id debe ser un UUID válido' })
+  @IsUUID('4', { message: 'storeId debe ser un UUID válido' })
   @IsOptional()
-  store_id?: string;
+  storeId?: string;
 
   @ApiPropertyOptional({
     description: 'ID de compañía (para comparar todas sus tiendas)',
@@ -231,7 +231,7 @@ export class QuickCompareDto {
   })
   @IsUUID('4')
   @IsOptional()
-  store_id?: string;
+  storeId?: string;
 
   @ApiPropertyOptional({
     description: 'ID de la compañía',

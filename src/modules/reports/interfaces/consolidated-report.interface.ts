@@ -76,7 +76,7 @@ export interface IConsolidatedPaymentMethod {
  * Desglose por tienda en consolidado
  */
 export interface IStoreBreakdown {
-  store_id: string;
+  storeId: string;
   store_name: string;
   store_code: string;
   store_city?: string;
@@ -123,7 +123,7 @@ export interface IConsolidatedReportResponse {
   // Entidad padre (según nivel)
   company_id?: string;
   company_name?: string;
-  store_id?: string;
+  storeId?: string;
   store_name?: string;
 
   // Totales consolidados
@@ -176,12 +176,12 @@ export interface IConsolidatedReportResponse {
       total_sales: number;
     };
     best_store?: {
-      store_id: string;
+      storeId: string;
       store_name: string;
       total_sales: number;
     };
     worst_store?: {
-      store_id: string;
+      storeId: string;
       store_name: string;
       total_sales: number;
     };
@@ -200,7 +200,7 @@ export interface IConsolidatedReportResponse {
  */
 export interface IStoreConsolidatedResponse extends IConsolidatedReportResponse {
   consolidation_level: ConsolidationLevelEnum.STORE;
-  store_id: string;
+  storeId: string;
   store_name: string;
   store_code: string;
   store_city: string;

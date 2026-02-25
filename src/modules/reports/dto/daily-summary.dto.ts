@@ -13,7 +13,7 @@ import { IsUUID, IsDateString, IsNotEmpty } from 'class-validator';
  * @example
  * ```typescript
  * // Query params
- * GET /reports/daily-summary?store_id=xxx&report_date=2026-01-19
+ * GET /reports/daily-summary?storeId=xxx&report_date=2026-01-19
  * ```
  */
 export class QueryDailySummaryDto {
@@ -21,9 +21,9 @@ export class QueryDailySummaryDto {
     description: 'UUID de la tienda',
     example: '39a85714-3b44-4794-9647-9408709df3aa',
   })
-  @IsUUID('4', { message: 'store_id debe ser un UUID válido' })
-  @IsNotEmpty({ message: 'store_id es requerido' })
-  store_id: string;
+  @IsUUID('4', { message: 'storeId debe ser un UUID válido' })
+  @IsNotEmpty({ message: 'storeId es requerido' })
+  storeId: string;
 
   @ApiProperty({
     description: 'Fecha del reporte (formato YYYY-MM-DD)',
@@ -111,7 +111,7 @@ export class EmployeeSummaryDto {
  * @example
  * ```json
  * {
- *   "store_id": "39a85714-...",
+ *   "storeId": "39a85714-...",
  *   "store_name": "Tienda Centro",
  *   "report_date": "2026-01-19",
  *   "total_employees": 3,
@@ -129,7 +129,7 @@ export class DailySummaryResponseDto {
     description: 'UUID de la tienda',
     example: '39a85714-3b44-4794-9647-9408709df3aa',
   })
-  store_id: string;
+  storeId: string;
 
   @ApiPropertyOptional({
     description: 'Nombre de la tienda',

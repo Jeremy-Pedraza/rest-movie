@@ -87,19 +87,19 @@ export class ReportsService {
    * @returns IReportWithDetailsResponse
    */
   async create(dto: CreateReportDto, user: UserSessionDto): Promise<IReportWithDetailsResponse> {
-    this.logger.log(`Creando reporte para tienda ${dto.store_id} fecha ${dto.report_date}`);
+    this.logger.log(`Creando reporte para tienda ${dto.storeId} fecha ${dto.report_date}`);
 
     // Validar acceso a la tienda
-    await this.validateStoreAccess(dto.store_id, user);
+    await this.validateStoreAccess(dto.storeId, user);
 
     // Validar que la tienda pertenezca al tenant/compañía del usuario
     // Esto es CRÍTICO para escritura: el reporte se crea en el schema del tenant del usuario,
     // por lo que la tienda DEBE pertenecer a la misma compañía, incluso para ADMIN/SUPER_ADMIN
-    await this.validateStoreBelongsToUserTenant(dto.store_id, user);
+    await this.validateStoreBelongsToUserTenant(dto.storeId, user);
 
-    // Verificar idempotencia: store_id + report_date + employee_id
+    // Verificar idempotencia: storeId + report_date + employee_id
     const exists = await this.reportsRepository.exists(
-      dto.store_id,
+      dto.storeId,
       dto.report_date,
       dto.employee_id,
     );
@@ -184,7 +184,7 @@ export class ReportsService {
     }
 
     // Validar acceso
-    await this.validateStoreAccess(report.store_id, user);
+    await this.validateStoreAccess(report.storeId, user);
 
     return this.toResponseWithStore(report);
   }
@@ -203,7 +203,7 @@ export class ReportsService {
     }
 
     // Validar acceso
-    await this.validateStoreAccess(report.store_id, user);
+    await this.validateStoreAccess(report.storeId, user);
 
     return this.toResponseWithDetails(report);
   }
@@ -227,7 +227,7 @@ export class ReportsService {
     }
 
     // Validar acceso
-    await this.validateStoreAccess(report.store_id, user);
+    await this.validateStoreAccess(report.storeId, user);
 
     // Preparar datos de actualización
     const updateData: Partial<ReportHeaderEntity> = {};
@@ -268,7 +268,7 @@ export class ReportsService {
     }
 
     // Validar acceso
-    await this.validateStoreAccess(report.store_id, user);
+    await this.validateStoreAccess(report.storeId, user);
 
     // Solo ADMIN y SUPER_ADMIN pueden eliminar
     if (!hasAnyRole(user.roles, [ROLES.SUPER_ADMIN, ROLES.ADMIN])) {
@@ -297,7 +297,7 @@ export class ReportsService {
       this.handleError.notFound('Reporte', id);
     }
 
-    await this.validateStoreAccess(report.store_id, user);
+    await this.validateStoreAccess(report.storeId, user);
 
     const updated = await this.reportsRepository.update(id, { status });
     if (!updated) {
@@ -317,7 +317,7 @@ export class ReportsService {
    * - Porcentaje de participación de cada empleado
    * - Indicador de si existe reporte consolidado (legacy)
    *
-   * @param dto - Parámetros (store_id, report_date)
+   * @param dto - Parámetros (storeId, report_date)
    * @param user - Usuario que consulta
    * @returns DailySummaryResponseDto
    */
@@ -325,20 +325,20 @@ export class ReportsService {
     dto: QueryDailySummaryDto,
     user: UserSessionDto,
   ): Promise<DailySummaryResponseDto> {
-    this.logger.log(`Obteniendo resumen diario: tienda=${dto.store_id}, fecha=${dto.report_date}`);
+    this.logger.log(`Obteniendo resumen diario: tienda=${dto.storeId}, fecha=${dto.report_date}`);
 
     // Validar acceso a la tienda
-    await this.validateStoreAccess(dto.store_id, user);
+    await this.validateStoreAccess(dto.storeId, user);
 
     // Obtener información de la tienda
-    const store = await this.storeRepository.findById(dto.store_id);
+    const store = await this.storeRepository.findById(dto.storeId);
     if (!store) {
-      this.handleError.notFound('Tienda', dto.store_id);
+      this.handleError.notFound('Tienda', dto.storeId);
     }
 
     // Obtener resumen del repositorio
     const summary = await this.reportsRepository.getDailySummaryByEmployees(
-      dto.store_id,
+      dto.storeId,
       dto.report_date,
     );
 
@@ -364,7 +364,7 @@ export class ReportsService {
     }));
 
     return {
-      store_id: dto.store_id,
+      storeId: dto.storeId,
       store_name: store.nombre,
       store_code: store.codigo,
       report_date: dto.report_date,
@@ -487,15 +487,15 @@ export class ReportsService {
     dto: ConsolidateReportsDto,
     user: UserSessionDto,
   ): Promise<IConsolidatedReportResponse> {
-    if (!dto.store_id) {
-      this.handleError.badRequest('store_id es requerido para consolidación a nivel de tienda');
+    if (!dto.storeId) {
+      this.handleError.badRequest('storeId es requerido para consolidación a nivel de tienda');
     }
 
-    await this.validateStoreAccess(dto.store_id, user);
+    await this.validateStoreAccess(dto.storeId, user);
 
-    const store = await this.storeRepository.findById(dto.store_id);
+    const store = await this.storeRepository.findById(dto.storeId);
     const totals = await this.reportsRepository.consolidateByStore(
-      dto.store_id,
+      dto.storeId,
       dto.date_from,
       dto.date_to,
       dto.report_scope || ReportScopeEnum.INDIVIDUAL,
@@ -504,7 +504,7 @@ export class ReportsService {
     let dailyBreakdown;
     if (dto.include_daily_breakdown) {
       dailyBreakdown = await this.reportsRepository.getDailyBreakdown(
-        [dto.store_id],
+        [dto.storeId],
         dto.date_from,
         dto.date_to,
       );
@@ -513,7 +513,7 @@ export class ReportsService {
     let orderTypeBreakdown;
     if (dto.include_order_type_breakdown) {
       orderTypeBreakdown = await this.reportsRepository.consolidateSalesByOrderType(
-        [dto.store_id],
+        [dto.storeId],
         dto.date_from,
         dto.date_to,
       );
@@ -522,7 +522,7 @@ export class ReportsService {
     let paymentMethodBreakdown;
     if (dto.include_payment_method_breakdown) {
       paymentMethodBreakdown = await this.reportsRepository.consolidatePaymentMethods(
-        [dto.store_id],
+        [dto.storeId],
         dto.date_from,
         dto.date_to,
       );
@@ -532,7 +532,7 @@ export class ReportsService {
     let categoryBreakdown;
     if (dto.include_category_breakdown) {
       categoryBreakdown = await this.reportsRepository.getTopCategories(
-        [dto.store_id],
+        [dto.storeId],
         dto.date_from,
         dto.date_to,
         50,
@@ -542,7 +542,7 @@ export class ReportsService {
     let revenueCenterBreakdown;
     if (dto.include_revenue_center_breakdown) {
       revenueCenterBreakdown = await this.reportsRepository.getRevenueCenterBreakdown(
-        [dto.store_id],
+        [dto.storeId],
         dto.date_from,
         dto.date_to,
       );
@@ -551,7 +551,7 @@ export class ReportsService {
     let employeeBreakdown;
     if (dto.include_employee_breakdown) {
       employeeBreakdown = await this.reportsRepository.getTopEmployees(
-        [dto.store_id],
+        [dto.storeId],
         dto.date_from,
         dto.date_to,
         50,
@@ -561,7 +561,7 @@ export class ReportsService {
     let tenderTypeBreakdown;
     if (dto.include_tender_type_breakdown) {
       tenderTypeBreakdown = await this.reportsRepository.getPaymentDistribution(
-        [dto.store_id],
+        [dto.storeId],
         dto.date_from,
         dto.date_to,
       );
@@ -573,7 +573,7 @@ export class ReportsService {
       date_from: new Date(dto.date_from),
       date_to: new Date(dto.date_to),
       generated_at: new Date(),
-      store_id: dto.store_id,
+      storeId: dto.storeId,
       store_name: store?.nombre,
       totals: {
         ...totals,
@@ -629,7 +629,7 @@ export class ReportsService {
       dto.report_scope || ReportScopeEnum.INDIVIDUAL,
     );
 
-    const storeIds = stores_breakdown.map((s) => s.store_id);
+    const storeIds = stores_breakdown.map((s) => s.storeId);
 
     let dailyBreakdown;
     if (dto.include_daily_breakdown) {
@@ -693,7 +693,7 @@ export class ReportsService {
       },
       stores_breakdown: dto.include_store_breakdown
         ? stores_breakdown.map((s) => ({
-            store_id: s.store_id,
+            storeId: s.storeId,
             store_name: s.store_name,
             store_code: s.store_code,
             total_sales: s.total_sales,
@@ -834,9 +834,9 @@ export class ReportsService {
 
     // Determinar filtros según rol
     let storeIds: string[] = [];
-    if (dto.store_id) {
-      await this.validateStoreAccess(dto.store_id, user);
-      storeIds = [dto.store_id];
+    if (dto.storeId) {
+      await this.validateStoreAccess(dto.storeId, user);
+      storeIds = [dto.storeId];
     } else if (dto.company_id) {
       this.validateCompanyAccess(dto.company_id, user);
       const stores = await this.storeRepository.findByCompany(dto.company_id);
@@ -891,17 +891,17 @@ export class ReportsService {
     dto: CompareReportsDto,
     user: UserSessionDto,
   ): Promise<IStoresComparisonResponse> {
-    if (!dto.store_ids || dto.store_ids.length < 2) {
+    if (!dto.storeIds || dto.storeIds.length < 2) {
       this.handleError.badRequest('Se requieren al menos 2 tiendas para comparar');
     }
 
     // Validar acceso a todas las tiendas
-    for (const storeId of dto.store_ids) {
+    for (const storeId of dto.storeIds) {
       await this.validateStoreAccess(storeId, user);
     }
 
     const storesData = await this.reportsRepository.compareStores(
-      dto.store_ids,
+      dto.storeIds,
       dto.date_from,
       dto.date_to,
     );
@@ -940,7 +940,7 @@ export class ReportsService {
       report_type: dto.report_type || ReportTypeEnum.DAILY,
       generated_at: new Date(),
       stores: storesData.map((s) => ({
-        store_id: s.store_id,
+        storeId: s.storeId,
         store_name: s.store_name,
         store_code: s.store_code,
         metrics: {
@@ -950,9 +950,9 @@ export class ReportsService {
           average_ticket: s.average_ticket,
           total_quantity: 0,
         },
-        rank_by_sales: bySales.findIndex((x) => x.store_id === s.store_id) + 1,
-        rank_by_orders: byOrders.findIndex((x) => x.store_id === s.store_id) + 1,
-        rank_by_ticket: byTicket.findIndex((x) => x.store_id === s.store_id) + 1,
+        rank_by_sales: bySales.findIndex((x) => x.storeId === s.storeId) + 1,
+        rank_by_orders: byOrders.findIndex((x) => x.storeId === s.storeId) + 1,
+        rank_by_ticket: byTicket.findIndex((x) => x.storeId === s.storeId) + 1,
       })),
       stores_count: storesCount,
       totals,
@@ -973,9 +973,9 @@ export class ReportsService {
   private async comparePeriods(dto: CompareReportsDto, user: UserSessionDto): Promise<any> {
     let storeIds: string[] = [];
 
-    if (dto.store_id) {
-      await this.validateStoreAccess(dto.store_id, user);
-      storeIds = [dto.store_id];
+    if (dto.storeId) {
+      await this.validateStoreAccess(dto.storeId, user);
+      storeIds = [dto.storeId];
     } else if (dto.company_id) {
       this.validateCompanyAccess(dto.company_id, user);
       const stores = await this.storeRepository.findByCompany(dto.company_id);
@@ -995,7 +995,7 @@ export class ReportsService {
 
     return {
       comparison_type: ComparisonTypeEnum.PERIODS,
-      store_id: dto.store_id,
+      storeId: dto.storeId,
       company_id: dto.company_id,
       generated_at: new Date(),
       periods: [
@@ -1036,9 +1036,9 @@ export class ReportsService {
   private async compareDaysOfWeek(dto: CompareReportsDto, user: UserSessionDto): Promise<any> {
     let storeIds: string[] = [];
 
-    if (dto.store_id) {
-      await this.validateStoreAccess(dto.store_id, user);
-      storeIds = [dto.store_id];
+    if (dto.storeId) {
+      await this.validateStoreAccess(dto.storeId, user);
+      storeIds = [dto.storeId];
     } else if (dto.company_id) {
       this.validateCompanyAccess(dto.company_id, user);
       const stores = await this.storeRepository.findByCompany(dto.company_id);
@@ -1060,7 +1060,7 @@ export class ReportsService {
 
     return {
       comparison_type: ComparisonTypeEnum.DAYS_OF_WEEK,
-      store_id: dto.store_id,
+      storeId: dto.storeId,
       company_id: dto.company_id,
       date_from: new Date(dto.date_from),
       date_to: new Date(dto.date_to),
@@ -1193,7 +1193,7 @@ export class ReportsService {
       generated_at: new Date(),
       items: items.map((i) => ({
         position: i.position,
-        store_id: i.store_id,
+        storeId: i.storeId,
         store_name: i.store_name,
         store_code: i.store_code,
         store_city: i.store_city,
@@ -1620,7 +1620,7 @@ export class ReportsService {
     );
 
     return {
-      store_id: storeId,
+      storeId: storeId,
       store_name: store.nombre,
       date_from: dateFrom,
       date_to: dateTo,
@@ -1659,7 +1659,7 @@ export class ReportsService {
     );
 
     return {
-      store_id: storeId,
+      storeId: storeId,
       store_name: store.nombre,
       date_from: dateFrom,
       date_to: dateTo,
@@ -1700,7 +1700,7 @@ export class ReportsService {
     );
 
     return {
-      store_id: storeId,
+      storeId: storeId,
       store_name: store.nombre,
       date_from: dateFrom,
       date_to: dateTo,
@@ -1742,7 +1742,7 @@ export class ReportsService {
     ]);
 
     return {
-      store_id: storeId,
+      storeId: storeId,
       store_name: store.nombre,
       date_from: dateFrom,
       date_to: dateTo,
@@ -1972,8 +1972,8 @@ export class ReportsService {
         }
         break;
       case ConsolidationLevelEnum.STORE:
-        if (dto.store_id) {
-          await this.validateStoreAccess(dto.store_id, user);
+        if (dto.storeId) {
+          await this.validateStoreAccess(dto.storeId, user);
         }
         break;
     }
@@ -1996,7 +1996,7 @@ export class ReportsService {
 
     // USER - filtrar por tiendas asignadas
     const userStores = await this.storeRepository.findByUserId(user.id);
-    filteredQuery.store_ids = userStores.map((s) => s.id);
+    filteredQuery.storeIds = userStores.map((s) => s.id);
 
     return filteredQuery;
   }
@@ -2110,7 +2110,7 @@ export class ReportsService {
 
   private prepareReportData(dto: CreateReportDto): any {
     return {
-      store_id: dto.store_id,
+      storeId: dto.storeId,
       report_date: dto.report_date,
       report_type: dto.report_type || ReportTypeEnum.DAILY,
       // Campos de empleado (null = consolidado)
@@ -2149,7 +2149,7 @@ export class ReportsService {
   private toResponse(report: ReportHeaderEntity): IReportResponse {
     return {
       id: report.id,
-      store_id: report.store_id,
+      storeId: report.storeId,
       report_date: report.report_date,
       report_type: report.report_type,
       // Campos de empleado
@@ -2517,7 +2517,7 @@ export class ReportsService {
   private mapStoreComparison(store: any): any {
     if (!store) return null;
     return {
-      store_id: store.store_id,
+      storeId: store.storeId,
       store_name: store.store_name,
       store_code: store.store_code,
       metrics: {

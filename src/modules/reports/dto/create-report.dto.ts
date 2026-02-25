@@ -55,7 +55,7 @@ export enum ReportStatusEnum {
  * @example
  * ```typescript
  * const dto: CreateReportDto = {
- *   store_id: 'uuid-store',
+ *   storeId: 'uuid-store',
  *   report_date: '2025-01-16',
  *   report_type: ReportTypeEnum.DAILY,
  *   total_sales: 15000.50,
@@ -78,9 +78,9 @@ export class CreateReportDto {
     description: 'ID de la tienda que genera el reporte',
     example: '123e4567-e89b-12d3-a456-426614174000',
   })
-  @IsUUID('4', { message: 'store_id debe ser un UUID válido' })
-  @IsNotEmpty({ message: 'store_id es requerido' })
-  store_id: string;
+  @IsUUID('4', { message: 'storeId debe ser un UUID válido' })
+  @IsNotEmpty({ message: 'storeId es requerido' })
+  storeId: string;
 
   @ApiProperty({
     description: 'Fecha del reporte (formato YYYY-MM-DD)',
@@ -112,7 +112,7 @@ export class CreateReportDto {
   // - employee_name es REQUERIDO cuando employee_id está presente
   //
   // IDEMPOTENCIA:
-  // La combinación (store_id + report_date + employee_id) debe ser única.
+  // La combinación (storeId + report_date + employee_id) debe ser única.
   // Esto permite múltiples reportes por día: uno por cada empleado.
   // ============================================
 
@@ -120,7 +120,7 @@ export class CreateReportDto {
     description:
       'ID del empleado en Simphony. Si es NULL o no se envía, se considera un reporte consolidado (todos los empleados). ' +
       'Si tiene valor, es un reporte individual de ese empleado específico. ' +
-      'IMPORTANTE: La combinación (store_id + report_date + employee_id) debe ser única.',
+      'IMPORTANTE: La combinación (storeId + report_date + employee_id) debe ser única.',
     example: 12345,
     nullable: true,
   })

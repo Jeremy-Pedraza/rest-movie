@@ -315,12 +315,12 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
       }
 
       // Filtros por entidad
-      if (query.store_id) {
-        qb.andWhere('report.store_id = :store_id', { store_id: query.store_id });
+      if (query.storeId) {
+        qb.andWhere('report.store_id = :storeId', { storeId: query.storeId });
       }
 
-      if (query.store_ids?.length) {
-        qb.andWhere('report.store_id IN (:...store_ids)', { store_ids: query.store_ids });
+      if (query.storeIds?.length) {
+        qb.andWhere('report.store_id IN (:...storeIds)', { storeIds: query.storeIds });
       }
 
       if (query.company_id) {
@@ -574,7 +574,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
    *
    * MULTI-TENANT: Usa withSchema() + manager.getRepository()
    *
-   * Idempotencia: store_id + report_date + employee_id
+   * Idempotencia: storeId + report_date + employee_id
    * - Si employeeId es undefined/null, busca reporte consolidado (employee_id IS NULL)
    * - Si employeeId tiene valor, busca reporte de ese empleado específico
    *
@@ -629,7 +629,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
       // Construir objeto solo con campos escalares (excluir relaciones)
       const updateData: Record<string, unknown> = {};
       const scalarFields = [
-        'store_id',
+        'storeId',
         'report_date',
         'report_type',
         'total_sales',
@@ -777,7 +777,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
    * @param dateFrom - Fecha inicio
    * @param dateTo - Fecha fin
    * @param companyId - Filtrar por compañía (opcional)
-   * @returns Array de store_ids
+   * @returns Array de storeIds
    */
   async getStoreIdsWithReports(
     dateFrom: string,
@@ -788,7 +788,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
       const qb = manager
         .getRepository(ReportHeaderEntity)
         .createQueryBuilder('report')
-        .select('DISTINCT report.store_id', 'store_id')
+        .select('DISTINCT report.store_id', 'storeId')
         .where('report.report_date BETWEEN :dateFrom AND :dateTo', { dateFrom, dateTo });
 
       if (companyId) {
@@ -798,7 +798,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
       }
 
       const result = await qb.getRawMany();
-      return result.map((r) => r.store_id);
+      return result.map((r) => r.storeId);
     });
   }
 
@@ -902,7 +902,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
       days_count: number;
     };
     stores_breakdown: Array<{
-      store_id: string;
+      storeId: string;
       store_name: string;
       store_code: string;
       total_sales: number;
@@ -941,7 +941,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
         .getRepository(ReportHeaderEntity)
         .createQueryBuilder('report')
         .leftJoin('report.store', 'store')
-        .select('store.id', 'store_id')
+        .select('store.id', 'storeId')
         .addSelect('store.nombre', 'store_name')
         .addSelect('store.codigo', 'store_code')
         .addSelect('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
@@ -976,7 +976,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
           days_count: parseInt(totals.days_count) || 0,
         },
         stores_breakdown: storesBreakdown.map((s: any) => ({
-          store_id: s.store_id,
+          storeId: s.storeId,
           store_name: s.store_name,
           store_code: s.store_code,
           total_sales: parseFloat(s.total_sales) || 0,
@@ -1386,7 +1386,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
   async getRankingByStores(dto: RankingStoresDto): Promise<
     Array<{
       position: number;
-      store_id: string;
+      storeId: string;
       store_name: string;
       store_code: string;
       store_city?: string;
@@ -1409,7 +1409,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
         .createQueryBuilder('report')
         .leftJoin('report.store', 'store')
         .leftJoin('store.company', 'company')
-        .select('store.id', 'store_id')
+        .select('store.id', 'storeId')
         .addSelect('store.nombre', 'store_name')
         .addSelect('store.codigo', 'store_code')
         .addSelect('store.ciudad', 'store_city')
@@ -1473,7 +1473,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
 
         return {
           position: index + 1,
-          store_id: r.store_id,
+          storeId: r.storeId,
           store_name: r.store_name,
           store_code: r.store_code,
           store_city: r.store_city,
@@ -1633,7 +1633,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
     dateTo: string,
   ): Promise<
     Array<{
-      store_id: string;
+      storeId: string;
       store_name: string;
       store_code: string;
       total_sales: number;
@@ -1648,7 +1648,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
         .getRepository(ReportHeaderEntity)
         .createQueryBuilder('report')
         .leftJoin('report.store', 'store')
-        .select('store.id', 'store_id')
+        .select('store.id', 'storeId')
         .addSelect('store.nombre', 'store_name')
         .addSelect('store.codigo', 'store_code')
         .addSelect('COALESCE(SUM(report.total_sales), 0)', 'total_sales')
@@ -1664,7 +1664,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
         .getRawMany();
 
       return results.map((r: any) => ({
-        store_id: r.store_id,
+        storeId: r.storeId,
         store_name: r.store_name,
         store_code: r.store_code,
         total_sales: parseFloat(r.total_sales) || 0,
@@ -2572,3 +2572,4 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
     });
   }
 }
+

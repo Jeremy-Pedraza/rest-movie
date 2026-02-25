@@ -65,19 +65,19 @@ export class ConsolidateReportsDto {
     description: 'ID de la tienda (requerido para nivel STORE)',
     example: '123e4567-e89b-12d3-a456-426614174000',
   })
-  @IsUUID('4', { message: 'store_id debe ser un UUID válido' })
+  @IsUUID('4', { message: 'storeId debe ser un UUID válido' })
   @IsOptional()
-  store_id?: string;
+  storeId?: string;
 
   @ApiPropertyOptional({
     description: 'IDs de tiendas específicas a consolidar',
     type: [String],
     example: ['uuid-1', 'uuid-2', 'uuid-3'],
   })
-  @IsArray({ message: 'store_ids debe ser un array' })
-  @IsUUID('4', { each: true, message: 'Cada store_id debe ser un UUID válido' })
+  @IsArray({ message: 'storeIds debe ser un array' })
+  @IsUUID('4', { each: true, message: 'Cada storeId debe ser un UUID válido' })
   @IsOptional()
-  store_ids?: string[];
+  storeIds?: string[];
 
   // ============================================
   // RANGO DE FECHAS
@@ -262,7 +262,7 @@ export class QuickConsolidateDto {
   })
   @IsUUID('4')
   @IsOptional()
-  store_id?: string;
+  storeId?: string;
 
   @ApiPropertyOptional({
     description: 'Alcance de reportes a incluir. Default: individual (evita doble conteo)',

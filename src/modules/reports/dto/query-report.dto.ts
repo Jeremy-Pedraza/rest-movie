@@ -27,7 +27,7 @@ import { ReportStatusEnum } from './create-report.dto';
  * @example
  * ```typescript
  * const query: QueryReportDto = {
- *   store_id: 'uuid-store',
+ *   storeId: 'uuid-store',
  *   date_from: '2025-01-01',
  *   date_to: '2025-01-31',
  *   report_type: 'daily',
@@ -47,19 +47,19 @@ export class QueryReportDto extends PaginationDto {
     description: 'Filtrar por ID de tienda',
     example: '123e4567-e89b-12d3-a456-426614174000',
   })
-  @IsUUID('4', { message: 'store_id debe ser un UUID válido' })
+  @IsUUID('4', { message: 'storeId debe ser un UUID válido' })
   @IsOptional()
-  store_id?: string;
+  storeId?: string;
 
   @ApiPropertyOptional({
     description: 'Filtrar por múltiples IDs de tiendas',
     type: [String],
     example: ['uuid-1', 'uuid-2'],
   })
-  @IsArray({ message: 'store_ids debe ser un array' })
-  @IsUUID('4', { each: true, message: 'Cada store_id debe ser un UUID válido' })
+  @IsArray({ message: 'storeIds debe ser un array' })
+  @IsUUID('4', { each: true, message: 'Cada storeId debe ser un UUID válido' })
   @IsOptional()
-  store_ids?: string[];
+  storeIds?: string[];
 
   @ApiPropertyOptional({
     description: 'Filtrar por ID de compañía (requiere join con stores)',
@@ -304,9 +304,9 @@ export class QueryReportByDateRangeDto {
     description: 'Filtrar por ID de tienda',
     example: '123e4567-e89b-12d3-a456-426614174000',
   })
-  @IsUUID('4', { message: 'store_id debe ser un UUID válido' })
+  @IsUUID('4', { message: 'storeId debe ser un UUID válido' })
   @IsOptional()
-  store_id?: string;
+  storeId?: string;
 
   @ApiPropertyOptional({
     description: 'Fecha de inicio del rango (formato YYYY-MM-DD)',

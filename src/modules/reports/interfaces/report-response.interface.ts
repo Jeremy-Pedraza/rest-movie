@@ -221,7 +221,7 @@ export interface IIncomeByTenderTypeResponse {
  */
 export interface IReportResponse {
   id: string;
-  store_id: string;
+  storeId: string;
   report_date: Date;
   report_type: ReportTypeEnum;
 

@@ -8,7 +8,7 @@ import { CreateReportDto } from './create-report.dto';
  *
  * @description
  * Extiende de CreateReportDto pero hace todos los campos opcionales.
- * No permite modificar store_id ni report_date (campos inmutables).
+ * No permite modificar storeId ni report_date (campos inmutables).
  *
  * @example
  * ```typescript
@@ -19,5 +19,5 @@ import { CreateReportDto } from './create-report.dto';
  * ```
  */
 export class UpdateReportDto extends PartialType(
-  OmitType(CreateReportDto, ['store_id', 'report_date'] as const),
+  OmitType(CreateReportDto, ['storeId', 'report_date'] as const),
 ) {}

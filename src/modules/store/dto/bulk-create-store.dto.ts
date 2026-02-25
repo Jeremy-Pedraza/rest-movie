@@ -49,7 +49,7 @@ export interface IBulkCreateStoreResult {
   /** Código de la tienda intentada */
   codigo: string;
   /** ID de la tienda creada (solo si success=true) */
-  store_id?: string;
+  storeId?: string;
   /** Nombre de la tienda creada (solo si success=true) */
   nombre?: string;
   /** Mensaje de error (solo si success=false) */

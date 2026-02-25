@@ -42,7 +42,7 @@ export class ReportAccessGuard implements CanActivate {
     }
 
     // Extraer parámetros de la request
-    const { level, company_id, store_id } = request.query || request.body || {};
+    const { level, company_id, storeId } = request.query || request.body || {};
     const userRoles = user.roles || [];
 
     // SUPER_ADMIN y ADMIN tienen acceso completo
@@ -79,9 +79,9 @@ export class ReportAccessGuard implements CanActivate {
       }
 
       // Validar que solo acceda a sus tiendas asignadas
-      if (store_id) {
+      if (storeId) {
         const userStoreIds = user.assigned_stores?.map((s: any) => s.id) || [];
-        if (!userStoreIds.includes(store_id)) {
+        if (!userStoreIds.includes(storeId)) {
           this.handleError.forbidden('No tiene permisos para acceder a reportes de esta tienda');
         }
       }

@@ -30,14 +30,8 @@ export interface IJwtPayload {
   /** 🆕 Schema de PostgreSQL del tenant */
   schema?: string | null;
 
-  /** Claim de tienda (snake_case) para compatibilidad con agentes legacy */
-  store_id?: string | null;
-
   /** Claim de tienda (camelCase) para compatibilidad con agentes */
   storeId?: string | null;
-
-  /** Claim alterno de tienda para compatibilidad amplia */
-  store?: string | null;
 
   /** Timestamp de emisión */
   iat?: number;
@@ -79,12 +73,6 @@ export interface IAuthUser {
   /** 🆕 Schema del tenant */
   schema?: string | null;
 
-  /** Claim de tienda (snake_case) para compatibilidad con agentes legacy */
-  store_id?: string | null;
-
   /** Claim de tienda (camelCase) para compatibilidad con agentes */
   storeId?: string | null;
-
-  /** Claim alterno de tienda para compatibilidad amplia */
-  store?: string | null;
 }

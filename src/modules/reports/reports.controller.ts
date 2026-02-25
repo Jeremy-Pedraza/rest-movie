@@ -100,7 +100,7 @@ export class ReportsController {
    * - CONSOLIDADO: Sin employee_id (todos los empleados)
    * - INDIVIDUAL: Con employee_id (un empleado específico)
    *
-   * La idempotencia se verifica por (store_id + report_date + employee_id)
+   * La idempotencia se verifica por (storeId + report_date + employee_id)
    */
   @Post()
   @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
@@ -114,7 +114,7 @@ export class ReportsController {
       '- **Consolidado**: Sin `employee_id` (o null). Representa las ventas de todos los empleados.\n' +
       '- **Individual**: Con `employee_id`. Representa las ventas de un empleado específico.\n\n' +
       '**Idempotencia:**\n' +
-      'La combinación `(store_id + report_date + employee_id)` debe ser única. ' +
+      'La combinación `(storeId + report_date + employee_id)` debe ser única. ' +
       'Esto permite crear múltiples reportes por día: uno por cada empleado.',
   })
   @ApiResponse({ status: 201, description: 'Reporte creado exitosamente' })
@@ -270,9 +270,9 @@ export class ReportsController {
       '- `consolidated=true`: Solo reportes consolidados (sin empleado)\n' +
       '- `consolidated=false`: Solo reportes individuales (con empleado)\n\n' +
       '**Ejemplos:**\n' +
-      '- `GET /reports?store_id=xxx&report_date=2026-01-19` - Todos los reportes del día\n' +
-      '- `GET /reports?store_id=xxx&report_date=2026-01-19&employee_id=12345` - Reporte de un empleado\n' +
-      '- `GET /reports?store_id=xxx&consolidated=false` - Solo reportes individuales',
+      '- `GET /reports?storeId=xxx&report_date=2026-01-19` - Todos los reportes del día\n' +
+      '- `GET /reports?storeId=xxx&report_date=2026-01-19&employee_id=12345` - Reporte de un empleado\n' +
+      '- `GET /reports?storeId=xxx&consolidated=false` - Solo reportes individuales',
   })
   @ApiResponse({ status: 200, description: 'Reportes obtenidos exitosamente' })
   @ApiResponse({ status: 401, description: 'No autorizado' })
@@ -341,7 +341,7 @@ export class ReportsController {
     enum: ['today_vs_yesterday', 'this_week_vs_last_week', 'this_month_vs_last_month', 'yoy'],
     required: true,
   })
-  @ApiQuery({ name: 'store_id', required: false, description: 'UUID de tienda (opcional)' })
+  @ApiQuery({ name: 'storeId', required: false, description: 'UUID de tienda (opcional)' })
   @ApiQuery({ name: 'company_id', required: false, description: 'UUID de compañía (opcional)' })
   @ApiResponse({ status: 200, description: 'Comparación rápida obtenida' })
   @ApiResponse({ status: 401, description: 'No autorizado' })
@@ -436,7 +436,7 @@ export class ReportsController {
     required: false,
     description: 'Agrupar por (default: day)',
   })
-  @ApiQuery({ name: 'store_id', required: false, description: 'UUID de tienda (opcional)' })
+  @ApiQuery({ name: 'storeId', required: false, description: 'UUID de tienda (opcional)' })
   @ApiQuery({ name: 'company_id', required: false, description: 'UUID de compañía (opcional)' })
   @ApiResponse({ status: 200, description: 'Tendencias obtenidas' })
   @ApiResponse({ status: 401, description: 'No autorizado' })
@@ -445,7 +445,7 @@ export class ReportsController {
     @Query('date_to') dateTo: string,
     @CurrentUser() user: UserSessionDto,
     @Query('group_by') groupBy: 'day' | 'week' | 'month' = 'day',
-    @Query('store_id') storeId?: string,
+    @Query('storeId') storeId?: string,
     @Query('company_id') companyId?: string,
   ): Promise<IApiResponse<any>> {
     const data = await this.reportsService.getTrends(
@@ -480,7 +480,7 @@ export class ReportsController {
       'Incluye totales consolidados, métricas individuales por empleado y porcentaje de participación.',
   })
   @ApiQuery({
-    name: 'store_id',
+    name: 'storeId',
     required: true,
     description: 'UUID de la tienda',
     example: '39a85714-3b44-4794-9647-9408709df3aa',
@@ -538,7 +538,7 @@ export class ReportsController {
     @Query('date_to') dateTo?: string,
   ): Promise<IApiResponse<IPaginatedResponse<IReportWithStoreResponse>>> {
     const query = Object.assign(new QueryReportDto(), {
-      store_id: storeId,
+      storeId: storeId,
       date_from: dateFrom,
       date_to: dateTo,
       page: 1,
@@ -574,7 +574,7 @@ export class ReportsController {
   ): Promise<IApiResponse<IReportWithStoreResponse | null>> {
     const today = new Date().toISOString().split('T')[0];
     const query = Object.assign(new QueryReportDto(), {
-      store_id: storeId,
+      storeId: storeId,
       report_date: today,
       page: 1,
       limit: 1,
@@ -610,7 +610,7 @@ export class ReportsController {
     const dto: QuickConsolidateDto = {
       period: 'this_month',
       consolidation_level: ConsolidationLevelEnum.STORE,
-      store_id: storeId,
+      storeId: storeId,
     };
     // Usar consolidación rápida internamente
     const data = await this.reportsService.quickConsolidate(dto, user);

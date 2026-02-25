@@ -58,10 +58,10 @@ import { ReportTypeEnum } from '../enums';
  * ```
  */
 @Entity({ name: 'report_headers' })
-@Index(['store_id', 'report_date', 'employee_id'], { unique: true }) // Idempotencia: 1 reporte por tienda/fecha/empleado
+@Index(['storeId', 'report_date', 'employee_id'], { unique: true }) // Idempotencia: 1 reporte por tienda/fecha/empleado
 @Index(['report_date'])
 @Index(['report_type'])
-@Index(['store_id', 'report_type'])
+@Index(['storeId', 'report_type'])
 @Index(['employee_id'])
 export class ReportHeaderEntity extends BaseTimestampEntity {
 
@@ -74,7 +74,7 @@ export class ReportHeaderEntity extends BaseTimestampEntity {
     nullable: false,
     name: 'store_id',
   })
-  store_id: string;
+  storeId: string;
 
   /**
    * Fecha del reporte (formato: YYYY-MM-DD)

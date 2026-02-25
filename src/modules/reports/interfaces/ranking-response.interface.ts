@@ -49,7 +49,7 @@ export interface IStoreRankingItem {
   position_change?: IPositionChange;
 
   // Datos de la tienda
-  store_id: string;
+  storeId: string;
   store_name: string;
   store_code: string;
   store_city?: string;
@@ -186,7 +186,7 @@ export interface ICompanyRankingItem {
 
   // Desglose por tiendas (opcional)
   stores_breakdown?: Array<{
-    store_id: string;
+    storeId: string;
     store_name: string;
     metric_value: number;
     percentage_of_company: number;
@@ -241,7 +241,7 @@ export interface ICompanyRankingResponse {
  */
 export interface IGrowthRankingItem {
   position: number;
-  store_id: string;
+  storeId: string;
   store_name: string;
   store_code: string;
   company_name?: string;
@@ -291,7 +291,7 @@ export interface IGrowthRankingResponse {
  */
 export interface IConsistencyRankingItem {
   position: number;
-  store_id: string;
+  storeId: string;
   store_name: string;
   store_code: string;
 

@@ -233,7 +233,7 @@ export class StoreService {
           index: i,
           success: true,
           codigo: storeDto.codigo,
-          store_id: created.id,
+          storeId: created.id,
           nombre: created.nombre,
         });
         successCount++;

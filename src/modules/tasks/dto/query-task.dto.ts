@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @fileoverview DTO para consultar/filtrar tareas programadas
  * @module modules/tasks/dto
  */
@@ -11,10 +11,10 @@ import {
   IsEnum,
   IsBoolean,
   IsDateString,
-  Min,
   Max,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
+import { PaginationDto, SortOrder } from '@shared/common';
 import { JOB_STATUS, JobStatus } from '../tasks.constants';
 
 /**
@@ -23,22 +23,7 @@ import { JOB_STATUS, JobStatus } from '../tasks.constants';
  * @example
  * GET /tasks?status=active&enabled=true&page=1&limit=10
  */
-export class QueryTaskDto {
-  // ============================================
-  // PAGINACIÓN
-  // ============================================
-
-  @ApiPropertyOptional({
-    description: 'Número de página',
-    default: 1,
-    minimum: 1,
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt({ message: 'La página debe ser un número entero' })
-  @Min(1, { message: 'La página mínima es 1' })
-  page?: number = 1;
-
+export class QueryTaskDto extends PaginationDto {
   @ApiPropertyOptional({
     description: 'Registros por página',
     default: 10,
@@ -48,13 +33,8 @@ export class QueryTaskDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt({ message: 'El límite debe ser un número entero' })
-  @Min(1, { message: 'El límite mínimo es 1' })
   @Max(50, { message: 'El límite máximo es 50' })
   limit?: number = 10;
-
-  // ============================================
-  // FILTROS
-  // ============================================
 
   @ApiPropertyOptional({
     description: 'Filtrar por estado',
@@ -89,10 +69,6 @@ export class QueryTaskDto {
   @IsString({ message: 'La búsqueda debe ser texto' })
   search?: string;
 
-  // ============================================
-  // FILTROS DE FECHA
-  // ============================================
-
   @ApiPropertyOptional({
     description: 'Última ejecución después de esta fecha (ISO 8601)',
     example: '2025-01-01T00:00:00Z',
@@ -109,17 +85,13 @@ export class QueryTaskDto {
   @IsDateString({}, { message: 'lastRunBefore debe ser una fecha válida ISO 8601' })
   lastRunBefore?: string;
 
-  // ============================================
-  // ORDENAMIENTO
-  // ============================================
-
   @ApiPropertyOptional({
     description: 'Campo por el cual ordenar',
     enum: ['name', 'lastRun', 'nextRun', 'status', 'createdAt'],
     default: 'name',
   })
   @IsOptional()
-  @IsString({ message: 'sortBy debe ser texto' })
+  @Transform(({ value, obj }): string => value ?? obj.sort_by ?? 'name')
   @IsEnum(['name', 'lastRun', 'nextRun', 'status', 'createdAt'], {
     message: 'sortBy debe ser: name, lastRun, nextRun, status o createdAt',
   })
@@ -128,28 +100,18 @@ export class QueryTaskDto {
   @ApiPropertyOptional({
     description: 'Orden de resultados',
     enum: ['ASC', 'DESC'],
-    default: 'ASC',
+    default: SortOrder.ASC,
   })
   @IsOptional()
-  @IsEnum(['ASC', 'DESC'], { message: 'sortOrder debe ser ASC o DESC' })
-  sortOrder?: 'ASC' | 'DESC' = 'ASC';
+  @Transform(({ value, obj }): SortOrder => value ?? obj.sort_order ?? SortOrder.ASC)
+  @IsEnum(SortOrder, { message: 'sortOrder debe ser ASC o DESC' })
+  sortOrder?: SortOrder = SortOrder.ASC;
 }
 
 /**
  * DTO para consultar historial de ejecuciones de una tarea
  */
-export class QueryTaskHistoryDto {
-  @ApiPropertyOptional({
-    description: 'Número de página',
-    default: 1,
-    minimum: 1,
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt({ message: 'La página debe ser un número entero' })
-  @Min(1, { message: 'La página mínima es 1' })
-  page?: number = 1;
-
+export class QueryTaskHistoryDto extends PaginationDto {
   @ApiPropertyOptional({
     description: 'Registros por página',
     default: 20,
@@ -159,7 +121,6 @@ export class QueryTaskHistoryDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt({ message: 'El límite debe ser un número entero' })
-  @Min(1, { message: 'El límite mínimo es 1' })
   @Max(100, { message: 'El límite máximo es 100' })
   limit?: number = 20;
 
@@ -235,3 +196,4 @@ export class RunTaskDto {
   @IsOptional()
   params?: Record<string, unknown>;
 }
+

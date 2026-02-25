@@ -1,4 +1,4 @@
-// src/modules/logger/dto/query-log.dto.ts
+﻿// src/modules/logger/dto/query-log.dto.ts
 
 /**
  * @fileoverview DTO para consultar logs
@@ -6,22 +6,13 @@
  */
 
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsEnum,
-  IsOptional,
-  IsString,
-  IsUUID,
-  IsDateString,
-  IsInt,
-  IsIn,
-  Min,
-  Max,
-} from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsEnum, IsOptional, IsString, IsUUID, IsDateString, IsInt, IsIn, Max } from 'class-validator';
+import { Type, Transform } from 'class-transformer';
+import { PaginationDto, SortOrder } from '@shared/common';
 
 import { LogLevel, LogContext } from '../entities/log.entity';
 
-export class QueryLogDto {
+export class QueryLogDto extends PaginationDto {
   @ApiPropertyOptional({
     enum: LogLevel,
     description: 'Filtrar por nivel',
@@ -112,27 +103,15 @@ export class QueryLogDto {
   toDate?: string;
 
   @ApiPropertyOptional({
-    description: 'Número de página',
-    default: 1,
-    minimum: 1,
-  })
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Type(() => Number)
-  page?: number = 1;
-
-  @ApiPropertyOptional({
     description: 'Registros por página',
     default: 20,
     minimum: 1,
     maximum: 100,
   })
   @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Max(100)
   @Type(() => Number)
+  @IsInt()
+  @Max(100)
   limit?: number = 20;
 
   @ApiPropertyOptional({
@@ -141,17 +120,19 @@ export class QueryLogDto {
     enum: ['created_at', 'level', 'context', 'status_code', 'response_time'],
   })
   @IsOptional()
+  @Transform(({ value, obj }): string => value ?? obj.sort_by ?? 'created_at')
   @IsIn(['created_at', 'level', 'context', 'status_code', 'response_time'])
   sortBy?: string = 'created_at';
 
   @ApiPropertyOptional({
     description: 'Orden',
-    default: 'DESC',
+    default: SortOrder.DESC,
     enum: ['ASC', 'DESC'],
   })
   @IsOptional()
-  @IsIn(['ASC', 'DESC'])
-  sortOrder?: 'ASC' | 'DESC' = 'DESC';
+  @Transform(({ value, obj }): SortOrder => value ?? obj.sort_order ?? SortOrder.DESC)
+  @IsEnum(SortOrder)
+  sortOrder?: SortOrder = SortOrder.DESC;
 }
 
 /**
@@ -183,3 +164,4 @@ export class LogStatsQueryDto {
   @IsString()
   groupBy?: 'level' | 'context' | 'hour' | 'day' = 'level';
 }
+

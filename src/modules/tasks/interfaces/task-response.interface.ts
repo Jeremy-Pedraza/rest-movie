@@ -6,6 +6,7 @@
  */
 
 import { JobStatus } from '../tasks.constants';
+import { IPaginationMeta } from '@shared/common';
 import { IJobExecutionHistory, IJobExecutionResult } from './task-config.interface';
 
 // ============================================
@@ -207,12 +208,7 @@ export interface ITaskHistoryResponse {
   /** Historial de ejecuciones */
   executions: IJobExecutionHistory[];
   /** Paginación */
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
+  pagination: IPaginationMeta;
 }
 
 // ============================================

@@ -59,6 +59,19 @@ const GLOBAL_STATS_KEY = `${STATS_PREFIX}global`;
 const DEFAULT_TTL = 3600;
 
 /**
+ * TTL para claves de estadisticas por tag (24 horas)
+ * Se renueva automaticamente con cada hit/miss activo
+ * Tags inactivos expiran naturalmente
+ */
+const STATS_TAG_TTL = 86400;
+
+/**
+ * TTL para clave de estadisticas globales (7 dias)
+ * Se renueva automaticamente con cada hit/miss
+ */
+const STATS_GLOBAL_TTL = 604800;
+
+/**
  * Límite de concurrencia para operaciones batch
  */
 const BATCH_CONCURRENCY = 10;
@@ -449,6 +462,8 @@ export class CacheService implements OnModuleInit {
         lastUpdated: new Date().toISOString(),
       });
     }
+    // Siempre refrescar TTL al inicializar (previene acumulacion sin expiracion)
+    await this.redis.expire(GLOBAL_STATS_KEY, STATS_GLOBAL_TTL);
   }
 
   /**
@@ -473,11 +488,13 @@ export class CacheService implements OnModuleInit {
       // Incremento atómico global
       await this.redis.hIncr(GLOBAL_STATS_KEY, stat, 1);
       await this.redis.hSet(GLOBAL_STATS_KEY, 'lastUpdated', new Date().toISOString());
+      await this.redis.expire(GLOBAL_STATS_KEY, STATS_GLOBAL_TTL); // Refrescar TTL (7 dias)
 
-      // Incremento atómico por tag
+      // Incremento atómico por tag (con TTL para evitar acumulacion de tags inactivos)
       for (const tag of tags) {
         const tagStatsKey = `${STATS_PREFIX}tag:${tag}`;
         await this.redis.hIncr(tagStatsKey, stat, 1);
+        await this.redis.expire(tagStatsKey, STATS_TAG_TTL); // Refrescar TTL (24h)
       }
     } catch (error) {
       this.logError('Error updating stats', error);
@@ -565,13 +582,14 @@ export class CacheService implements OnModuleInit {
    * Resetear estadísticas (overwrite real, no condicional)
    */
   async resetStats(): Promise<void> {
-    // Eliminar stats globales y recrear
+    // Eliminar stats globales y recrear con TTL
     await this.redis.del(GLOBAL_STATS_KEY);
     await this.redis.hMSet(GLOBAL_STATS_KEY, {
       hits: 0,
       misses: 0,
       lastUpdated: new Date().toISOString(),
     });
+    await this.redis.expire(GLOBAL_STATS_KEY, STATS_GLOBAL_TTL);
 
     // Eliminar stats por tag
     let cursor = '0';

@@ -13,6 +13,7 @@ node_modules
 # Build Output
 # ============================================
 dist/
+api/
 build/
 .next/
 out/
@@ -24,6 +25,7 @@ out/
 .env.local
 .env.development
 .env.production
+api/.env.production
 !.env.example
 !.env.test
 

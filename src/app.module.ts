@@ -68,8 +68,9 @@ import { bullConfig } from '@config/bull';
       envFilePath:
         process.env.NODE_ENV === 'production'
           ? [
-              './api/.env.production', // Primera opción
-              './.env.production', // Fallback
+              'api/.env.production', // Primera opción
+              '.env.production', // Fallback en raiz
+              '.env', // Ultimo fallback
             ]
           : [
               `.env.${process.env.NODE_ENV}`, // Ambiente específico
@@ -124,6 +125,7 @@ import { bullConfig } from '@config/bull';
           host: configService.get<string>('bull.redis.host'),
           port: configService.get<number>('bull.redis.port'),
           password: configService.get<string>('bull.redis.password') || undefined,
+          db: configService.get<number>('bull.redis.db') || 0,
         },
         defaultJobOptions: configService.get('bull.defaultJobOptions'),
       }),
@@ -279,3 +281,4 @@ export class AppModule implements NestModule {
       .forRoutes('/*path'); // Aplicar a todas las rutas
   }
 }
+

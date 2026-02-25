@@ -1,77 +1,87 @@
 #!/usr/bin/env node
 
 /**
- * @fileoverview Script helper para ejecutar migraciones de TypeORM
+ * @fileoverview Helper para ejecutar migraciones de TypeORM
  * @module database/migrations
  *
  * Uso:
- *   npm run migration:run
- *   npm run migration:revert
- *   npm run migration:show
+ *   node src/database/run-migration.js run
+ *   node src/database/run-migration.js run --prod
+ *   node src/database/run-migration.js show --dev
  */
 
-require('dotenv').config();
 const { exec } = require('child_process');
 const path = require('path');
 
-// Comando base de TypeORM
-const typeormPath = path.join(__dirname, '..', '..', 'node_modules', '.bin', 'typeorm');
+const typeormBin = process.platform === 'win32' ? 'typeorm.cmd' : 'typeorm';
+const typeormPath = path.join(__dirname, '..', '..', 'node_modules', '.bin', typeormBin);
 const dataSourcePath = path.join(__dirname, '..', 'config', 'database', 'data-source.ts');
 
-// Función para ejecutar comandos
-function runCommand(command, description) {
-  console.log(`\n🚀 ${description}...\n`);
+const [action, ...flags] = process.argv.slice(2);
 
-  exec(command, (error, stdout, stderr) => {
+function resolveEnvMode() {
+  if (flags.includes('--prod')) return 'production';
+  if (flags.includes('--dev')) return 'development';
+  return process.env.NODE_ENV || 'development';
+}
+
+function runCommand(command, description, nodeEnv) {
+  console.log(`\n[Migration] ${description}`);
+  console.log(`[Migration] NODE_ENV=${nodeEnv}\n`);
+
+  const cmd = process.platform === 'win32' ? `cmd /c ${command}` : command;
+
+  exec(cmd, { env: { ...process.env, NODE_ENV: nodeEnv } }, (error, stdout, stderr) => {
     if (error) {
-      console.error(`❌ Error: ${error.message}`);
+      console.error(`[Migration] Error: ${error.message}`);
       process.exit(1);
     }
+
     if (stderr) {
-      console.error(`⚠️  Warning: ${stderr}`);
+      console.error(`[Migration] Warning: ${stderr}`);
     }
+
     console.log(stdout);
-    console.log(`\n✅ ${description} completado\n`);
+    console.log(`[Migration] ${description} completado\n`);
   });
 }
 
-// Obtener el comando del argumento
-const action = process.argv[2];
+function printUsage() {
+  console.log(`
+Uso: node src/database/run-migration.js <comando> [--prod|--dev]
+
+Comandos:
+  run      Ejecutar migraciones pendientes
+  revert   Revertir ultima migracion
+  show     Mostrar estado de migraciones
+
+Flags:
+  --prod   Fuerza NODE_ENV=production
+  --dev    Fuerza NODE_ENV=development
+
+Ejemplos:
+  node src/database/run-migration.js run
+  node src/database/run-migration.js run --prod
+  node src/database/run-migration.js show --dev
+`);
+}
+
+const envMode = resolveEnvMode();
 
 switch (action) {
   case 'run':
-    runCommand(
-      `${typeormPath} migration:run -d ${dataSourcePath}`,
-      'Ejecutando migraciones pendientes',
-    );
+    runCommand(`${typeormPath} migration:run -d ${dataSourcePath}`, 'Ejecutando migraciones', envMode);
     break;
 
   case 'revert':
-    runCommand(
-      `${typeormPath} migration:revert -d ${dataSourcePath}`,
-      'Revirtiendo última migración',
-    );
+    runCommand(`${typeormPath} migration:revert -d ${dataSourcePath}`, 'Revirtiendo migracion', envMode);
     break;
 
   case 'show':
-    runCommand(
-      `${typeormPath} migration:show -d ${dataSourcePath}`,
-      'Mostrando estado de migraciones',
-    );
+    runCommand(`${typeormPath} migration:show -d ${dataSourcePath}`, 'Mostrando estado de migraciones', envMode);
     break;
 
   default:
-    console.log(`
-Uso: node run-migration.js [comando]
-
-Comandos disponibles:
-  run     - Ejecutar migraciones pendientes
-  revert  - Revertir última migración
-  show    - Mostrar estado de migraciones
-
-Ejemplos:
-  node run-migration.js run
-  node run-migration.js show
-    `);
+    printUsage();
     process.exit(1);
 }

@@ -1,10 +1,21 @@
 import { DataSource, DataSourceOptions } from 'typeorm';
 import { config } from 'dotenv';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Load environment variables
-// Prioridad: .env > .env.development
-const envFile = process.env.NODE_ENV === 'production' ? '.env' : '.env.development';
-config({ path: envFile });
+// En produccion prioriza api/.env.production (build output).
+const envCandidates =
+  process.env.NODE_ENV === 'production'
+    ? ['api/.env.production', '.env.production', '.env']
+    : [`.env.${process.env.NODE_ENV || 'development'}`, '.env'];
+
+const envFile = envCandidates.find((candidate) => fs.existsSync(path.resolve(process.cwd(), candidate)));
+if (envFile) {
+  config({ path: envFile });
+} else {
+  config();
+}
 
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',

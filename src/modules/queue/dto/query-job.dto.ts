@@ -1,6 +1,7 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+﻿import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsEnum, IsOptional, IsString, IsInt, Max } from 'class-validator';
 import { Type } from 'class-transformer';
+import { PaginationDto } from '@shared/common';
 
 /**
  * @enum JobStatus
@@ -19,7 +20,7 @@ export enum JobStatus {
  * @class QueryJobDto
  * @description DTO para filtrar jobs en las colas
  */
-export class QueryJobDto {
+export class QueryJobDto extends PaginationDto {
   @ApiPropertyOptional({
     description: 'Estado del job',
     enum: JobStatus,
@@ -38,18 +39,6 @@ export class QueryJobDto {
   jobName?: string;
 
   @ApiPropertyOptional({
-    description: 'Página actual',
-    example: 1,
-    default: 1,
-    minimum: 1,
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt({ message: 'La página debe ser un número entero' })
-  @Min(1, { message: 'La página mínima es 1' })
-  page?: number;
-
-  @ApiPropertyOptional({
     description: 'Cantidad de resultados por página',
     example: 10,
     default: 10,
@@ -59,7 +48,6 @@ export class QueryJobDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt({ message: 'El límite debe ser un número entero' })
-  @Min(1, { message: 'El límite mínimo es 1' })
   @Max(100, { message: 'El límite máximo es 100' })
-  limit?: number;
+  limit?: number = 10;
 }

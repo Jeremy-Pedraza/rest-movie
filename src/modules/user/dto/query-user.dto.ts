@@ -1,4 +1,4 @@
-// src/modules/user/dto/query-user.dto.ts
+﻿// src/modules/user/dto/query-user.dto.ts
 
 /**
  * @fileoverview DTO para consultar usuarios
@@ -6,21 +6,13 @@
  */
 
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsOptional,
-  IsString,
-  IsEnum,
-  IsBoolean,
-  IsInt,
-  IsDateString,
-  Min,
-  Max,
-} from 'class-validator';
-import { Type, Transform } from 'class-transformer';
+import { IsOptional, IsString, IsEnum, IsBoolean, IsDateString, IsIn } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { PaginationDto, SortOrder } from '@shared/common';
 
 import { UserStatus } from '../entities/user.entity';
 
-export class QueryUserDto {
+export class QueryUserDto extends PaginationDto {
   @ApiPropertyOptional({
     description: 'Buscar por email, nombre o apellido',
     example: 'john',
@@ -70,44 +62,23 @@ export class QueryUserDto {
   toDate?: string;
 
   @ApiPropertyOptional({
-    description: 'Número de página',
-    default: 1,
-    minimum: 1,
-  })
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Type(() => Number)
-  page?: number = 1;
-
-  @ApiPropertyOptional({
-    description: 'Registros por página',
-    default: 10,
-    minimum: 1,
-    maximum: 100,
-  })
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  @Type(() => Number)
-  limit?: number = 10;
-
-  @ApiPropertyOptional({
     description: 'Campo para ordenar',
     default: 'createdAt',
     enum: ['createdAt', 'email', 'firstName', 'lastName', 'status', 'lastLoginAt'],
   })
   @IsOptional()
-  @IsString()
+  @Transform(({ value, obj }): string => value ?? obj.sort_by ?? 'createdAt')
+  @IsIn(['createdAt', 'email', 'firstName', 'lastName', 'status', 'lastLoginAt'])
   sortBy?: string = 'createdAt';
 
   @ApiPropertyOptional({
     description: 'Orden',
-    default: 'DESC',
+    default: SortOrder.DESC,
     enum: ['ASC', 'DESC'],
   })
   @IsOptional()
-  @IsString()
-  sortOrder?: 'ASC' | 'DESC' = 'DESC';
+  @Transform(({ value, obj }): SortOrder => value ?? obj.sort_order ?? SortOrder.DESC)
+  @IsEnum(SortOrder)
+  sortOrder?: SortOrder = SortOrder.DESC;
 }
+

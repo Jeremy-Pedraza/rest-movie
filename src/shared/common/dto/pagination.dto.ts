@@ -1,7 +1,8 @@
 // src/shared/common/dto/pagination.dto.ts
 import { IsOptional, IsNumber, IsString, IsEnum, Min, Max } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
+import { IPaginationMeta } from '../interfaces';
 
 /**
  * Enumeración para el orden de clasificación
@@ -58,8 +59,18 @@ export class PaginationDto {
     example: 'created_at',
   })
   @IsOptional()
+  @Transform(({ value, obj }): string => value ?? obj.sort_by ?? 'created_at')
   @IsString({ message: 'El campo de ordenamiento debe ser texto' })
   sortBy?: string = 'created_at';
+
+  @ApiPropertyOptional({
+    name: 'sort_by',
+    description: 'Alias legacy de sortBy (deprecado)',
+    default: 'created_at',
+    example: 'created_at',
+    deprecated: true,
+  })
+  private readonly _sortByLegacyDoc?: string;
 
   @ApiPropertyOptional({
     description: 'Dirección del ordenamiento',
@@ -68,8 +79,19 @@ export class PaginationDto {
     example: 'DESC',
   })
   @IsOptional()
+  @Transform(({ value, obj }): SortOrder => value ?? obj.sort_order ?? SortOrder.DESC)
   @IsEnum(SortOrder, { message: 'El orden debe ser ASC o DESC' })
   sortOrder?: SortOrder = SortOrder.DESC;
+
+  @ApiPropertyOptional({
+    name: 'sort_order',
+    description: 'Alias legacy de sortOrder (deprecado)',
+    enum: SortOrder,
+    default: SortOrder.DESC,
+    example: 'DESC',
+    deprecated: true,
+  })
+  private readonly _sortOrderLegacyDoc?: SortOrder;
 
   /**
    * Calcula el offset para la query SQL
@@ -104,14 +126,7 @@ export class PaginatedResponseDto<T> {
       hasPrevPage: false,
     },
   })
-  meta: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-    hasNextPage: boolean;
-    hasPrevPage: boolean;
-  };
+  meta: IPaginationMeta;
 }
 
 /**

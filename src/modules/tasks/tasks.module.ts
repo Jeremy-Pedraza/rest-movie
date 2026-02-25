@@ -8,6 +8,7 @@
  * - Limpieza de sesiones expiradas
  * - Limpieza de logs antiguos
  * - Precalentamiento de cache
+ * - Limpieza de Redis (Bull jobs fallidos + cache orphans)
  *
  * @requires ScheduleModule - Ya registrado globalmente en app.module.ts
  */
@@ -19,6 +20,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from '@modules/auth';
 import { CacheModule } from '@modules/cache';
 import { LoggerModule } from '@modules/logger';
+import { QueueModule } from '@modules/queue';
 import { UserModule } from '@modules/user';
 
 // Controller y Service
@@ -26,7 +28,14 @@ import { TasksController } from './tasks.controller';
 import { TasksService } from './tasks.service';
 
 // Jobs
-import { BackupJob, CacheWarmupJob, CleanupJob, LogCleanupJob, SessionCleanupJob } from './jobs';
+import {
+  BackupJob,
+  CacheWarmupJob,
+  CleanupJob,
+  LogCleanupJob,
+  RedisCleanupJob,
+  SessionCleanupJob,
+} from './jobs';
 
 @Module({
   imports: [
@@ -34,6 +43,7 @@ import { BackupJob, CacheWarmupJob, CleanupJob, LogCleanupJob, SessionCleanupJob
     // Módulos necesarios para los jobs
     AuthModule, // Para SessionCleanupJob y CacheWarmupJob
     LoggerModule, // Para LogCleanupJob
+    QueueModule, // Para RedisCleanupJob
     UserModule, // Para CacheWarmupJob
     CacheModule, // Para CacheWarmupJob
   ],
@@ -48,6 +58,7 @@ import { BackupJob, CacheWarmupJob, CleanupJob, LogCleanupJob, SessionCleanupJob
     SessionCleanupJob,
     LogCleanupJob,
     CacheWarmupJob,
+    RedisCleanupJob,
   ],
   exports: [
     TasksService,
@@ -57,6 +68,7 @@ import { BackupJob, CacheWarmupJob, CleanupJob, LogCleanupJob, SessionCleanupJob
     SessionCleanupJob,
     LogCleanupJob,
     CacheWarmupJob,
+    RedisCleanupJob,
   ],
 })
 export class TasksModule {}

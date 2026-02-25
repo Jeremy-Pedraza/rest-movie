@@ -44,7 +44,6 @@ import { NotificationService } from './notification.service';
  * - GET /notifications/channels - Ver canales disponibles
  */
 @ApiTags('Notifications')
-@ApiBearerAuth()
 @Controller('notifications')
 export class NotificationController {
   constructor(private readonly notificationService: NotificationService) {}
@@ -57,6 +56,7 @@ export class NotificationController {
    * Enviar notificación por email
    */
   @Post('email')
+  @ApiBearerAuth()
   @Roles(ROLES.ADMIN, ROLES.MANAGER)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -96,6 +96,7 @@ export class NotificationController {
    * Enviar notificación por SMS
    */
   @Post('sms')
+  @ApiBearerAuth()
   @Roles(ROLES.ADMIN, ROLES.MANAGER)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -135,6 +136,7 @@ export class NotificationController {
    * Enviar push notification
    */
   @Post('push')
+  @ApiBearerAuth()
   @Roles(ROLES.ADMIN, ROLES.MANAGER)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -178,6 +180,7 @@ export class NotificationController {
    * Enviar notificación por múltiples canales
    */
   @Post('multi')
+  @ApiBearerAuth()
   @Roles(ROLES.ADMIN, ROLES.MANAGER)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

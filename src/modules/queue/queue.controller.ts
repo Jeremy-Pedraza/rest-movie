@@ -13,13 +13,14 @@ import {
   Optional,
 } from '@nestjs/common';
 import {
+  ApiBearerAuth,
   ApiOperation,
   ApiParam,
   ApiResponse as ApiSwaggerResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import { LoggerService, LogContext } from '@modules/logger';
-import { IApiResponse } from '@shared/common/interfaces';
+import { IApiResponse } from '@shared/common';
 import { AddJobDto, CleanJobsDto, QueryJobDto } from './dto';
 import {
   IAllQueuesStatsResponse,
@@ -49,6 +50,7 @@ import { QueueService } from './queue.service';
  * Requiere roles: ADMIN, MANAGER
  */
 @ApiTags('Queue Management')
+@ApiBearerAuth()
 @Controller('queue')
 @Roles(ROLES.ADMIN, ROLES.MANAGER)
 export class QueueController {

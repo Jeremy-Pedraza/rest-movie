@@ -39,7 +39,14 @@ import {
 } from './tasks.constants';
 
 // Jobs
-import { BackupJob, CacheWarmupJob, CleanupJob, LogCleanupJob, SessionCleanupJob } from './jobs';
+import {
+  BackupJob,
+  CacheWarmupJob,
+  CleanupJob,
+  LogCleanupJob,
+  RedisCleanupJob,
+  SessionCleanupJob,
+} from './jobs';
 
 /**
  * Registro interno de ejecuciones
@@ -94,6 +101,7 @@ export class TasksService implements OnModuleInit {
     private readonly sessionCleanupJob: SessionCleanupJob,
     private readonly logCleanupJob: LogCleanupJob,
     private readonly cacheWarmupJob: CacheWarmupJob,
+    private readonly redisCleanupJob: RedisCleanupJob,
     @Optional()
     @Inject(LoggerService)
     private readonly loggerService?: LoggerService,
@@ -104,6 +112,7 @@ export class TasksService implements OnModuleInit {
     this.jobInstances.set(JOB_NAMES.SESSION_CLEANUP, this.sessionCleanupJob);
     this.jobInstances.set(JOB_NAMES.LOG_CLEANUP, this.logCleanupJob);
     this.jobInstances.set(JOB_NAMES.CACHE_WARMUP, this.cacheWarmupJob);
+    this.jobInstances.set(JOB_NAMES.REDIS_CLEANUP, this.redisCleanupJob);
   }
 
   onModuleInit(): void {
@@ -364,6 +373,8 @@ export class TasksService implements OnModuleInit {
         limit,
         total,
         totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
       },
     };
   }

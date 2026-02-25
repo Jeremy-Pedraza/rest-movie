@@ -148,6 +148,7 @@ export class AuthService {
       fullUser.roles.map((r: { name: string }) => r.name),
       fullUser.company_id,
       fullUser.company?.schema || null,
+      this.getPrimaryStoreId(fullUser),
     );
 
     // 10. Crear sesión (usa TTL del refresh token, no del access token)
@@ -229,6 +230,7 @@ export class AuthService {
       [ROLES.USER],
       null, // ✅ companyId null en registro
       null, // ✅ schema null en registro
+      null, // ✅ sin tienda asignada en registro
     );
 
     // 7. Crear sesión (usa TTL del refresh token, no del access token)
@@ -349,6 +351,7 @@ export class AuthService {
       user.roles.map((r: { name: string }) => r.name),
       user.company_id,
       user.company?.schema || null,
+      this.getPrimaryStoreId(user),
     );
 
     // 7. Consumir el token actual (marcarlo como usado)
@@ -666,6 +669,7 @@ export class AuthService {
    * @param roles - Lista de roles
    * @param companyId - ID de la company (null para usuarios sin company)
    * @param schema - Schema de PostgreSQL (null para public/sin tenant)
+   * @param storeId - ID de tienda principal (opcional) para compatibilidad con agentes
    */
   private async generateTokens(
     userId: string,
@@ -673,6 +677,7 @@ export class AuthService {
     roles: string[],
     companyId: string | null = null, // ✅ Nuevo parámetro
     schema: string | null = null, // ✅ Nuevo parámetro
+    storeId: string | null = null, // ✅ Compatibilidad con agente
   ): Promise<{
     accessToken: string;
     refreshToken: string;
@@ -687,6 +692,10 @@ export class AuthService {
       roles,
       companyId,
       schema,
+      // Compatibilidad con contratos de agentes que esperan claim de tienda
+      store_id: storeId,
+      storeId: storeId,
+      store: storeId,
     };
 
     const accessTokenExpiresIn = this.configService.get<number>('jwt.expiresIn') || 900; // 15 min
@@ -755,6 +764,15 @@ export class AuthService {
         expiresIn: '1h',
       },
     );
+  }
+
+  /**
+   * Obtiene una tienda principal para exponerla en el JWT de compatibilidad.
+   * Si el usuario no tiene tiendas asignadas retorna null.
+   */
+  private getPrimaryStoreId(user: any): string | null {
+    const firstStore = user?.assigned_stores?.[0];
+    return firstStore?.id || null;
   }
 
   /**

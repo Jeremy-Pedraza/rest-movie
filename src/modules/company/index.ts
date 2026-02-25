@@ -16,6 +16,7 @@
 export * from './entities';
 export * from './dto';
 export * from './interfaces';
+export * from './sanitizers';
 export * from './company.repository';
 export * from './company.service';
 export * from './company.controller';

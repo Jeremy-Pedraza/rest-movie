@@ -8,3 +8,4 @@ export * from './backup.job';
 export * from './session-cleanup.job';
 export * from './log-cleanup.job';
 export * from './cache-warmup.job';
+export * from './redis-cleanup.job';

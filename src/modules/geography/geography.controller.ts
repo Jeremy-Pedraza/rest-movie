@@ -10,6 +10,7 @@
 
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { Public } from '@decorators/public.decorator';
 import { GeographyService } from './geography.service';
 import {
   QueryCountriesDto,
@@ -26,6 +27,7 @@ import {
 } from './dto';
 
 @ApiTags('Geography')
+@Public()
 @Controller('geography')
 export class GeographyController {
   constructor(private readonly service: GeographyService) {}

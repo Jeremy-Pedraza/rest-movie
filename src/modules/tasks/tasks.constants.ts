@@ -25,6 +25,8 @@ export const JOB_NAMES = {
   LOG_CLEANUP: 'log-cleanup',
   /** Precalentamiento de cache */
   CACHE_WARMUP: 'cache-warmup',
+  /** Limpieza de Redis (Bull jobs + cache orphans) */
+  REDIS_CLEANUP: 'redis-cleanup',
 } as const;
 
 export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
@@ -118,6 +120,11 @@ export const DEFAULT_JOB_CONFIG = {
     enabled: true,
     cron: CRON_EXPRESSIONS.DAILY_6AM,
     description: 'Precalentamiento de cache con datos frecuentes',
+  },
+  [JOB_NAMES.REDIS_CLEANUP]: {
+    enabled: true,
+    cron: CRON_EXPRESSIONS.EVERY_6_HOURS,
+    description: 'Limpieza de jobs fallidos de Bull y claves huerfanas de Redis',
   },
 } as const;
 

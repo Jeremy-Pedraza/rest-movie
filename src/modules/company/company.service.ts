@@ -14,6 +14,7 @@ import {
   ICompanyLocaleResponse,
 } from './interfaces';
 import { CompanyEntity } from './entities';
+import { sanitizeCreateCompanyDto, sanitizeUpdateCompanyDto } from './sanitizers/company.sanitizer';
 
 /**
  * CompanyService
@@ -511,65 +512,14 @@ export class CompanyService {
    * Sanitizar DTO de creación
    */
   private sanitizeCreateDto(dto: CreateCompanyDto): Partial<CompanyEntity> {
-    return {
-      // Campos base
-      name: this.sanitizer.sanitizeString(dto.name),
-      schema: dto.schema ? this.sanitizer.sanitizeString(dto.schema).toLowerCase() : undefined,
-      domain: dto.domain ? this.sanitizer.sanitizeString(dto.domain) : undefined,
-      subdomain: dto.subdomain ? this.sanitizer.sanitizeString(dto.subdomain) : undefined,
-      email: this.sanitizer.sanitizeEmail(dto.email),
-      telefono: dto.telefono ? this.sanitizer.sanitizeString(dto.telefono) : undefined,
-      direccion: dto.direccion ? this.sanitizer.sanitizeString(dto.direccion) : undefined,
-      pais: this.sanitizer.sanitizeString(dto.pais),
-      ciudad: this.sanitizer.sanitizeString(dto.ciudad),
-      ruc: this.sanitizer.sanitizeString(dto.ruc).toUpperCase(),
-      is_active: dto.is_active ?? true,
-      plan: dto.plan ? this.sanitizer.sanitizeString(dto.plan) : undefined,
-      settings: dto.settings,
-
-      // Campos de internacionalización (FASE 1)
-      timezone: dto.timezone || 'America/Santo_Domingo',
-      country_code: dto.country_code || 'DO',
-      departamento: dto.departamento ? this.sanitizer.sanitizeString(dto.departamento) : undefined,
-      currency_code: dto.currency_code || 'DOP',
-      currency_symbol: dto.currency_symbol || 'RD$',
-      date_format: dto.date_format || 'DD/MM/YYYY',
-      tax_config: dto.tax_config || undefined,
-    };
+    return sanitizeCreateCompanyDto(this.sanitizer, dto);
   }
 
   /**
    * Sanitizar DTO de actualización
    */
   private sanitizeUpdateDto(dto: UpdateCompanyDto): Partial<CompanyEntity> {
-    const sanitized: Partial<CompanyEntity> = {};
-
-    // Campos base
-    if (dto.name) sanitized.name = this.sanitizer.sanitizeString(dto.name);
-    if (dto.domain) sanitized.domain = this.sanitizer.sanitizeString(dto.domain);
-    if (dto.subdomain) sanitized.subdomain = this.sanitizer.sanitizeString(dto.subdomain);
-    if (dto.email) sanitized.email = this.sanitizer.sanitizeEmail(dto.email);
-    if (dto.telefono) sanitized.telefono = this.sanitizer.sanitizeString(dto.telefono);
-    if (dto.direccion) sanitized.direccion = this.sanitizer.sanitizeString(dto.direccion);
-    if (dto.pais) sanitized.pais = this.sanitizer.sanitizeString(dto.pais);
-    if (dto.ciudad) sanitized.ciudad = this.sanitizer.sanitizeString(dto.ciudad);
-    if (dto.ruc) sanitized.ruc = this.sanitizer.sanitizeString(dto.ruc).toUpperCase();
-    if (dto.is_active !== undefined) sanitized.is_active = dto.is_active;
-    if (dto.plan) sanitized.plan = this.sanitizer.sanitizeString(dto.plan);
-    if (dto.settings) sanitized.settings = dto.settings;
-
-    // ✅ NOTA: schema NO se puede actualizar (inmutable)
-
-    // Campos de internacionalización (FASE 1)
-    if (dto.timezone) sanitized.timezone = dto.timezone;
-    if (dto.country_code) sanitized.country_code = dto.country_code;
-    if (dto.departamento) sanitized.departamento = this.sanitizer.sanitizeString(dto.departamento);
-    if (dto.currency_code) sanitized.currency_code = dto.currency_code;
-    if (dto.currency_symbol) sanitized.currency_symbol = dto.currency_symbol;
-    if (dto.date_format) sanitized.date_format = dto.date_format;
-    if (dto.tax_config) sanitized.tax_config = dto.tax_config;
-
-    return sanitized;
+    return sanitizeUpdateCompanyDto(this.sanitizer, dto);
   }
 
   /**
@@ -654,4 +604,6 @@ export class CompanyService {
     });
   }
 }
+
+
 

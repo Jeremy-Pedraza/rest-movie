@@ -25,6 +25,7 @@ import {
 } from './interfaces';
 import { StoreEntity } from './entities';
 import { GeographyRepository } from '@modules/geography/geography.repository';
+import { sanitizeCreateStoreDto, sanitizeUpdateStoreDto } from './sanitizers/store.sanitizer';
 
 /**
  * StoreService
@@ -555,71 +556,14 @@ export class StoreService {
    * Sanitizar DTO de creación
    */
   private sanitizeCreateDto(dto: CreateStoreDto): Partial<StoreEntity> {
-    return {
-      // Campos base
-      company_id: dto.company_id,
-      nombre: this.sanitizer.sanitizeString(dto.nombre),
-      codigo: this.sanitizer.sanitizeString(dto.codigo).toUpperCase(),
-      email: dto.email ? this.sanitizer.sanitizeEmail(dto.email) : undefined,
-      telefono: dto.telefono ? this.sanitizer.sanitizeString(dto.telefono) : undefined,
-      direccion: this.sanitizer.sanitizeString(dto.direccion),
-      ciudad: this.sanitizer.sanitizeString(dto.ciudad),
-      zona: dto.zona ? this.sanitizer.sanitizeString(dto.zona) : undefined,
-      latitud: dto.latitud,
-      longitud: dto.longitud,
-      activo: dto.activo ?? true,
-      metadata: dto.metadata,
-
-      // Referencia geográfica (catálogo)
-      geo_city_id: dto.geo_city_id || undefined,
-
-      // Campos de segmentación (FASE 2)
-      region: dto.region ? this.sanitizer.sanitizeString(dto.region) : undefined,
-      location_type: dto.location_type || undefined,
-      store_format: dto.store_format || undefined,
-      seating_capacity: dto.seating_capacity,
-      has_drive_thru: dto.has_drive_thru ?? false,
-      has_delivery: dto.has_delivery ?? false,
-      operating_hours: dto.operating_hours || undefined,
-      opening_date: dto.opening_date ? new Date(dto.opening_date) : undefined,
-      manager_name: dto.manager_name ? this.sanitizer.sanitizeString(dto.manager_name) : undefined,
-      sales_tier: dto.sales_tier || undefined,
-      tags: dto.tags || undefined,
-    };
+    return sanitizeCreateStoreDto(this.sanitizer, dto);
   }
 
   /**
    * Sanitizar DTO de actualización
    */
   private sanitizeUpdateDto(dto: UpdateStoreDto): Partial<StoreEntity> {
-    const sanitized: Partial<StoreEntity> = {};
-
-    // Campos base
-    if (dto.nombre) sanitized.nombre = this.sanitizer.sanitizeString(dto.nombre);
-    if (dto.email) sanitized.email = this.sanitizer.sanitizeEmail(dto.email);
-    if (dto.telefono) sanitized.telefono = this.sanitizer.sanitizeString(dto.telefono);
-    if (dto.direccion) sanitized.direccion = this.sanitizer.sanitizeString(dto.direccion);
-    if (dto.ciudad) sanitized.ciudad = this.sanitizer.sanitizeString(dto.ciudad);
-    if (dto.zona) sanitized.zona = this.sanitizer.sanitizeString(dto.zona);
-    if (dto.latitud !== undefined) sanitized.latitud = dto.latitud;
-    if (dto.longitud !== undefined) sanitized.longitud = dto.longitud;
-    if (dto.activo !== undefined) sanitized.activo = dto.activo;
-    if (dto.metadata) sanitized.metadata = dto.metadata;
-
-    // Campos de segmentación (FASE 2)
-    if (dto.region) sanitized.region = this.sanitizer.sanitizeString(dto.region);
-    if (dto.location_type) sanitized.location_type = dto.location_type;
-    if (dto.store_format) sanitized.store_format = dto.store_format;
-    if (dto.seating_capacity !== undefined) sanitized.seating_capacity = dto.seating_capacity;
-    if (dto.has_drive_thru !== undefined) sanitized.has_drive_thru = dto.has_drive_thru;
-    if (dto.has_delivery !== undefined) sanitized.has_delivery = dto.has_delivery;
-    if (dto.operating_hours) sanitized.operating_hours = dto.operating_hours;
-    if (dto.opening_date) sanitized.opening_date = new Date(dto.opening_date);
-    if (dto.manager_name) sanitized.manager_name = this.sanitizer.sanitizeString(dto.manager_name);
-    if (dto.sales_tier) sanitized.sales_tier = dto.sales_tier;
-    if (dto.tags) sanitized.tags = dto.tags;
-
-    return sanitized;
+    return sanitizeUpdateStoreDto(this.sanitizer, dto);
   }
 
   /**
@@ -739,4 +683,5 @@ export class StoreService {
     });
   }
 }
+
 

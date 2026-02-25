@@ -62,6 +62,8 @@ interface ErrorResponse {
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
   private readonly dbLevel: LogDbLevel;
+  private readonly retryAfter429Seconds: number;
+  private readonly retryAfter503Seconds: number;
 
   constructor(
     private readonly configService: ConfigService,
@@ -70,6 +72,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
     private readonly loggerService?: LoggerService,
   ) {
     this.dbLevel = this.configService.get<LogDbLevel>('app.logging.dbLevel') || 'all';
+    this.retryAfter429Seconds = Number(process.env.HTTP_RETRY_AFTER_429_SECONDS || 60);
+    this.retryAfter503Seconds = Number(process.env.HTTP_RETRY_AFTER_503_SECONDS || 30);
   }
 
   catch(exception: unknown, host: ArgumentsHost): void {
@@ -169,6 +173,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
           details,
         },
       });
+    }
+
+    if (status === HttpStatus.TOO_MANY_REQUESTS) {
+      response.setHeader('Retry-After', String(this.retryAfter429Seconds));
+    }
+    if (status === HttpStatus.SERVICE_UNAVAILABLE) {
+      response.setHeader('Retry-After', String(this.retryAfter503Seconds));
     }
 
     response.status(status).json(errorResponse);

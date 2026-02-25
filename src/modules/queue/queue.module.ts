@@ -1,7 +1,7 @@
 import { BullModule } from '@nestjs/bull';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { CommonModule } from '@shared/common/common.module';
+import { CommonModule } from '@shared/common';
 import { EmailProcessor, NotificationProcessor, ReportProcessor } from './processors';
 import { EmailProducer, NotificationProducer, ReportProducer } from './producers';
 import { QUEUE_NAMES, QUEUE_RATE_LIMITS, STALLED_JOB_CONFIG } from './queue.constants';

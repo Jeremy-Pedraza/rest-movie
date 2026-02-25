@@ -72,8 +72,10 @@ export const DEFAULT_JOB_OPTIONS = {
     type: 'exponential' as const,
     delay: 1000,
   },
-  removeOnComplete: 100, // Mantener últimos 100
-  removeOnFail: false, // No eliminar fallidos
+  // Bull 4.x soporta KeepJobsOptions { age, count } en runtime,
+  // pero los tipos de @nestjs/bull no lo exponen correctamente
+  removeOnComplete: { age: 3600, count: 200 } as any, // Max 200 completados, expiran en 1h
+  removeOnFail: { age: 604800, count: 1000 } as any, // Max 1000 fallidos, expiran en 7 dias
   timeout: 30000, // 30 segundos
 };
 

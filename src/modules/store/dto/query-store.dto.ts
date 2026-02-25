@@ -33,8 +33,8 @@ import { VALID_LOCATION_TYPES, VALID_STORE_FORMATS, VALID_SALES_TIERS } from './
  *   activo: true,
  *   page: 1,
  *   limit: 10,
- *   sort_by: 'nombre',
- *   sort_order: 'ASC',
+ *   sortBy: 'nombre',
+ *   sortOrder: 'ASC',
  * };
  * ```
  */
@@ -166,7 +166,7 @@ export class QueryStoreDto extends PaginationDto {
   // ============================================
 
   @ApiPropertyOptional({
-    description: 'Ordenar por campo',
+    description: 'Alias legacy de sortBy (deprecado)',
     enum: [
       'nombre',
       'codigo',
@@ -178,6 +178,7 @@ export class QueryStoreDto extends PaginationDto {
       'created_at',
     ],
     example: 'nombre',
+    deprecated: true,
   })
   @IsEnum(
     [
@@ -207,9 +208,10 @@ export class QueryStoreDto extends PaginationDto {
     | 'created_at';
 
   @ApiPropertyOptional({
-    description: 'Dirección de ordenamiento',
+    description: 'Alias legacy de sortOrder (deprecado)',
     enum: ['ASC', 'DESC'],
     example: 'ASC',
+    deprecated: true,
   })
   @IsEnum(['ASC', 'DESC'], {
     message: 'sort_order debe ser ASC o DESC',
@@ -217,3 +219,4 @@ export class QueryStoreDto extends PaginationDto {
   @IsOptional()
   sort_order?: 'ASC' | 'DESC';
 }
+

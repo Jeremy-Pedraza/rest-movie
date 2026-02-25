@@ -6,6 +6,9 @@
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   },
+  "transformIgnorePatterns": [
+    "node_modules/(?!(uuid)/)"
+  ],
   "moduleNameMapper": {
     "^@/(.*)$": "<rootDir>/src/$1",
     "^@config/(.*)$": "<rootDir>/src/config/$1",
@@ -17,6 +20,7 @@
     "^@interceptors/(.*)$": "<rootDir>/src/interceptors/$1",
     "^@middleware/(.*)$": "<rootDir>/src/middleware/$1",
     "^@pipes/(.*)$": "<rootDir>/src/pipes/$1",
+    "^@constants$": "<rootDir>/src/constants",
     "^@constants/(.*)$": "<rootDir>/src/constants/$1",
     "^@database/(.*)$": "<rootDir>/src/database/$1",
     "^@types/(.*)$": "<rootDir>/src/@types/$1",

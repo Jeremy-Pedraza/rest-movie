@@ -25,8 +25,8 @@ import { VALID_COUNTRY_CODES, VALID_CURRENCY_CODES, VALID_TIMEZONES } from './cr
  *   is_active: true,
  *   page: 1,
  *   limit: 10,
- *   sort_by: 'name',
- *   sort_order: 'ASC',
+ *   sortBy: 'name',
+ *   sortOrder: 'ASC',
  * };
  * ```
  */
@@ -139,9 +139,10 @@ export class QueryCompanyDto extends PaginationDto {
   // ============================================
 
   @ApiPropertyOptional({
-    description: 'Ordenar por campo',
+    description: 'Alias legacy de sortBy (deprecado)',
     enum: ['name', 'created_at', 'pais', 'ciudad', 'country_code', 'currency_code'],
     example: 'name',
+    deprecated: true,
   })
   @IsEnum(['name', 'created_at', 'pais', 'ciudad', 'country_code', 'currency_code'], {
     message: 'sort_by debe ser: name, created_at, pais, ciudad, country_code o currency_code',
@@ -150,9 +151,10 @@ export class QueryCompanyDto extends PaginationDto {
   sort_by?: 'name' | 'created_at' | 'pais' | 'ciudad' | 'country_code' | 'currency_code';
 
   @ApiPropertyOptional({
-    description: 'Dirección de ordenamiento',
+    description: 'Alias legacy de sortOrder (deprecado)',
     enum: ['ASC', 'DESC'],
     example: 'ASC',
+    deprecated: true,
   })
   @IsEnum(['ASC', 'DESC'], {
     message: 'sort_order debe ser ASC o DESC',
@@ -160,3 +162,4 @@ export class QueryCompanyDto extends PaginationDto {
   @IsOptional()
   sort_order?: 'ASC' | 'DESC';
 }
+

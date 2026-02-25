@@ -126,14 +126,7 @@ export interface IAllQueuesStatsResponse {
  */
 export interface IJobsListResponse {
   jobs: IJobDetailResponse[];
-  meta: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-    hasNextPage: boolean;
-    hasPreviousPage: boolean;
-  };
+  meta: IPaginationMeta;
 }
 
 /**
@@ -189,3 +182,4 @@ export interface IQueueMetrics {
   };
   timestamp: string;
 }
+import { IPaginationMeta } from '@shared/common';

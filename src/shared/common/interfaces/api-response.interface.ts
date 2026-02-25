@@ -69,28 +69,3 @@ export interface IApiResponse<T = any> {
    */
   requestId?: string;
 }
-
-/**
- * ISuccessResponse - Interface específica para respuestas exitosas
- */
-export interface ISuccessResponse<T> {
-  success: true;
-  data: T;
-  message?: string;
-  timestamp?: string;
-  requestId?: string;
-}
-
-/**
- * IErrorResponse - Interface específica para respuestas de error
- */
-export interface IErrorResponse {
-  success: false;
-  statusCode: number;
-  message: string;
-  error: string;
-  details?: Record<string, any> | string[];
-  timestamp?: string;
-  requestId?: string;
-  path?: string;
-}

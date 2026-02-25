@@ -26,6 +26,11 @@ import { UpdatePasswordDto, CreateUserDto, QueryUserDto, UpdateUserDto } from '.
 import { UserEntity, UserStatus } from './entities/user.entity';
 import { IUserProfileResponse, IUserResponse } from './interfaces';
 import { UserRepository } from './user.repository';
+import {
+  sanitizeCreateUserDto,
+  sanitizeUpdateUserDto,
+  sanitizeUserProfileDto,
+} from './sanitizers/user.sanitizer';
 
 @Injectable()
 export class UserService {
@@ -455,12 +460,7 @@ export class UserService {
     }
 
     // Sanitizar inputs del perfil
-    const sanitizedDto = {
-      ...dto,
-      firstName: dto.firstName ? this.sanitizer.sanitizeString(dto.firstName) : undefined,
-      lastName: dto.lastName ? this.sanitizer.sanitizeString(dto.lastName) : undefined,
-      phone: dto.phone ? this.sanitizer.sanitizePhone(dto.phone) : undefined,
-    };
+    const sanitizedDto = this.sanitizeProfileDto(dto);
 
     const user = await this.userRepository.update(id, sanitizedDto);
     if (!user) {
@@ -515,35 +515,23 @@ export class UserService {
    * Sanitiza los datos de creación de usuario
    */
   private sanitizeCreateDto(dto: CreateUserDto): CreateUserDto {
-    return {
-      ...dto,
-      email: this.sanitizer.sanitizeEmail(dto.email),
-      firstName: this.sanitizer.sanitizeString(dto.firstName),
-      lastName: this.sanitizer.sanitizeString(dto.lastName),
-      phone: dto.phone ? this.sanitizer.sanitizePhone(dto.phone) : undefined,
-    };
+    return sanitizeCreateUserDto(this.sanitizer, dto);
   }
 
   /**
    * Sanitiza los datos de actualización de usuario
    */
   private sanitizeUpdateDto(dto: UpdateUserDto): UpdateUserDto {
-    const sanitized: UpdateUserDto = { ...dto };
+    return sanitizeUpdateUserDto(this.sanitizer, dto);
+  }
 
-    if (dto.email) {
-      sanitized.email = this.sanitizer.sanitizeEmail(dto.email);
-    }
-    if (dto.firstName) {
-      sanitized.firstName = this.sanitizer.sanitizeString(dto.firstName);
-    }
-    if (dto.lastName) {
-      sanitized.lastName = this.sanitizer.sanitizeString(dto.lastName);
-    }
-    if (dto.phone) {
-      sanitized.phone = this.sanitizer.sanitizePhone(dto.phone);
-    }
-
-    return sanitized;
+  /**
+   * Sanitiza los datos de actualización de perfil de usuario.
+   */
+  private sanitizeProfileDto(
+    dto: Pick<UpdateUserDto, 'firstName' | 'lastName' | 'phone' | 'avatar' | 'preferences'>,
+  ): Pick<UpdateUserDto, 'firstName' | 'lastName' | 'phone' | 'avatar' | 'preferences'> {
+    return sanitizeUserProfileDto(this.sanitizer, dto);
   }
 
   /**

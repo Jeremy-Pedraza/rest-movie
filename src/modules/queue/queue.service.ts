@@ -1,8 +1,7 @@
 import { InjectQueue } from '@nestjs/bull';
 import { Injectable, Logger, OnModuleInit, Inject, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { HandleErrorService } from '@shared/common/handle-error.service';
-import { SanitizerService } from '@shared/common/sanitizer.service';
+import { HandleErrorService, SanitizerService } from '@shared/common';
 import { LoggerService, LogContext } from '@modules/logger';
 import { JobStatus as BullJobStatus, Job, JobCounts, JobStatusClean, Queue } from 'bull';
 import { AddJobDto, CleanJobsDto, JobStatus, QueryJobDto } from './dto';
@@ -316,7 +315,7 @@ export class QueueService implements OnModuleInit {
         total,
         totalPages,
         hasNextPage: page < totalPages,
-        hasPreviousPage: page > 1,
+        hasPrevPage: page > 1,
       },
     };
   }

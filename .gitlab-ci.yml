@@ -1,0 +1,45 @@
+stages:
+  - automation
+  - mirror
+
+# ============================================
+# AUTOMATIZACIÓN: Mover issue a review cuando se crea MR
+# ============================================
+automation:move-to-review:
+  stage: automation
+  # NO usar image: alpine, usar el shell del servidor directamente
+  script:
+    - echo "🤖 Verificando si hay issue vinculado en el MR..."
+    # Verificar que las herramientas necesarias están disponibles
+    - which bash || echo "⚠️ bash no encontrado"
+    - which curl || echo "⚠️ curl no encontrado"
+    - which jq || echo "⚠️ jq no encontrado"
+    - which git || echo "⚠️ git no encontrado"
+    # Dar permisos de ejecución al script
+    - chmod +x .gitlab/automation/move-to-review.sh
+    # Ejecutar el script si hay un MR
+    - |
+      if [ -n "$CI_MERGE_REQUEST_IID" ]; then
+        echo "🔀 MR detectado: !$CI_MERGE_REQUEST_IID"
+        bash .gitlab/automation/move-to-review.sh "$CI_MERGE_REQUEST_IID"
+      else
+        echo "⏭️  No es un pipeline de MR, saltando automatización"
+      fi
+  only:
+    - merge_requests
+  when: always
+  allow_failure: true
+
+# ============================================
+# MIRROR A GITHUB (tu job existente)
+# ============================================
+push_to_github:
+  stage: mirror
+  only:
+    - agent-tacobell
+    - rest-whatsapp
+    - rest-vandez
+    - core
+  script:
+    - git remote add github https://${GITHUB_TOKEN}@github.com/SOFTLOGY-SAS/Rest-Agent.git || true
+    - git push github HEAD:$CI_COMMIT_REF_NAME --force

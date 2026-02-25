@@ -1,46 +1,33 @@
 // src/database/seeds/company.seed.ts
 
 /**
- * @fileoverview Seed para crear companies de desarrollo
+ * @fileoverview Seed para crear/actualizar companies de desarrollo
  * @module database/seeds
- *
- * Companies para el sistema Taco Bell Multi-Tenant:
- * 1. Sistema - Public Schema (usuarios sin empresa)
- * 2. Taco Bell República Dominicana (premium)
- * 3. Taco Bell Colombia (basic)
- * 4. Taco Bell Estados Unidos (free, inactiva)
  */
 
 import { DataSource, DeepPartial } from 'typeorm';
 import { CompanyEntity } from '@modules/company/entities';
+import { GeoCountryEntity } from '@modules/geography/entities';
 
-/**
- * Seed de companies
- *
- * Crea las companies del sistema Taco Bell multi-tenant
- */
-export async function seedCompanies(dataSource: DataSource): Promise<void> {
-  const companyRepo = dataSource.getRepository(CompanyEntity);
+interface CompanySeedDefinition {
+  subdomain: string;
+  geoCountryCode?: string;
+  data: DeepPartial<CompanyEntity>;
+}
 
-  console.log('\n┌────────────────────────────────────────────────────┐');
-  console.log('│  🏢 SEEDING COMPANIES                              │');
-  console.log('└────────────────────────────────────────────────────┘');
-
-  // ============================================
-  // 1. Sistema - Public Schema
-  // ============================================
-  const publicExists = await companyRepo.findOne({
-    where: { subdomain: 'public' },
-  });
-
-  if (!publicExists) {
-    const publicCompany: DeepPartial<CompanyEntity> = {
+const COMPANY_DEFINITIONS: CompanySeedDefinition[] = [
+  {
+    subdomain: 'public',
+    geoCountryCode: 'DO',
+    data: {
       name: 'Sistema - Public Schema',
       subdomain: 'public',
       schema: 'public',
       is_active: true,
       ruc: '000000000',
       email: 'system@reports-tb.com',
+      telefono: '+1-809-000-0000',
+      direccion: 'Sistema Interno - Sin direccion fisica',
       pais: 'Sistema',
       ciudad: 'Sistema',
       timezone: 'America/Santo_Domingo',
@@ -49,25 +36,14 @@ export async function seedCompanies(dataSource: DataSource): Promise<void> {
       currency_symbol: '$',
       date_format: 'DD/MM/YYYY',
       settings: {
-        description: 'Schema público para usuarios sin empresa asignada',
+        description: 'Schema publico para usuarios sin empresa asignada',
       },
-    };
-
-    await companyRepo.save(companyRepo.create(publicCompany));
-    console.log('  ✅ Company "Sistema - Public Schema" creada');
-  } else {
-    console.log('  ⏭️  Company "Sistema - Public Schema" ya existe');
-  }
-
-  // ============================================
-  // 2. Taco Bell República Dominicana (Premium)
-  // ============================================
-  const tacoBellRDExists = await companyRepo.findOne({
-    where: { subdomain: 'republica' },
-  });
-
-  if (!tacoBellRDExists) {
-    const tacoBellRD: DeepPartial<CompanyEntity> = {
+    },
+  },
+  {
+    subdomain: 'republica',
+    geoCountryCode: 'DO',
+    data: {
       name: 'Taco Bell Republica Dominicana',
       subdomain: 'republica',
       domain: 'republica.reports-tb.com',
@@ -76,7 +52,9 @@ export async function seedCompanies(dataSource: DataSource): Promise<void> {
       plan: 'premium',
       ruc: '101234567',
       email: 'admin@tacobell.do',
-      pais: 'República Dominicana',
+      telefono: '+1-809-555-0100',
+      direccion: 'Av. Winston Churchill #93, Torre Empresarial, Piso 8, Piantini, Santo Domingo',
+      pais: 'Republica Dominicana',
       ciudad: 'Santo Domingo',
       timezone: 'America/Santo_Domingo',
       country_code: 'DO',
@@ -93,23 +71,12 @@ export async function seedCompanies(dataSource: DataSource): Promise<void> {
         max_users: 20,
         max_products: 500,
       },
-    };
-
-    await companyRepo.save(companyRepo.create(tacoBellRD));
-    console.log('  ✅ Company "Taco Bell Republica Dominicana" creada (premium)');
-  } else {
-    console.log('  ⏭️  Company "Taco Bell Republica Dominicana" ya existe');
-  }
-
-  // ============================================
-  // 3. Taco Bell Colombia (Basic)
-  // ============================================
-  const tacoBellCOExists = await companyRepo.findOne({
-    where: { subdomain: 'colombia' },
-  });
-
-  if (!tacoBellCOExists) {
-    const tacoBellCO: DeepPartial<CompanyEntity> = {
+    },
+  },
+  {
+    subdomain: 'colombia',
+    geoCountryCode: 'CO',
+    data: {
       name: 'Taco Bell Colombia',
       subdomain: 'colombia',
       domain: 'colombia.reports-tb.com',
@@ -118,8 +85,10 @@ export async function seedCompanies(dataSource: DataSource): Promise<void> {
       plan: 'basic',
       ruc: '900123456',
       email: 'admin@tacobell.co',
+      telefono: '+57-1-555-0100',
+      direccion: 'Calle 93 #11A-28, Oficina 501, Chico Norte, Bogota',
       pais: 'Colombia',
-      ciudad: 'Bogotá',
+      ciudad: 'Bogota',
       timezone: 'America/Bogota',
       country_code: 'CO',
       currency_code: 'COP',
@@ -135,31 +104,22 @@ export async function seedCompanies(dataSource: DataSource): Promise<void> {
         max_users: 5,
         max_products: 200,
       },
-    };
-
-    await companyRepo.save(companyRepo.create(tacoBellCO));
-    console.log('  ✅ Company "Taco Bell Colombia" creada (basic)');
-  } else {
-    console.log('  ⏭️  Company "Taco Bell Colombia" ya existe');
-  }
-
-  // ============================================
-  // 4. Taco Bell Estados Unidos (Free - Inactiva)
-  // ============================================
-  const tacoBellUSExists = await companyRepo.findOne({
-    where: { subdomain: 'unitstates' },
-  });
-
-  if (!tacoBellUSExists) {
-    const tacoBellUS: DeepPartial<CompanyEntity> = {
+    },
+  },
+  {
+    subdomain: 'unitstates',
+    geoCountryCode: 'US',
+    data: {
       name: 'Taco Bell Estados Unidos',
       subdomain: 'unitstates',
       domain: 'unitstates.reports-tb.com',
       schema: 'taco_bell_eu',
-      is_active: false, // ❌ Inactiva para testing
+      is_active: false,
       plan: 'free',
       ruc: '123456789',
       email: 'admin@tacobell.us',
+      telefono: '+1-305-555-0100',
+      direccion: '1900 Brickell Ave, Suite 400, Miami, FL 33129',
       pais: 'Estados Unidos',
       ciudad: 'Miami',
       timezone: 'America/New_York',
@@ -177,23 +137,65 @@ export async function seedCompanies(dataSource: DataSource): Promise<void> {
         max_users: 2,
         max_products: 50,
       },
+    },
+  },
+];
+
+/**
+ * Seed de companies
+ *
+ * Crea o actualiza las companies del sistema Taco Bell multi-tenant.
+ */
+export async function seedCompanies(dataSource: DataSource): Promise<void> {
+  const companyRepo = dataSource.getRepository(CompanyEntity);
+  const geoCountryRepo = dataSource.getRepository(GeoCountryEntity);
+
+  console.log('\n[COMPANIES] Seeding companies...');
+
+  const geoCountries = await geoCountryRepo.find();
+  const geoByCode = new Map(geoCountries.map((country) => [country.code, country.id]));
+
+  let created = 0;
+  let updated = 0;
+
+  for (const definition of COMPANY_DEFINITIONS) {
+    const existingCompany = await companyRepo.findOne({
+      where: { subdomain: definition.subdomain },
+    });
+
+    const geoCountryId = definition.geoCountryCode
+      ? geoByCode.get(definition.geoCountryCode)
+      : undefined;
+
+    const payload: DeepPartial<CompanyEntity> = {
+      ...definition.data,
+      ...(geoCountryId ? { geo_country_id: geoCountryId } : {}),
     };
 
-    await companyRepo.save(companyRepo.create(tacoBellUS));
-    console.log('  ✅ Company "Taco Bell Estados Unidos" creada (free, INACTIVA)');
-  } else {
-    console.log('  ⏭️  Company "Taco Bell Estados Unidos" ya existe');
+    if (existingCompany) {
+      await companyRepo.save(
+        companyRepo.create({
+          id: existingCompany.id,
+          ...payload,
+        }),
+      );
+      updated++;
+      console.log(`  [UPDATE] Company "${definition.data.name}" actualizada`);
+      continue;
+    }
+
+    await companyRepo.save(companyRepo.create(payload));
+    created++;
+    console.log(`  [CREATE] Company "${definition.data.name}" creada`);
   }
 
-  // ============================================
-  // RESUMEN
-  // ============================================
   const totalCompanies = await companyRepo.count();
   const activeCompanies = await companyRepo.count({ where: { is_active: true } });
 
-  console.log('\n  📊 Resumen:');
+  console.log('\n  Resumen companies:');
+  console.log(`     Creadas: ${created}`);
+  console.log(`     Actualizadas: ${updated}`);
   console.log(`     Total companies: ${totalCompanies}`);
   console.log(`     Activas: ${activeCompanies}`);
   console.log(`     Inactivas: ${totalCompanies - activeCompanies}`);
-  console.log('\n  ✅ Companies seeded successfully');
 }

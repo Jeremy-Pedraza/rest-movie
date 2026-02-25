@@ -136,8 +136,8 @@ export class AuthRepository extends BaseRepository<SessionEntity> {
         consumed_at: new Date(),
         is_active: false,
       })
-      .where('session.id = :session_id', { session_id: sessionId })
-      .andWhere('session.deleted_at IS NULL')
+      .where('id = :session_id', { session_id: sessionId })
+      .andWhere('deleted_at IS NULL')
       .execute();
 
     return (result.affected ?? 0) > 0;
@@ -200,8 +200,8 @@ export class AuthRepository extends BaseRepository<SessionEntity> {
         expires_at: expiresAt,
         last_activity_at: new Date(),
       })
-      .where('session.id = :session_id', { session_id: sessionId })
-      .andWhere('session.deleted_at IS NULL')
+      .where('id = :session_id', { session_id: sessionId })
+      .andWhere('deleted_at IS NULL')
       .execute();
 
     return (result.affected ?? 0) > 0;
@@ -216,8 +216,8 @@ export class AuthRepository extends BaseRepository<SessionEntity> {
       .createQueryBuilder()
       .update()
       .set({ last_activity_at: new Date() })
-      .where('session.id = :session_id', { session_id: sessionId })
-      .andWhere('session.deleted_at IS NULL')
+      .where('id = :session_id', { session_id: sessionId })
+      .andWhere('deleted_at IS NULL')
       .execute();
 
     return (result.affected ?? 0) > 0;
@@ -241,8 +241,8 @@ export class AuthRepository extends BaseRepository<SessionEntity> {
         revoked_reason: reason || 'Revoked by user',
         is_active: false,
       })
-      .where('session.id = :session_id', { session_id: sessionId })
-      .andWhere('session.deleted_at IS NULL')
+      .where('id = :session_id', { session_id: sessionId })
+      .andWhere('deleted_at IS NULL')
       .execute();
 
     return (result.affected ?? 0) > 0;
@@ -262,8 +262,8 @@ export class AuthRepository extends BaseRepository<SessionEntity> {
         revoked_reason: reason || 'Token revoked',
         is_active: false,
       })
-      .where('session.refresh_token = :refresh_token', { refresh_token: refreshToken })
-      .andWhere('session.deleted_at IS NULL')
+      .where('refresh_token = :refresh_token', { refresh_token: refreshToken })
+      .andWhere('deleted_at IS NULL')
       .execute();
 
     return (result.affected ?? 0) > 0;
@@ -283,9 +283,9 @@ export class AuthRepository extends BaseRepository<SessionEntity> {
         revoked_reason: reason || 'All sessions revoked',
         is_active: false,
       })
-      .where('session.user_id = :user_id', { user_id: userId })
-      .andWhere('session.deleted_at IS NULL')
-      .andWhere('session.is_revoked = :is_revoked', { is_revoked: false })
+      .where('user_id = :user_id', { user_id: userId })
+      .andWhere('deleted_at IS NULL')
+      .andWhere('is_revoked = :is_revoked', { is_revoked: false })
       .execute();
 
     return result.affected ?? 0;
@@ -309,10 +309,10 @@ export class AuthRepository extends BaseRepository<SessionEntity> {
         revoked_reason: reason || 'Other sessions revoked',
         is_active: false,
       })
-      .where('session.user_id = :user_id', { user_id: userId })
-      .andWhere('session.id != :current_session_id', { current_session_id: currentSessionId })
-      .andWhere('session.deleted_at IS NULL')
-      .andWhere('session.is_revoked = :is_revoked', { is_revoked: false })
+      .where('user_id = :user_id', { user_id: userId })
+      .andWhere('id != :current_session_id', { current_session_id: currentSessionId })
+      .andWhere('deleted_at IS NULL')
+      .andWhere('is_revoked = :is_revoked', { is_revoked: false })
       .execute();
 
     return result.affected ?? 0;
@@ -326,7 +326,7 @@ export class AuthRepository extends BaseRepository<SessionEntity> {
     const result = await this.repository
       .createQueryBuilder()
       .softDelete()
-      .where('session.id = :session_id', { session_id: sessionId })
+      .where('id = :session_id', { session_id: sessionId })
       .execute();
 
     return (result.affected ?? 0) > 0;

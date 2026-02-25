@@ -5,9 +5,11 @@
  * Ejecuta todos los seeds en orden:
  * 1. Permissions (primero, son independientes)
  * 2. Roles (dependen de permissions)
- * 3. Companies (independientes)
- * 4. Tenant Schemas (dependen de companies) ← NUEVO
- * 5. Users (dependen de roles y companies)
+ * 3. Geography (catálogo base)
+ * 4. Companies (dependen parcialmente de geography)
+ * 5. Tenant Schemas (dependen de companies)
+ * 6. Stores (dependen de companies y geography)
+ * 7. Users (dependen de roles y companies)
  *
  * @example
  * # Ejecutar seeds
@@ -27,6 +29,7 @@ import { seedCompanies } from './company.seed';
 import { seedTenantSchemas } from './tenant-schema.seed';
 import { seedUsers } from './user.seed';
 import { seedGeography } from './latam-geography.seed';
+import { seedStores } from './store.seed';
 
 async function seed() {
   const startTime = Date.now();
@@ -52,16 +55,20 @@ async function seed() {
     // 2. Roles (dependen de permissions)
     await seedRoles(dataSource);
 
-    // 3. Companies (independientes)
+    // 3. Geografia (requerida para geo_country_id y geo_city_id)
+    await seedGeography(dataSource);
+
+    // 4. Companies (dependen parcialmente de geografia)
     await seedCompanies(dataSource);
 
-    // 4. Tenant Schemas (dependen de companies) ← NUEVO
+    // 5. Tenant Schemas (dependen de companies)
     await seedTenantSchemas(dataSource);
 
-    // 5. Users (dependen de roles y companies)
-    await seedUsers(dataSource);
+    // 6. Stores (dependen de companies y geografia)
+    await seedStores(dataSource);
 
-    await seedGeography(dataSource);
+    // 7. Users (dependen de roles y companies)
+    await seedUsers(dataSource);
 
     // Resumen
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);

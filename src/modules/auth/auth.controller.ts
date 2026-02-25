@@ -59,6 +59,25 @@ import {
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  private getFirstHeaderValue(value: string | string[] | undefined): string | undefined {
+    if (!value) return undefined;
+    return Array.isArray(value) ? value[0] : value;
+  }
+
+  private extractLocation(req: Request): string | undefined {
+    const explicit = this.getFirstHeaderValue(req.headers['x-location']);
+    if (explicit) return explicit;
+
+    const city = this.getFirstHeaderValue(req.headers['x-vercel-ip-city'])
+      || this.getFirstHeaderValue(req.headers['cf-ipcity']);
+    const region = this.getFirstHeaderValue(req.headers['x-vercel-ip-country-region']);
+    const country = this.getFirstHeaderValue(req.headers['x-vercel-ip-country'])
+      || this.getFirstHeaderValue(req.headers['cf-ipcountry']);
+
+    const parts = [city, region, country].filter(Boolean);
+    return parts.length > 0 ? parts.join(', ') : undefined;
+  }
+
   // ============================================
   // AUTENTICACIÓN (Públicas)
   // ============================================
@@ -73,9 +92,10 @@ export class AuthController {
   @ApiResponse({ status: 429, description: 'Rate limit excedido' })
   async login(@Body() dto: LoginDto, @Req() req: Request): Promise<IApiResponse<IAuthResponse>> {
     const ipAddress = req.ip || req.socket.remoteAddress || 'unknown';
-    const userAgent = req.headers['user-agent'];
+    const userAgent = this.getFirstHeaderValue(req.headers['user-agent']);
+    const location = this.extractLocation(req);
 
-    const data = await this.authService.login(dto, ipAddress, userAgent);
+    const data = await this.authService.login(dto, ipAddress, userAgent, location);
 
     return {
       success: true,
@@ -98,9 +118,10 @@ export class AuthController {
     @Req() req: Request,
   ): Promise<IApiResponse<IAuthResponse>> {
     const ipAddress = req.ip || req.socket.remoteAddress || 'unknown';
-    const userAgent = req.headers['user-agent'];
+    const userAgent = this.getFirstHeaderValue(req.headers['user-agent']);
+    const location = this.extractLocation(req);
 
-    const data = await this.authService.register(dto, ipAddress, userAgent);
+    const data = await this.authService.register(dto, ipAddress, userAgent, location);
 
     return {
       success: true,

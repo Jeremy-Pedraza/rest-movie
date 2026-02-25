@@ -93,7 +93,12 @@ export class AuthService {
    *
    * ✅ FASE 4: ACTUALIZADO para incluir companyId y schema en JWT
    */
-  async login(dto: LoginDto, ipAddress: string, userAgent?: string): Promise<IAuthResponse> {
+  async login(
+    dto: LoginDto,
+    ipAddress: string,
+    userAgent?: string,
+    location?: string,
+  ): Promise<IAuthResponse> {
     // 1. ✅ VALIDAR email antes de sanitizar
     if (!this.utils.validation.isEmail(dto.email)) {
       this.handleError.badRequest('Email inválido', 'email');
@@ -128,7 +133,7 @@ export class AuthService {
     await this.userService.resetFailedAttempts(user.id);
 
     // 7. Actualizar último login
-    await this.userService.updateLastLogin(user.id);
+    await this.userService.updateLastLogin(user.id, ipAddress);
 
     // 8. Cargar usuario completo con company y roles para el token (CON CACHE)
     // ✅ FASE 2: Usa helper con logging de cache hit/miss
@@ -158,6 +163,7 @@ export class AuthService {
       tokens.refreshTokenExpiresIn,
       ipAddress,
       userAgent,
+      location,
       tokens.jti,
     );
 
@@ -186,7 +192,12 @@ export class AuthService {
    * NOTA: En registro, el usuario normalmente NO tiene company aún,
    *       por lo que companyId y schema serán null.
    */
-  async register(dto: RegisterDto, ipAddress: string, userAgent?: string): Promise<IAuthResponse> {
+  async register(
+    dto: RegisterDto,
+    ipAddress: string,
+    userAgent?: string,
+    location?: string,
+  ): Promise<IAuthResponse> {
     // 1. ✅ Validar email antes de sanitizar
     if (!this.utils.validation.isEmail(dto.email)) {
       this.handleError.badRequest('Email inválido', 'email');
@@ -240,6 +251,7 @@ export class AuthService {
       tokens.refreshTokenExpiresIn,
       ipAddress,
       userAgent,
+      location,
       tokens.jti,
     );
 
@@ -364,6 +376,7 @@ export class AuthService {
       newTokens.refreshTokenExpiresIn,
       session.ip_address,
       session.user_agent || undefined,
+      session.location || undefined,
       newTokens.jti,
       session.refresh_token_family || undefined, // Misma familia
       session.id, // Parent = sesión actual consumida
@@ -732,6 +745,7 @@ export class AuthService {
     refreshTokenExpiresIn: number,
     ipAddress: string,
     userAgent?: string,
+    location?: string,
     tokenJti?: string,
     refreshTokenFamily?: string,
     parentSessionId?: string,
@@ -747,6 +761,7 @@ export class AuthService {
       expires_at: expiresAt,
       ip_address: ipAddress,
       user_agent: userAgent || null,
+      location: location || null,
       is_active: true,
     });
   }

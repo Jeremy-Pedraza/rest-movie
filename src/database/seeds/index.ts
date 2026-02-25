@@ -9,3 +9,5 @@ export * from './role.seed';
 export * from './company.seed';
 export * from './tenant-schema.seed';
 export * from './user.seed';
+export * from './latam-geography.seed';
+export * from './store.seed';

@@ -45,20 +45,20 @@ Estado:            ⚡ LISTO PARA TESTING
 
 ### Fases Completadas ✅
 
-| Fase | Módulo/Sistema | Estado | Detalles |
-|------|----------------|--------|----------|
-| 1-5 | Configuración Base | ✅ 100% | Setup, Shared, Features, DB, Seeds |
-| 6 | **CompanyModule** | ✅ 100% | CRUD completo, multi-tenant |
-| 7 | **StoreModule** | ✅ 100% | CRUD completo, multi-tenant |
-| 8 | **UserModule** | ✅ 100% | Modificaciones multi-tenant |
-| 9 | **ReportsModule** | ✅ 100% | Sistema completo + Multi-tenant |
-| 7.4 | **ReportsRepository** | ✅ 100% | **38 métodos adaptados** ⭐ |
+| Fase | Módulo/Sistema        | Estado  | Detalles                           |
+| ---- | --------------------- | ------- | ---------------------------------- |
+| 1-5  | Configuración Base    | ✅ 100% | Setup, Shared, Features, DB, Seeds |
+| 6    | **CompanyModule**     | ✅ 100% | CRUD completo, multi-tenant        |
+| 7    | **StoreModule**       | ✅ 100% | CRUD completo, multi-tenant        |
+| 8    | **UserModule**        | ✅ 100% | Modificaciones multi-tenant        |
+| 9    | **ReportsModule**     | ✅ 100% | Sistema completo + Multi-tenant    |
+| 7.4  | **ReportsRepository** | ✅ 100% | **38 métodos adaptados** ⭐        |
 
 ### En Progreso ⏳
 
-| Fase | Descripción | Estado | Próximo Paso |
-|------|-------------|--------|-------------|
-| 7.5 | Testing E2E | ⏳ 0% | Probar sistema completo |
+| Fase | Descripción | Estado | Próximo Paso            |
+| ---- | ----------- | ------ | ----------------------- |
+| 7.5  | Testing E2E | ⏳ 0%  | Probar sistema completo |
 
 > **Última actualización:** 2025-01-17 (Sesión 17)  
 > **Estado:** Sistema de Reportes Multi-Nivel Completo + Multi-Tenant 92%  
@@ -86,21 +86,21 @@ Company (Compañía)
 
 ### Funcionalidades del ReportsModule
 
-| Categoría | Funcionalidad | Descripción |
-|-----------|---------------|-------------|
-| **CRUD** | Reportes | Crear, leer, actualizar, eliminar reportes |
-| **Consolidaciones** | Por tienda | Totales de una tienda en período |
-| | Por compañía | Totales de todas las tiendas de una compañía |
-| | Global | Totales de todas las compañías |
-| **Comparaciones** | Entre tiendas | Comparar métricas de múltiples tiendas |
-| | Entre períodos | Comparar período actual vs anterior |
-| | Año vs Año (YoY) | Comparación interanual |
-| | Mes vs Mes (MoM) | Comparación intermensual |
-| | Por día de semana | Análisis de patrones semanales |
-| **Rankings** | De tiendas | Top/Bottom por métrica seleccionada |
-| | De compañías | Ranking global de compañías |
-| **Estadísticas** | Globales | KPIs del sistema |
-| | Tendencias | Series temporales para gráficos |
+| Categoría           | Funcionalidad     | Descripción                                  |
+| ------------------- | ----------------- | -------------------------------------------- |
+| **CRUD**            | Reportes          | Crear, leer, actualizar, eliminar reportes   |
+| **Consolidaciones** | Por tienda        | Totales de una tienda en período             |
+|                     | Por compañía      | Totales de todas las tiendas de una compañía |
+|                     | Global            | Totales de todas las compañías               |
+| **Comparaciones**   | Entre tiendas     | Comparar métricas de múltiples tiendas       |
+|                     | Entre períodos    | Comparar período actual vs anterior          |
+|                     | Año vs Año (YoY)  | Comparación interanual                       |
+|                     | Mes vs Mes (MoM)  | Comparación intermensual                     |
+|                     | Por día de semana | Análisis de patrones semanales               |
+| **Rankings**        | De tiendas        | Top/Bottom por métrica seleccionada          |
+|                     | De compañías      | Ranking global de compañías                  |
+| **Estadísticas**    | Globales          | KPIs del sistema                             |
+|                     | Tendencias        | Series temporales para gráficos              |
 
 ### Endpoints Principales
 
@@ -132,11 +132,11 @@ GET    /reports/company/:companyId/dashboard  → Dashboard de compañía
 
 ### Control de Acceso por Rol
 
-| Rol | Acceso |
-|-----|--------|
+| Rol                     | Acceso                            |
+| ----------------------- | --------------------------------- |
 | **SUPER_ADMIN / ADMIN** | Acceso completo a todo el sistema |
-| **MANAGER** | Solo datos de su compañía |
-| **USER** | Solo sus tiendas asignadas |
+| **MANAGER**             | Solo datos de su compañía         |
+| **USER**                | Solo sus tiendas asignadas        |
 
 ---
 
@@ -192,6 +192,7 @@ Request con JWT
 ### ¿Qué es?
 
 El backend implementa cache HTTP inteligente con **RedisService** que soporta:
+
 - ✅ Cache aislado por tenant (schema)
 - ✅ Cache por usuario individual
 - ✅ Cache público para endpoints sin auth
@@ -251,13 +252,13 @@ async getPublicStats() {
 
 ### Guía de TTL Recomendados
 
-| Tipo de Dato | TTL | Uso |
-|--------------|-----|-----|
-| Tiempo real | Sin cache | - |
-| Dashboards | 60s (1 min) | Datos dinámicos |
-| Reportes | 120-300s (2-5 min) | Balance rendimiento/actualización |
-| Consolidaciones | 300s (5 min) | Queries pesados |
-| Estadísticas públicas | 3600s (1 hora) | Datos estables |
+| Tipo de Dato          | TTL                | Uso                               |
+| --------------------- | ------------------ | --------------------------------- |
+| Tiempo real           | Sin cache          | -                                 |
+| Dashboards            | 60s (1 min)        | Datos dinámicos                   |
+| Reportes              | 120-300s (2-5 min) | Balance rendimiento/actualización |
+| Consolidaciones       | 300s (5 min)       | Queries pesados                   |
+| Estadísticas públicas | 3600s (1 hora)     | Datos estables                    |
 
 **Documentación completa:** [docs/CACHE-PER-TENANT.md](docs/CACHE-PER-TENANT.md)
 
@@ -275,15 +276,15 @@ async getPublicStats() {
 
 ### 📖 Referencia por Módulo
 
-| Documento                                             | Cuándo Consultar                  |
-| ----------------------------------------------------- | --------------------------------- |
-| [API-STANDARDS.md](docs/API-STANDARDS.md)             | Formato de responses y errores    |
-| [DATABASE-PATTERNS.md](docs/DATABASE-PATTERNS.md)     | Queries TypeORM y transacciones   |
-| [SECURITY-GUIDE.md](docs/SECURITY-GUIDE.md)           | JWT, guards, autenticación        |
-| [MULTI-TENANT.md](docs/MULTI-TENANT.md)               | Sistema multi-tenant completo     |
-| [QUEUE-MODULE.md](docs/QUEUE-MODULE.md)               | Sistema de colas asíncronas       |
-| [NOTIFICATION-MODULE.md](docs/NOTIFICATION-MODULE.md) | Notificaciones multi-canal        |
-| [INTEGRATION-STATUS.md](docs/INTEGRATION-STATUS.md)   | Componentes activos               |
+| Documento                                             | Cuándo Consultar                |
+| ----------------------------------------------------- | ------------------------------- |
+| [API-STANDARDS.md](docs/API-STANDARDS.md)             | Formato de responses y errores  |
+| [DATABASE-PATTERNS.md](docs/DATABASE-PATTERNS.md)     | Queries TypeORM y transacciones |
+| [SECURITY-GUIDE.md](docs/SECURITY-GUIDE.md)           | JWT, guards, autenticación      |
+| [MULTI-TENANT.md](docs/MULTI-TENANT.md)               | Sistema multi-tenant completo   |
+| [QUEUE-MODULE.md](docs/QUEUE-MODULE.md)               | Sistema de colas asíncronas     |
+| [NOTIFICATION-MODULE.md](docs/NOTIFICATION-MODULE.md) | Notificaciones multi-canal      |
+| [INTEGRATION-STATUS.md](docs/INTEGRATION-STATUS.md)   | Componentes activos             |
 
 ### 🔧 Ejemplos Funcionales
 
@@ -300,25 +301,25 @@ async getPublicStats() {
 
 ### Core Modules
 
-| Módulo                 | Estado  | Descripción                                   |
-| ---------------------- | ------- | --------------------------------------------- |
-| **AuthModule**         | ✅ 100% | Autenticación JWT + Sesiones + Reset Password |
-| **UserModule**         | ✅ 100% | CRUD usuarios + Roles + Permisos + Asignación tiendas |
-| **CompanyModule**      | ✅ 100% | Gestión de tenants (multi-tenant)             |
-| **StoreModule**        | ✅ 100% | Gestión de tiendas/sucursales                 |
-| **ReportsModule**      | ✅ 100% | **Sistema de reportes multi-nivel**           |
+| Módulo            | Estado  | Descripción                                           |
+| ----------------- | ------- | ----------------------------------------------------- |
+| **AuthModule**    | ✅ 100% | Autenticación JWT + Sesiones + Reset Password         |
+| **UserModule**    | ✅ 100% | CRUD usuarios + Roles + Permisos + Asignación tiendas |
+| **CompanyModule** | ✅ 100% | Gestión de tenants (multi-tenant)                     |
+| **StoreModule**   | ✅ 100% | Gestión de tiendas/sucursales                         |
+| **ReportsModule** | ✅ 100% | **Sistema de reportes multi-nivel**                   |
 
 ### Infrastructure Modules
 
-| Módulo                 | Estado  | Descripción                                   |
-| ---------------------- | ------- | --------------------------------------------- |
-| **QueueModule**        | ✅ 100% | Colas asíncronas (Bull) para emails/reportes  |
-| **NotificationModule** | ✅ 93%  | Notificaciones multi-canal (Email/SMS/Push)   |
-| **TasksModule**        | ✅ 100% | Tareas programadas (Cron) - 5 jobs            |
-| **CacheModule**        | ✅ 100% | Cache con tags e invalidación                 |
-| **CacheInterceptor**   | ✅ 100% | Cache HTTP por tenant en endpoints            |
-| **LoggerModule**       | ✅ 100% | Logging a BD con buffer                       |
-| **HealthModule**       | ✅ 100% | Health checks para Kubernetes                 |
+| Módulo                 | Estado  | Descripción                                  |
+| ---------------------- | ------- | -------------------------------------------- |
+| **QueueModule**        | ✅ 100% | Colas asíncronas (Bull) para emails/reportes |
+| **NotificationModule** | ✅ 93%  | Notificaciones multi-canal (Email/SMS/Push)  |
+| **TasksModule**        | ✅ 100% | Tareas programadas (Cron) - 5 jobs           |
+| **CacheModule**        | ✅ 100% | Cache con tags e invalidación                |
+| **CacheInterceptor**   | ✅ 100% | Cache HTTP por tenant en endpoints           |
+| **LoggerModule**       | ✅ 100% | Logging a BD con buffer                      |
+| **HealthModule**       | ✅ 100% | Health checks para Kubernetes                |
 
 ---
 
@@ -592,9 +593,9 @@ this.withSchema(async (manager) => {
 
 ### Tabla de Decisión
 
-| Entidad | Schema | Método |
-|---------|--------|--------|
-| users, companies, stores | PUBLIC | `createStaticQueryBuilder()` |
+| Entidad                    | Schema | Método                                          |
+| -------------------------- | ------ | ----------------------------------------------- |
+| users, companies, stores   | PUBLIC | `createStaticQueryBuilder()`                    |
 | report_headers, sales, etc | TENANT | `withSchema(manager) + manager.getRepository()` |
 
 > **Ver:** `docs/BASE-REPOSITORY.md` para documentación completa.
@@ -643,5 +644,5 @@ Softlogy Internal Use Only
 
 ---
 
-> **Última actualización:** Enero 2025 - Sesión 20 (Migración Multi-Tenant Queries)
+> **Última actualización:** Febrero 2025 - Sesión 20 (Migración Multi-Tenant Queries)
 > **Estado:** Sistema de Reportes Multi-Nivel + Multi-Tenant Operativo

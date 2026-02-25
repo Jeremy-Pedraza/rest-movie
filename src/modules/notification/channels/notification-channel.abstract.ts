@@ -10,6 +10,7 @@
 
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { LoggerService, LogContext } from '@modules/logger';
 import { NotificationChannel } from '../dto/send-notification.dto';
 import {
   INotificationChannel,
@@ -39,15 +40,17 @@ export abstract class NotificationChannelAbstract implements INotificationChanne
    * Servicio de configuración para acceder a variables de entorno
    */
   protected readonly configService: ConfigService;
+  protected readonly loggerService?: LoggerService;
 
   /**
    * Constructor base
    * @param channelName - Nombre del canal para logging
    * @param configService - Servicio de configuración NestJS
    */
-  constructor(channelName: string, configService: ConfigService) {
+  constructor(channelName: string, configService: ConfigService, loggerService?: LoggerService) {
     this.logger = new Logger(`${channelName}Channel`);
     this.configService = configService;
+    this.loggerService = loggerService;
   }
 
   /**
@@ -90,7 +93,7 @@ export abstract class NotificationChannelAbstract implements INotificationChanne
    * @returns Estado de la notificación
    */
   getStatus(messageId: string): Promise<NotificationStatus> {
-    this.logger.warn(
+    this.logWarn(
       `getStatus() not implemented for ${this.name} channel. MessageId: ${messageId}`,
     );
     return Promise.resolve(NotificationStatus.SENT);
@@ -108,7 +111,7 @@ export abstract class NotificationChannelAbstract implements INotificationChanne
     recipient: string | string[],
   ): INotificationResponse {
     const errorObj = error instanceof Error ? error : new Error(String(error));
-    this.logger.error(`Error sending notification: ${errorObj.message}`, errorObj.stack);
+    this.logError(`Error sending notification: ${errorObj.message}`, errorObj.stack);
 
     return {
       success: false,
@@ -255,9 +258,28 @@ export abstract class NotificationChannelAbstract implements INotificationChanne
   protected logSendError(error: unknown, recipient: string | string[]): void {
     const errorObj = error instanceof Error ? error : new Error(String(error));
     const recipientCount = Array.isArray(recipient) ? recipient.length : 1;
-    this.logger.error(
+    this.logError(
       `Failed to send notification via ${this.name}. Recipients: ${recipientCount}. Error: ${errorObj.message}`,
       errorObj.stack,
     );
   }
+
+  protected logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.EXTERNAL,
+      service: `${this.name}Channel`,
+    });
+  }
+
+  protected logError(message: string, details?: unknown): void {
+    const stack = details instanceof Error ? details.stack : typeof details === 'string' ? details : undefined;
+    this.logger.error(message, stack);
+    void this.loggerService?.error(message, {
+      context: LogContext.EXTERNAL,
+      service: `${this.name}Channel`,
+      stack,
+    });
+  }
 }
+

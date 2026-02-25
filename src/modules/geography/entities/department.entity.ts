@@ -15,15 +15,13 @@
 
 import {
   Entity,
-  PrimaryGeneratedColumn,
   Column,
-  CreateDateColumn,
-  UpdateDateColumn,
   ManyToOne,
   OneToMany,
   JoinColumn,
   Index,
 } from 'typeorm';
+import { BaseTimestampEntity } from '@shared/common';
 import type { GeoCountryEntity } from './country.entity';
 
 /**
@@ -44,9 +42,7 @@ import type { GeoCountryEntity } from './country.entity';
  */
 @Entity({ name: 'geo_departments', schema: 'public' })
 @Index(['country_id', 'name'], { unique: true })
-export class GeoDepartmentEntity {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+export class GeoDepartmentEntity extends BaseTimestampEntity {
 
   /**
    * ID del país al que pertenece
@@ -187,20 +183,4 @@ export class GeoDepartmentEntity {
   @OneToMany('GeoCityEntity', 'department')
   cities?: any[];
 
-  // ============================================
-  // TIMESTAMPS
-  // ============================================
-
-  @CreateDateColumn({
-    type: 'timestamptz',
-    name: 'created_at',
-  })
-  created_at: Date;
-
-  @UpdateDateColumn({
-    type: 'timestamptz',
-    nullable: true,
-    name: 'updated_at',
-  })
-  updated_at?: Date;
 }

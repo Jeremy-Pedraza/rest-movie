@@ -15,12 +15,13 @@
  * @requires TenantSchemaService - Para listar tenants activos
  */
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
 
 import { AuthRepository } from '@modules/auth/auth.repository';
 import { CacheService } from '@modules/cache';
+import { LoggerService, LogContext } from '@modules/logger';
 import { UserRepository } from '@modules/user/user.repository';
 import { TenantSchemaService } from '@shared/database';
 import { TenantSchemaStatus } from '@shared/database/entities';
@@ -54,6 +55,9 @@ export class CacheWarmupJob {
     private readonly authRepository: AuthRepository,
     private readonly configService: ConfigService,
     private readonly tenantSchemaService: TenantSchemaService, // ✅ FASE 5: Multi-tenant
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
   ) {}
 
   /**
@@ -112,7 +116,7 @@ export class CacheWarmupJob {
 
       schemas.push(...activeSchemas);
     } catch {
-      this.logger.warn(
+      this.logWarn(
         `[${this.jobName}] No se pudieron obtener tenants activos, usando solo 'public'`,
       );
     }
@@ -154,7 +158,7 @@ export class CacheWarmupJob {
 
     // Evitar ejecuciones concurrentes
     if (this.isRunning) {
-      this.logger.warn(`[${this.jobName}] Job ya está en ejecución, saltando`);
+      this.logWarn(`[${this.jobName}] Job ya está en ejecución, saltando`);
       return {
         success: false,
         message: 'Job ya está en ejecución',
@@ -275,7 +279,7 @@ export class CacheWarmupJob {
       const duration = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
 
-      this.logger.error(`[${this.jobName}] Error en cache warmup: ${errorMessage}`);
+      this.logError(`[${this.jobName}] Error en cache warmup: ${errorMessage}`);
 
       return {
         success: false,
@@ -322,7 +326,7 @@ export class CacheWarmupJob {
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Error desconocido';
-      this.logger.warn(`[${this.jobName}] Error precalentando ${key}: ${errorMsg}`);
+      this.logWarn(`[${this.jobName}] Error precalentando ${key}: ${errorMsg}`);
       return {
         key,
         schema,
@@ -364,7 +368,7 @@ export class CacheWarmupJob {
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Error desconocido';
-      this.logger.warn(`[${this.jobName}] Error precalentando ${key}: ${errorMsg}`);
+      this.logWarn(`[${this.jobName}] Error precalentando ${key}: ${errorMsg}`);
       return {
         key,
         schema,
@@ -413,7 +417,7 @@ export class CacheWarmupJob {
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Error desconocido';
-      this.logger.warn(`[${this.jobName}] Error precalentando ${key}: ${errorMsg}`);
+      this.logWarn(`[${this.jobName}] Error precalentando ${key}: ${errorMsg}`);
       return {
         key,
         schema,
@@ -441,4 +445,23 @@ export class CacheWarmupJob {
       },
     };
   }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.SYSTEM,
+      service: CacheWarmupJob.name,
+    });
+  }
+
+  private logError(message: string, details?: unknown): void {
+    const stack = details instanceof Error ? details.stack : undefined;
+    this.logger.error(message, stack);
+    void this.loggerService?.error(message, {
+      context: LogContext.SYSTEM,
+      service: CacheWarmupJob.name,
+      stack,
+    });
+  }
 }
+

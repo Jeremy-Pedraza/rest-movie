@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, Optional } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue, Job, JobStatus as BullJobStatus } from 'bull';
+import { LoggerService, LogContext } from '@modules/logger';
 import {
   QUEUE_NAMES,
   JOB_NAMES,
@@ -25,7 +26,12 @@ import { IJobResponse } from '../interfaces';
 export class ReportProducer {
   private readonly logger = new Logger(ReportProducer.name);
 
-  constructor(@InjectQueue(QUEUE_NAMES.REPORT) private readonly reportQueue: Queue) {}
+  constructor(
+    @InjectQueue(QUEUE_NAMES.REPORT) private readonly reportQueue: Queue,
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
+  ) {}
 
   /**
    * Encolar generación de reporte
@@ -276,7 +282,7 @@ export class ReportProducer {
    */
   async pause(): Promise<boolean> {
     await this.reportQueue.pause();
-    this.logger.warn(`⏸️ Cola de reportes pausada`);
+    this.logWarn(`⏸️ Cola de reportes pausada`);
     return true;
   }
 
@@ -296,7 +302,7 @@ export class ReportProducer {
    */
   async empty(): Promise<boolean> {
     await this.reportQueue.empty();
-    this.logger.warn(`🗑️ Cola de reportes vaciada completamente`);
+    this.logWarn(`🗑️ Cola de reportes vaciada completamente`);
     return true;
   }
 
@@ -327,4 +333,21 @@ export class ReportProducer {
   async getJob(jobId: string | number) {
     return await this.reportQueue.getJob(jobId);
   }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.QUEUE,
+      service: ReportProducer.name,
+    });
+  }
+
+  private logError(message: string): void {
+    this.logger.error(message);
+    void this.loggerService?.error(message, {
+      context: LogContext.QUEUE,
+      service: ReportProducer.name,
+    });
+  }
 }
+

@@ -1,6 +1,7 @@
 import { InjectQueue } from '@nestjs/bull';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, Optional } from '@nestjs/common';
 import { JobStatus as BullJobStatus, Job, Queue } from 'bull';
+import { LoggerService, LogContext } from '@modules/logger';
 import { EmailJobDataDto, JobOptionsDto } from '../dto';
 import { IJobResponse } from '../interfaces';
 import {
@@ -25,7 +26,12 @@ import {
 export class EmailProducer {
   private readonly logger = new Logger(EmailProducer.name);
 
-  constructor(@InjectQueue(QUEUE_NAMES.EMAIL) private readonly emailQueue: Queue) {}
+  constructor(
+    @InjectQueue(QUEUE_NAMES.EMAIL) private readonly emailQueue: Queue,
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
+  ) {}
 
   /**
    * Encolar email individual
@@ -187,7 +193,7 @@ export class EmailProducer {
    */
   async pause(): Promise<boolean> {
     await this.emailQueue.pause();
-    this.logger.warn(`⏸️ Cola de emails pausada`);
+    this.logWarn(`⏸️ Cola de emails pausada`);
     return true;
   }
 
@@ -207,7 +213,7 @@ export class EmailProducer {
    */
   async empty(): Promise<boolean> {
     await this.emailQueue.empty();
-    this.logger.warn(`🗑️ Cola de emails vaciada completamente`);
+    this.logWarn(`🗑️ Cola de emails vaciada completamente`);
     return true;
   }
 
@@ -238,4 +244,21 @@ export class EmailProducer {
   async getJob(jobId: string | number) {
     return await this.emailQueue.getJob(jobId);
   }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.QUEUE,
+      service: EmailProducer.name,
+    });
+  }
+
+  private logError(message: string): void {
+    this.logger.error(message);
+    void this.loggerService?.error(message, {
+      context: LogContext.QUEUE,
+      service: EmailProducer.name,
+    });
+  }
 }
+

@@ -1,12 +1,24 @@
 import { ROLES } from '@constants/roles.constant';
 import { Roles } from '@decorators/roles.decorator';
-import { Body, Controller, Delete, Get, Logger, Param, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Logger,
+  Param,
+  Post,
+  Query,
+  Inject,
+  Optional,
+} from '@nestjs/common';
 import {
   ApiOperation,
   ApiParam,
   ApiResponse as ApiSwaggerResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { LoggerService, LogContext } from '@modules/logger';
 import { IApiResponse } from '@shared/common/interfaces';
 import { AddJobDto, CleanJobsDto, QueryJobDto } from './dto';
 import {
@@ -42,7 +54,12 @@ import { QueueService } from './queue.service';
 export class QueueController {
   private readonly logger = new Logger(QueueController.name);
 
-  constructor(private readonly queueService: QueueService) {}
+  constructor(
+    private readonly queueService: QueueService,
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
+  ) {}
 
   // ========================================
   // 📋 GESTIÓN DE JOBS
@@ -231,7 +248,7 @@ export class QueueController {
     @Param('queueName') queueName: string,
   ): Promise<IApiResponse<IPauseQueueResponse>> {
     const data = await this.queueService.pauseQueue(queueName);
-    this.logger.warn(`⏸️ Cola ${queueName} pausada por administrador`);
+    this.logWarn(`⏸️ Cola ${queueName} pausada por administrador`);
     return {
       success: true,
       message: `Cola ${queueName} pausada exitosamente`,
@@ -295,7 +312,7 @@ export class QueueController {
     @Param('queueName') queueName: string,
   ): Promise<IApiResponse<{ queueName: string; emptied: boolean }>> {
     const data = await this.queueService.emptyQueue(queueName);
-    this.logger.warn(`🗑️ Cola ${queueName} vaciada completamente por administrador`);
+    this.logWarn(`🗑️ Cola ${queueName} vaciada completamente por administrador`);
     return {
       success: true,
       message: `Cola ${queueName} vaciada exitosamente`,
@@ -326,4 +343,21 @@ export class QueueController {
       data,
     };
   }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.QUEUE,
+      service: QueueController.name,
+    });
+  }
+
+  private logError(message: string): void {
+    this.logger.error(message);
+    void this.loggerService?.error(message, {
+      context: LogContext.QUEUE,
+      service: QueueController.name,
+    });
+  }
 }
+

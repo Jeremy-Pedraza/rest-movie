@@ -58,7 +58,7 @@ import {
 } from './interfaces';
 import { ConsolidationLevelEnum } from './enums';
 import { UserSessionDto } from '@modules/auth/interfaces';
-import { ReportAccessGuard } from './guards/report-access.guard';
+import { ReportAccessGuard } from '@guards/report-access.guard';
 
 /**
  * ReportsController

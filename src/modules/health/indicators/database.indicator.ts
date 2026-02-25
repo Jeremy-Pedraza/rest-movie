@@ -5,8 +5,9 @@
  * @module modules/health/indicators
  */
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, Optional } from '@nestjs/common';
 import { HealthCheckError, HealthIndicator, HealthIndicatorResult } from '@nestjs/terminus';
+import { LoggerService, LogContext } from '@modules/logger';
 import { DataSource } from 'typeorm';
 
 /**
@@ -39,7 +40,12 @@ interface ConnectionInfo {
 export class DatabaseHealthIndicator extends HealthIndicator {
   private readonly logger = new Logger(DatabaseHealthIndicator.name);
 
-  constructor(private readonly dataSource: DataSource) {
+  constructor(
+    private readonly dataSource: DataSource,
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
+  ) {
     super();
   }
 
@@ -78,7 +84,7 @@ export class DatabaseHealthIndicator extends HealthIndicator {
       const responseTime = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
-      this.logger.error(`Database health check failed: ${errorMessage}`);
+      this.logError(`Database health check failed: ${errorMessage}`);
 
       const result = this.getStatus(key, false, {
         status: 'down',
@@ -171,7 +177,7 @@ export class DatabaseHealthIndicator extends HealthIndicator {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error(`Failed to get database metrics: ${errorMessage}`);
+      this.logError(`Failed to get database metrics: ${errorMessage}`);
       return { error: errorMessage };
     }
   }
@@ -213,8 +219,25 @@ export class DatabaseHealthIndicator extends HealthIndicator {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error(`Failed to get pool status: ${errorMessage}`);
+      this.logError(`Failed to get pool status: ${errorMessage}`);
       return { error: errorMessage };
     }
   }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.SYSTEM,
+      service: DatabaseHealthIndicator.name,
+    });
+  }
+
+  private logError(message: string): void {
+    this.logger.error(message);
+    void this.loggerService?.error(message, {
+      context: LogContext.SYSTEM,
+      service: DatabaseHealthIndicator.name,
+    });
+  }
 }
+

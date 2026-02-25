@@ -7,11 +7,7 @@
 
 import {
   Entity,
-  PrimaryGeneratedColumn,
   Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-  DeleteDateColumn,
   Index,
   BeforeInsert,
   BeforeUpdate,
@@ -21,6 +17,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import { BaseEntity } from '@shared/common';
 
 import { RoleEntity } from './role.entity';
 import { CompanyEntity } from '@modules/company/entities';
@@ -38,12 +35,9 @@ export enum UserStatus {
 
 @Entity({ name: 'users', schema: 'public' })
 @Index(['email'], { unique: true })
-@Index(['status', 'created_at'])
-@Index(['deleted_at'])
-export class UserEntity {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
+@Index(['status', 'createdAt'])
+@Index(['deletedAt'])
+export class UserEntity extends BaseEntity {
   /**
    * Email del usuario (único)
    */
@@ -235,24 +229,6 @@ export class UserEntity {
    */
   @ManyToMany('StoreEntity', 'assigned_users')
   assigned_stores?: any[]; // Type-only import para evitar circular
-
-  /**
-   * Fecha de creación
-   */
-  @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
-  created_at: Date;
-
-  /**
-   * Fecha de actualización
-   */
-  @UpdateDateColumn({ type: 'timestamptz', nullable: true, name: 'updated_at' })
-  updated_at: Date | null;
-
-  /**
-   * Fecha de eliminación (soft delete)
-   */
-  @DeleteDateColumn({ type: 'timestamptz', nullable: true, name: 'deleted_at' })
-  deleted_at: Date | null;
 
   // ============================================
   // HOOKS

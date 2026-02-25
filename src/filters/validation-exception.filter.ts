@@ -37,6 +37,7 @@ interface ValidationExceptionResponse {
   error?: string;
   statusCode?: number;
   code?: ErrorCode;
+  details?: unknown;
 }
 
 /**
@@ -53,6 +54,7 @@ interface ValidationErrorResponse {
   method: string;
   requestId?: string;
   errors?: Record<string, string[]>;
+  details?: unknown;
 }
 
 @Catch(BadRequestException)
@@ -78,12 +80,16 @@ export class ValidationExceptionFilter implements ExceptionFilter {
 
     // Formatear errores de validación
     let validationErrors: Record<string, string[]> | undefined = undefined;
+    let details: unknown = undefined;
     let message = 'Error de validación';
     let errorCode: ErrorCode = ERROR_CODES.VALIDATION_ERROR;
 
     // Verificar si tiene ERROR_CODE específico
     if (exceptionResponse.code) {
       errorCode = exceptionResponse.code;
+    }
+    if (exceptionResponse.details !== undefined) {
+      details = exceptionResponse.details;
     }
 
     // Si message es un array, son errores de class-validator
@@ -107,6 +113,7 @@ export class ValidationExceptionFilter implements ExceptionFilter {
       method: request.method,
       requestId: request.requestId || undefined,
       errors: validationErrors,
+      details,
     };
 
     // Log en consola
@@ -131,6 +138,7 @@ export class ValidationExceptionFilter implements ExceptionFilter {
         statusCode: status,
         metadata: {
           errors: validationErrors,
+          details: details !== undefined ? this.safeStringify(details) : undefined,
         },
       });
     }
@@ -169,5 +177,28 @@ export class ValidationExceptionFilter implements ExceptionFilter {
     });
 
     return formattedErrors;
+  }
+
+  /**
+   * Convierte de forma segura cualquier valor a string para logging.
+   */
+  private safeStringify(value: unknown): string {
+    if (typeof value === 'string') {
+      return value;
+    }
+
+    if (typeof value === 'number' || typeof value === 'boolean') {
+      return String(value);
+    }
+
+    if (typeof value === 'object' && value !== null) {
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return '[Complex Object]';
+      }
+    }
+
+    return String(value);
   }
 }

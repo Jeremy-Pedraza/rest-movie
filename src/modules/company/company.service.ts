@@ -1,6 +1,7 @@
 // src/modules/company/company.service.ts
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, Optional } from '@nestjs/common';
+import { LoggerService, LogContext } from '@modules/logger';
 import { CompanyRepository } from './company.repository';
 import { SanitizerService, HandleErrorService, IPaginatedResponse } from '@shared/common';
 import { TenantSchemaService } from '@shared/database';
@@ -39,6 +40,9 @@ export class CompanyService {
     private readonly sanitizer: SanitizerService,
     private readonly handleError: HandleErrorService,
     private readonly tenantSchemaService: TenantSchemaService, // ✅ FASE 7.2.C
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
   ) {}
 
   /**
@@ -114,7 +118,7 @@ export class CompanyService {
 
       if (!schemaResult.success) {
         // Si falla la creación del schema, eliminar la compañía y lanzar error
-        this.logger.error(`Error creando schema ${company.schema}: ${schemaResult.error}`);
+        this.logError(`Error creando schema ${company.schema}: ${schemaResult.error}`);
         await this.companyRepository.hardDelete(company.id);
 
         this.handleError.internal(
@@ -290,7 +294,7 @@ export class CompanyService {
 
     // ✅ FASE 7.2.C: Eliminar schema de tenant
     if (company.schema && company.schema !== 'public') {
-      this.logger.warn(`Eliminando schema de tenant: ${company.schema}`);
+      this.logWarn(`Eliminando schema de tenant: ${company.schema}`);
 
       const dropResult = await this.tenantSchemaService.dropTenantSchema(
         company.schema,
@@ -298,19 +302,19 @@ export class CompanyService {
       );
 
       if (!dropResult.success) {
-        this.logger.error(`Error eliminando schema ${company.schema}: ${dropResult.error}`);
+        this.logError(`Error eliminando schema ${company.schema}: ${dropResult.error}`);
         // Si no se puede eliminar el schema, no eliminar la compañía
         this.handleError.internal(
           `No se pudo eliminar el schema: ${dropResult.error}. Use forceDropSchema=true para forzar.`,
         );
       }
 
-      this.logger.warn(`Schema '${company.schema}' eliminado`);
+      this.logWarn(`Schema '${company.schema}' eliminado`);
     }
 
     // Eliminar compañía permanentemente
     await this.companyRepository.hardDelete(id);
-    this.logger.warn(`Compañía eliminada permanentemente: ${id}`);
+    this.logWarn(`Compañía eliminada permanentemente: ${id}`);
   }
 
   /**
@@ -633,4 +637,21 @@ export class CompanyService {
       tax_config: company.tax_config,
     };
   }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.BUSINESS,
+      service: CompanyService.name,
+    });
+  }
+
+  private logError(message: string): void {
+    this.logger.error(message);
+    void this.loggerService?.error(message, {
+      context: LogContext.BUSINESS,
+      service: CompanyService.name,
+    });
+  }
 }
+

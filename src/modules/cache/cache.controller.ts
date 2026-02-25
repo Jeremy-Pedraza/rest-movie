@@ -6,7 +6,6 @@
  */
 
 import {
-  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -28,7 +27,8 @@ import {
 
 import { ROLES } from '@constants/roles.constant';
 import { Roles } from '@decorators/roles.decorator';
-import { IApiResponse } from '@shared/common';
+import { ERROR_CODES } from '@constants/error-codes.constant';
+import { HandleErrorService, IApiResponse } from '@shared/common';
 
 import { CacheService } from './cache.service';
 import {
@@ -44,7 +44,10 @@ import {
 @ApiBearerAuth()
 @Controller('cache')
 export class CacheController {
-  constructor(private readonly cacheService: CacheService) {}
+  constructor(
+    private readonly cacheService: CacheService,
+    private readonly handleError: HandleErrorService,
+  ) {}
 
   // ============================================
   // ESTADÍSTICAS Y MONITOREO
@@ -329,8 +332,10 @@ export class CacheController {
 
   private validateTagParam(tag: string): void {
     if (!tag || tag.length > 100 || !/^[a-zA-Z0-9_:\-\.]+$/.test(tag)) {
-      throw new BadRequestException(
+      this.handleError.badRequest(
         'El tag solo puede contener letras, números, _, :, - y . (máx 100 caracteres)',
+        { field: 'tag', maxLength: 100 },
+        ERROR_CODES.VALIDATION_INVALID_FORMAT,
       );
     }
   }

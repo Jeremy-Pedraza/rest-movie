@@ -9,15 +9,14 @@ import {
   BeforeInsert,
   BeforeUpdate,
   Column,
-  CreateDateColumn,
   DeleteDateColumn,
   Entity,
   Index,
   JoinColumn,
   ManyToOne,
-  PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { BaseReadOnlyEntity } from '@shared/common';
 
 import { UserEntity } from '@modules/user';
 
@@ -29,10 +28,7 @@ import { UserEntity } from '@modules/user';
 @Index(['user_id', 'deleted_at'])
 @Index(['refresh_token', 'deleted_at'])
 @Index(['expires_at', 'deleted_at'])
-export class SessionEntity {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
+export class SessionEntity extends BaseReadOnlyEntity {
   // ============================================
   // RELACIONES
   // ============================================
@@ -87,9 +83,6 @@ export class SessionEntity {
   // ============================================
   // TIMESTAMPS Y EXPIRACIÓN
   // ============================================
-
-  @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
-  created_at: Date;
 
   @UpdateDateColumn({ type: 'timestamptz', name: 'last_activity_at' })
   last_activity_at: Date;

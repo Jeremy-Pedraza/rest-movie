@@ -5,7 +5,7 @@
  * @module modules/health
  */
 
-import { Controller, Get, Logger } from '@nestjs/common';
+import { Controller, Get, Logger, Inject, Optional } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import {
   HealthCheck,
@@ -18,6 +18,7 @@ import * as os from 'os';
 
 import { Public } from '@decorators/public.decorator';
 import { SkipTenant } from '@decorators/skip-tenant.decorator';
+import { LoggerService, LogContext } from '@modules/logger';
 import { DatabaseHealthIndicator } from './indicators/database.indicator';
 import { RedisHealthIndicator } from './indicators/redis.indicator';
 
@@ -33,6 +34,9 @@ export class HealthController {
     private readonly redis: RedisHealthIndicator,
     private readonly memory: MemoryHealthIndicator,
     private readonly disk: DiskHealthIndicator,
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
   ) {}
 
   // ============================================
@@ -73,7 +77,7 @@ export class HealthController {
         () => this.memory.checkRSS('memory_rss', 500 * 1024 * 1024), // 500MB
       ]);
     } catch (error) {
-      this.logger.error('Readiness check failed', error);
+      this.logError('Readiness check failed', error);
       throw error;
     }
   }
@@ -91,7 +95,7 @@ export class HealthController {
     try {
       return await this.health.check([() => this.database.isHealthy('database')]);
     } catch (error) {
-      this.logger.error('Database health check failed', error);
+      this.logError('Database health check failed', error);
       throw error;
     }
   }
@@ -109,7 +113,7 @@ export class HealthController {
     try {
       return await this.health.check([() => this.redis.isHealthy('redis')]);
     } catch (error) {
-      this.logger.error('Redis health check failed', error);
+      this.logError('Redis health check failed', error);
       throw error;
     }
   }
@@ -130,7 +134,7 @@ export class HealthController {
         () => this.memory.checkRSS('memory_rss', 500 * 1024 * 1024),
       ]);
     } catch (error) {
-      this.logger.error('Memory health check failed', error);
+      this.logError('Memory health check failed', error);
       throw error;
     }
   }
@@ -154,7 +158,7 @@ export class HealthController {
           }),
       ]);
     } catch (error) {
-      this.logger.error('Disk health check failed', error);
+      this.logError('Disk health check failed', error);
       throw error;
     }
   }
@@ -184,7 +188,7 @@ export class HealthController {
         pool: poolStatus,
       };
     } catch (error) {
-      this.logger.error('Failed to get database metrics', error);
+      this.logError('Failed to get database metrics', error);
       return {
         status: 'error',
         timestamp: new Date().toISOString(),
@@ -216,7 +220,7 @@ export class HealthController {
         memory,
       };
     } catch (error) {
-      this.logger.error('Failed to get Redis metrics', error);
+      this.logError('Failed to get Redis metrics', error);
       return {
         status: 'error',
         timestamp: new Date().toISOString(),
@@ -282,4 +286,25 @@ export class HealthController {
       pid: process.pid,
     };
   }
+
+  private logWarn(message: string, details?: unknown): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.SYSTEM,
+      service: HealthController.name,
+      metadata: details ? { details: String(details) } : undefined,
+    });
+  }
+
+  private logError(message: string, details?: unknown): void {
+    const stack = details instanceof Error ? details.stack : undefined;
+    this.logger.error(message, stack);
+    void this.loggerService?.error(message, {
+      context: LogContext.SYSTEM,
+      service: HealthController.name,
+      stack,
+      metadata: details ? { details: String(details) } : undefined,
+    });
+  }
 }
+

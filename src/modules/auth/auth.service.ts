@@ -15,7 +15,7 @@
  * - Contiene TODA la lógica de negocio
  */
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -23,6 +23,7 @@ import * as bcrypt from 'bcrypt';
 import { ERROR_CODES, RESPONSE_MESSAGES, ROLES } from '@constants';
 import { EmailProducer } from '@modules/queue';
 import { UserService } from '@modules/user';
+import { LoggerService, LogContext } from '@modules/logger';
 import { HandleErrorService, SanitizerService } from '@shared/common';
 import { RedisService } from '@shared/redis';
 import { UtilsService } from '@shared/utils';
@@ -78,6 +79,9 @@ export class AuthService {
     private readonly emailProducer: EmailProducer, // ✅ Para envío asíncrono de emails
     private readonly utils: UtilsService, // ✅ Utilidades (validación, formateo, crypto)
     private readonly redisService: RedisService, // ✅ Cache de autenticación
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
   ) {}
 
   // ============================================
@@ -308,7 +312,7 @@ export class AuthService {
           'Token reuse detected - family revoked',
         );
       }
-      this.logger.warn(
+      this.logWarn(
         `Token reuse detected for user: ${session.user_id}, family: ${session.refresh_token_family}`,
       );
       this.handleError.unauthorized(
@@ -514,7 +518,7 @@ export class AuthService {
       // ✅ Por seguridad, no revelar que el usuario no existe
       // Log enmascarado para proteger privacidad
       const maskedEmail = this.utils.string.maskEmail(email);
-      this.logger.warn(`Password reset attempted for non-existent user: ${maskedEmail}`);
+      this.logWarn(`Password reset attempted for non-existent user: ${maskedEmail}`);
     }
 
     // Siempre retornar success (no revelar si el usuario existe)
@@ -799,7 +803,7 @@ export class AuthService {
       id: session.id,
       userAgent: session.user_agent || 'Unknown',
       ipAddress: session.ip_address,
-      createdAt: session.created_at,
+      createdAt: session.createdAt,
       lastActivityAt: session.last_activity_at,
       expiresAt: session.expires_at,
       isCurrent: false, // El controller determinará cuál es la actual
@@ -972,4 +976,21 @@ export class AuthService {
       }
     }
   }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.AUTH,
+      service: AuthService.name,
+    });
+  }
+
+  private logError(message: string): void {
+    this.logger.error(message);
+    void this.loggerService?.error(message, {
+      context: LogContext.AUTH,
+      service: AuthService.name,
+    });
+  }
 }
+

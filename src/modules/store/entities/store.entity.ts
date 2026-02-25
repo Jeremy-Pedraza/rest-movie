@@ -2,11 +2,7 @@
 
 import {
   Entity,
-  PrimaryGeneratedColumn,
   Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-  DeleteDateColumn,
   Index,
   ManyToOne,
   OneToMany,
@@ -14,6 +10,7 @@ import {
   JoinColumn,
   JoinTable,
 } from 'typeorm';
+import { BaseEntity } from '@shared/common';
 import type { CompanyEntity } from '@modules/company/entities';
 import type { UserEntity } from '@modules/user/entities';
 import type { GeoCityEntity } from '@modules/geography/entities';
@@ -75,10 +72,7 @@ export interface IOperatingHours {
 @Index(['company_id', 'codigo'], { unique: true })
 @Index(['activo'])
 @Index(['ciudad'])
-export class StoreEntity {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
+export class StoreEntity extends BaseEntity {
   /**
    * ID de la compañía a la que pertenece
    */
@@ -453,27 +447,4 @@ export class StoreEntity {
   })
   assigned_users?: UserEntity[];
 
-  // ============================================
-  // TIMESTAMPS
-  // ============================================
-
-  @CreateDateColumn({
-    type: 'timestamptz',
-    name: 'created_at',
-  })
-  created_at: Date;
-
-  @UpdateDateColumn({
-    type: 'timestamptz',
-    nullable: true,
-    name: 'updated_at',
-  })
-  updated_at?: Date;
-
-  @DeleteDateColumn({
-    type: 'timestamptz',
-    nullable: true,
-    name: 'deleted_at',
-  })
-  deleted_at?: Date;
 }

@@ -16,15 +16,13 @@
 
 import {
   Entity,
-  PrimaryGeneratedColumn,
   Column,
-  CreateDateColumn,
-  UpdateDateColumn,
   Index,
   ManyToOne,
   OneToMany,
   JoinColumn,
 } from 'typeorm';
+import { BaseTimestampEntity } from '@shared/common';
 import type { StoreEntity } from '@modules/store/entities';
 import { ReportTypeEnum } from '../enums';
 
@@ -65,9 +63,7 @@ import { ReportTypeEnum } from '../enums';
 @Index(['report_type'])
 @Index(['store_id', 'report_type'])
 @Index(['employee_id'])
-export class ReportHeaderEntity {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+export class ReportHeaderEntity extends BaseTimestampEntity {
 
   /**
    * ID de la tienda que generó el reporte
@@ -364,20 +360,4 @@ export class ReportHeaderEntity {
   @OneToMany('IncomeByTenderTypeEntity', 'report_header')
   income_by_tender_type?: any[];
 
-  // ============================================
-  // TIMESTAMPS
-  // ============================================
-
-  @CreateDateColumn({
-    type: 'timestamptz',
-    name: 'created_at',
-  })
-  created_at: Date;
-
-  @UpdateDateColumn({
-    type: 'timestamptz',
-    nullable: true,
-    name: 'updated_at',
-  })
-  updated_at?: Date;
 }

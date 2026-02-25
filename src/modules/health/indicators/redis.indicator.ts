@@ -5,15 +5,21 @@
  * @module modules/health/indicators
  */
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, Optional } from '@nestjs/common';
 import { HealthIndicator, HealthIndicatorResult, HealthCheckError } from '@nestjs/terminus';
+import { LoggerService, LogContext } from '@modules/logger';
 import { RedisService } from '@shared/redis';
 
 @Injectable()
 export class RedisHealthIndicator extends HealthIndicator {
   private readonly logger = new Logger(RedisHealthIndicator.name);
 
-  constructor(private readonly redisService: RedisService) {
+  constructor(
+    private readonly redisService: RedisService,
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
+  ) {
     super();
   }
 
@@ -51,7 +57,7 @@ export class RedisHealthIndicator extends HealthIndicator {
       const responseTime = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
-      this.logger.error(`Redis health check failed: ${errorMessage}`);
+      this.logError(`Redis health check failed: ${errorMessage}`);
 
       const result = this.getStatus(key, false, {
         status: 'down',
@@ -147,7 +153,7 @@ export class RedisHealthIndicator extends HealthIndicator {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error(`Failed to get Redis metrics: ${errorMessage}`);
+      this.logError(`Failed to get Redis metrics: ${errorMessage}`);
       return { error: errorMessage };
     }
   }
@@ -196,8 +202,25 @@ export class RedisHealthIndicator extends HealthIndicator {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error(`Failed to get Redis memory status: ${errorMessage}`);
+      this.logError(`Failed to get Redis memory status: ${errorMessage}`);
       return { error: errorMessage };
     }
   }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.SYSTEM,
+      service: RedisHealthIndicator.name,
+    });
+  }
+
+  private logError(message: string): void {
+    this.logger.error(message);
+    void this.loggerService?.error(message, {
+      context: LogContext.SYSTEM,
+      service: RedisHealthIndicator.name,
+    });
+  }
 }
+

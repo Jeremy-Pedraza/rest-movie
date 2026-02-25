@@ -8,10 +8,11 @@
  * - NO usar try-catch en métodos públicos (filter global)
  */
 
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Inject, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob } from 'cron';
+import { LoggerService, LogContext } from '@modules/logger';
 
 import { HandleErrorService } from '@shared/common';
 
@@ -93,6 +94,9 @@ export class TasksService implements OnModuleInit {
     private readonly sessionCleanupJob: SessionCleanupJob,
     private readonly logCleanupJob: LogCleanupJob,
     private readonly cacheWarmupJob: CacheWarmupJob,
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
   ) {
     // Registrar instancias de jobs
     this.jobInstances.set(JOB_NAMES.CLEANUP, this.cleanupJob);
@@ -271,7 +275,7 @@ export class TasksService implements OnModuleInit {
     const cronJob = this.getCronJob(name);
     if (!cronJob) {
       // El job no está registrado en SchedulerRegistry, solo log
-      this.logger.warn(`[${name}] No se encontró CronJob en registry para habilitar`);
+      this.logWarn(`[${name}] No se encontró CronJob en registry para habilitar`);
     } else {
       cronJob.start();
     }
@@ -297,7 +301,7 @@ export class TasksService implements OnModuleInit {
 
     const cronJob = this.getCronJob(name);
     if (!cronJob) {
-      this.logger.warn(`[${name}] No se encontró CronJob en registry para deshabilitar`);
+      this.logWarn(`[${name}] No se encontró CronJob en registry para deshabilitar`);
     } else {
       void cronJob.stop();
     }
@@ -645,4 +649,21 @@ export class TasksService implements OnModuleInit {
     if (ms < 86400000) return `${Math.round(ms / 3600000)}h`;
     return `${Math.round(ms / 86400000)}d`;
   }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.SYSTEM,
+      service: TasksService.name,
+    });
+  }
+
+  private logError(message: string): void {
+    this.logger.error(message);
+    void this.loggerService?.error(message, {
+      context: LogContext.SYSTEM,
+      service: TasksService.name,
+    });
+  }
 }
+

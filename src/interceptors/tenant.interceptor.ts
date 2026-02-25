@@ -9,9 +9,18 @@
  * como parámetro en cada función.
  */
 
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NestInterceptor,
+  ExecutionContext,
+  CallHandler,
+  Logger,
+  Inject,
+  Optional,
+} from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { Request } from 'express';
+import { LoggerService, LogContext } from '@modules/logger';
 import { SchemaContext, ITenantContext } from '@shared/database';
 
 /**
@@ -66,7 +75,12 @@ interface RequestWithTenant extends Request {
 export class TenantInterceptor implements NestInterceptor {
   private readonly logger = new Logger(TenantInterceptor.name);
 
-  constructor(private readonly schemaContext: SchemaContext) {}
+  constructor(
+    private readonly schemaContext: SchemaContext,
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
+  ) {}
 
   /**
    * Intercepta el request e inyecta el contexto del tenant
@@ -93,14 +107,14 @@ export class TenantInterceptor implements NestInterceptor {
 
     // Validar que tenant tiene la estructura correcta
     if (!this.isValidTenantContext(tenant)) {
-      this.logger.warn('Tenant en request no tiene la estructura correcta');
+      this.logWarn('Tenant en request no tiene la estructura correcta');
       return next.handle();
     }
 
     // Validar consistencia tenant vs user cuando ambos están presentes
     const user = request.user as { schema?: string } | undefined;
     if (user?.schema && user.schema !== tenant.schema) {
-      this.logger.error(
+      this.logError(
         'Inconsistencia tenant: request.user.schema difiere de request.tenant.schema',
       );
     }
@@ -118,7 +132,7 @@ export class TenantInterceptor implements NestInterceptor {
         innerSub = next.handle().subscribe({
           next: (data) => observer.next(data),
           error: (err: Error) => {
-            this.logger.error(
+            this.logError(
               `Error durante ejecución con schema ${tenant.schema}: ${err.message}`,
             );
             observer.error(err);
@@ -153,4 +167,21 @@ export class TenantInterceptor implements NestInterceptor {
         : true)
     );
   }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.AUTH,
+      service: TenantInterceptor.name,
+    });
+  }
+
+  private logError(message: string): void {
+    this.logger.error(message);
+    void this.loggerService?.error(message, {
+      context: LogContext.AUTH,
+      service: TenantInterceptor.name,
+    });
+  }
 }
+

@@ -13,13 +13,12 @@
 
 import {
   Entity,
-  PrimaryGeneratedColumn,
   Column,
-  CreateDateColumn,
   Index,
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
+import { BaseReadOnlyEntity } from '@shared/common';
 import { ReportHeaderEntity } from './report-header.entity';
 
 /**
@@ -49,10 +48,7 @@ import { ReportHeaderEntity } from './report-header.entity';
 @Entity({ name: 'dynamic_discounts' })
 @Index(['report_header_id'])
 @Index(['discount_type'])
-export class DynamicDiscountEntity {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
+export class DynamicDiscountEntity extends BaseReadOnlyEntity {
   /**
    * ID del reporte padre
    * FK a report_headers (mismo schema)
@@ -140,13 +136,4 @@ export class DynamicDiscountEntity {
   @JoinColumn({ name: 'report_header_id' })
   report_header?: ReportHeaderEntity;
 
-  // ============================================
-  // TIMESTAMPS
-  // ============================================
-
-  @CreateDateColumn({
-    type: 'timestamptz',
-    name: 'created_at',
-  })
-  created_at: Date;
 }

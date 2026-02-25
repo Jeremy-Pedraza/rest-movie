@@ -1,6 +1,7 @@
 // src/shared/database/transaction.service.ts
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, Optional } from '@nestjs/common';
 import { DataSource, QueryRunner, EntityManager } from 'typeorm';
+import { LoggerService, LogContext } from '@modules/logger';
 
 /**
  * Tipo para funciones que se ejecutan dentro de una transacción
@@ -60,7 +61,12 @@ export interface ITransactionOptions {
 export class TransactionService {
   private readonly logger = new Logger(TransactionService.name);
 
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
+  ) {}
 
   /**
    * Ejecuta una función dentro de una transacción
@@ -111,7 +117,7 @@ export class TransactionService {
       await queryRunner.rollbackTransaction();
 
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error(
+      this.logError(
         `[${context}] Transaction rolled back: ${errorMessage}`,
         error instanceof Error ? error.stack : undefined,
       );
@@ -150,7 +156,7 @@ export class TransactionService {
 
         // Solo reintentar errores transitorios de PostgreSQL
         if (!this.isTransientError(error)) {
-          this.logger.error(
+          this.logError(
             `[${context}] Non-transient error, not retrying: ${lastError.message}`,
           );
           throw lastError;
@@ -161,7 +167,7 @@ export class TransactionService {
           // Espera exponencial con jitter: base * 2^(attempt-1) + random(0..base)
           const base = 100;
           const delay = Math.pow(2, attempt - 1) * base + Math.floor(Math.random() * base);
-          this.logger.warn(
+          this.logWarn(
             `[${context}] Transient error on attempt ${attempt}, retrying in ${delay}ms: ${lastError.message}`,
           );
           await this.sleep(delay);
@@ -169,7 +175,7 @@ export class TransactionService {
       }
     }
 
-    this.logger.error(`[${context}] All ${maxRetries} attempts failed`, lastError.stack);
+    this.logError(`[${context}] All ${maxRetries} attempts failed`, lastError.stack);
     throw lastError;
   }
 
@@ -297,6 +303,25 @@ export class TransactionService {
         });
     });
   }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.DATABASE,
+      service: TransactionService.name,
+    });
+  }
+
+  private logError(message: string, details?: unknown): void {
+    const stack = details instanceof Error ? details.stack : undefined;
+    this.logger.error(message, stack);
+    void this.loggerService?.error(message, {
+      context: LogContext.DATABASE,
+      service: TransactionService.name,
+      stack,
+      metadata: details ? { details: String(details) } : undefined,
+    });
+  }
 }
 
 /**
@@ -308,3 +333,4 @@ export class TransactionTimeoutError extends Error {
     this.name = 'TransactionTimeoutError';
   }
 }
+

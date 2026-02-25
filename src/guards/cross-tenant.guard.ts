@@ -1,8 +1,8 @@
-// src/shared/database/guards/cross-tenant.guard.ts
+// src/guards/cross-tenant.guard.ts
 
 /**
  * @fileoverview Guard para validar acceso cross-tenant
- * @module shared/database/guards
+ * @module guards
  *
  * NOTA: Este guard es DIFERENTE al TenantGuard global (src/guards/tenant.guard.ts).
  *
@@ -28,12 +28,15 @@ import {
   Injectable,
   CanActivate,
   ExecutionContext,
-  ForbiddenException,
   Logger,
   SetMetadata,
+  Inject,
+  Optional,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { SchemaContext } from '../schema.context';
+import { HandleErrorService } from '@shared/common';
+import { LoggerService, LogContext } from '@modules/logger';
+import { SchemaContext } from '@shared/database/schema.context';
 import { UserSessionDto } from '@modules/auth/interfaces';
 
 /**
@@ -69,6 +72,10 @@ export class CrossTenantGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly schemaContext: SchemaContext,
+    private readonly handleError: HandleErrorService,
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
   ) {}
 
   canActivate(context: ExecutionContext): boolean {
@@ -100,8 +107,8 @@ export class CrossTenantGuard implements CanActivate {
 
     // Validar que el usuario tenga company asignada
     if (!user.companyId && !user.company?.id) {
-      this.logger.warn(`CrossTenantGuard: Usuario ${user.id} no tiene company asignada`);
-      throw new ForbiddenException('Acceso denegado: Usuario no pertenece a ninguna compañía');
+      this.logWarn(`CrossTenantGuard: Usuario ${user.id} no tiene company asignada`);
+      this.handleError.forbidden('Acceso denegado: Usuario no pertenece a ninguna compañía');
     }
 
     // Validar que el schema del contexto coincida
@@ -109,11 +116,11 @@ export class CrossTenantGuard implements CanActivate {
     const userSchema = user.company?.schema || user.schema || 'public';
 
     if (contextSchema !== userSchema && contextSchema !== 'public') {
-      this.logger.warn(
+      this.logWarn(
         `CrossTenantGuard: Intento de acceso cross-tenant detectado. ` +
           `Usuario ${user.id} (schema: ${userSchema}) intentó acceder a schema: ${contextSchema}`,
       );
-      throw new ForbiddenException(
+      this.handleError.forbidden(
         'Acceso denegado: No tiene permisos para acceder a este recurso',
       );
     }
@@ -131,4 +138,21 @@ export class CrossTenantGuard implements CanActivate {
   private isSuperAdmin(user: UserSessionDto): boolean {
     return user.roles?.includes('SUPER_ADMIN') || user.roles?.includes('super_admin');
   }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.AUTH,
+      service: CrossTenantGuard.name,
+    });
+  }
+
+  private logError(message: string): void {
+    this.logger.error(message);
+    void this.loggerService?.error(message, {
+      context: LogContext.AUTH,
+      service: CrossTenantGuard.name,
+    });
+  }
 }
+

@@ -1,6 +1,7 @@
 import { InjectQueue } from '@nestjs/bull';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, Optional } from '@nestjs/common';
 import { JobStatus as BullJobStatus, Job, Queue } from 'bull';
+import { LoggerService, LogContext } from '@modules/logger';
 import { JobOptionsDto, NotificationJobDataDto } from '../dto';
 import { IJobResponse } from '../interfaces';
 import {
@@ -25,7 +26,12 @@ import {
 export class NotificationProducer {
   private readonly logger = new Logger(NotificationProducer.name);
 
-  constructor(@InjectQueue(QUEUE_NAMES.NOTIFICATION) private readonly notificationQueue: Queue) {}
+  constructor(
+    @InjectQueue(QUEUE_NAMES.NOTIFICATION) private readonly notificationQueue: Queue,
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
+  ) {}
 
   /**
    * Encolar notificación individual
@@ -248,7 +254,7 @@ export class NotificationProducer {
    */
   async pause(): Promise<boolean> {
     await this.notificationQueue.pause();
-    this.logger.warn(`⏸️ Cola de notificaciones pausada`);
+    this.logWarn(`⏸️ Cola de notificaciones pausada`);
     return true;
   }
 
@@ -268,7 +274,7 @@ export class NotificationProducer {
    */
   async empty(): Promise<boolean> {
     await this.notificationQueue.empty();
-    this.logger.warn(`🗑️ Cola de notificaciones vaciada completamente`);
+    this.logWarn(`🗑️ Cola de notificaciones vaciada completamente`);
     return true;
   }
 
@@ -299,4 +305,21 @@ export class NotificationProducer {
   async getJob(jobId: string | number) {
     return await this.notificationQueue.getJob(jobId);
   }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.QUEUE,
+      service: NotificationProducer.name,
+    });
+  }
+
+  private logError(message: string): void {
+    this.logger.error(message);
+    void this.loggerService?.error(message, {
+      context: LogContext.QUEUE,
+      service: NotificationProducer.name,
+    });
+  }
 }
+

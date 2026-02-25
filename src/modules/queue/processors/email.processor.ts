@@ -1,6 +1,7 @@
 import { Process, Processor } from '@nestjs/bull';
-import { Logger } from '@nestjs/common';
+import { Logger, Inject, Optional } from '@nestjs/common';
 import { Job } from 'bull';
+import { LoggerService, LogContext } from '@modules/logger';
 import { EmailJobDataDto } from '../dto';
 import { JOB_NAMES, QUEUE_NAMES } from '../queue.constants';
 
@@ -18,6 +19,11 @@ import { JOB_NAMES, QUEUE_NAMES } from '../queue.constants';
 @Processor(QUEUE_NAMES.EMAIL)
 export class EmailProcessor {
   private readonly logger = new Logger(EmailProcessor.name);
+  constructor(
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
+  ) {}
 
   /**
    * Procesar job de envío de email individual
@@ -64,7 +70,7 @@ export class EmailProcessor {
 
       return result;
     } catch (error) {
-      this.logger.error(`❌ [${job.id}] Error al enviar email: ${error.message}`, error.stack);
+      this.logError(`❌ [${job.id}] Error al enviar email: ${error.message}`, error.stack);
       throw error; // Bull manejará el retry automáticamente
     }
   }
@@ -114,7 +120,7 @@ export class EmailProcessor {
         completedAt: new Date().toISOString(),
       };
     } catch (error) {
-      this.logger.error(
+      this.logError(
         `❌ [${job.id}] Error al enviar lote de emails: ${error.message}`,
         error.stack,
       );
@@ -169,7 +175,7 @@ export class EmailProcessor {
 
       return result;
     } catch (error) {
-      this.logger.error(
+      this.logError(
         `❌ [${job.id}] Error al enviar email con template: ${error.message}`,
         error.stack,
       );
@@ -184,4 +190,23 @@ export class EmailProcessor {
   private delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.QUEUE,
+      service: EmailProcessor.name,
+    });
+  }
+
+  private logError(message: string, details?: unknown): void {
+    const stack = details instanceof Error ? details.stack : undefined;
+    this.logger.error(message, stack);
+    void this.loggerService?.error(message, {
+      context: LogContext.QUEUE,
+      service: EmailProcessor.name,
+      stack,
+    });
+  }
 }
+

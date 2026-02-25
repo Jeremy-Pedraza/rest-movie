@@ -14,13 +14,11 @@
 
 import {
   Entity,
-  PrimaryGeneratedColumn,
   Column,
-  CreateDateColumn,
-  UpdateDateColumn,
   OneToMany,
   Index,
 } from 'typeorm';
+import { BaseTimestampEntity } from '@shared/common';
 
 /**
  * GeoCountryEntity - País del catálogo geográfico
@@ -44,9 +42,7 @@ import {
  * ```
  */
 @Entity({ name: 'geo_countries', schema: 'public' })
-export class GeoCountryEntity {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+export class GeoCountryEntity extends BaseTimestampEntity {
 
   // ============================================
   // CÓDIGOS ISO
@@ -275,20 +271,4 @@ export class GeoCountryEntity {
   @OneToMany('GeoDepartmentEntity', 'country')
   departments?: any[];
 
-  // ============================================
-  // TIMESTAMPS
-  // ============================================
-
-  @CreateDateColumn({
-    type: 'timestamptz',
-    name: 'created_at',
-  })
-  created_at: Date;
-
-  @UpdateDateColumn({
-    type: 'timestamptz',
-    nullable: true,
-    name: 'updated_at',
-  })
-  updated_at?: Date;
 }

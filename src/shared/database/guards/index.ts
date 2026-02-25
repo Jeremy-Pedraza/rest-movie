@@ -13,4 +13,4 @@
 export { TenantGuard, SKIP_TENANT_KEY } from '@guards/tenant.guard';
 
 // Guard de validación cross-tenant
-export { CrossTenantGuard, SKIP_CROSS_TENANT_CHECK_KEY, SkipCrossTenantCheck } from './cross-tenant.guard';
+export { CrossTenantGuard, SKIP_CROSS_TENANT_CHECK_KEY, SkipCrossTenantCheck } from '@guards/cross-tenant.guard';

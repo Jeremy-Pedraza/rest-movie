@@ -9,10 +9,11 @@
  * @requires DataSource - Para acceder a entidades con soft-delete
  */
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
 import { DataSource, EntityMetadata } from 'typeorm';
+import { LoggerService, LogContext } from '@modules/logger';
 
 import { IJobExecutionResult } from '../interfaces';
 import { CRON_EXPRESSIONS, DEFAULT_JOB_CONFIG, getEnvKey, JOB_NAMES } from '../tasks.constants';
@@ -26,6 +27,9 @@ export class CleanupJob {
   constructor(
     private readonly dataSource: DataSource,
     private readonly configService: ConfigService,
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
   ) {}
 
   /**
@@ -128,7 +132,7 @@ export class CleanupJob {
 
     // Evitar ejecuciones concurrentes
     if (this.isRunning) {
-      this.logger.warn(`[${this.jobName}] Job ya está en ejecución, saltando`);
+      this.logWarn(`[${this.jobName}] Job ya está en ejecución, saltando`);
       return {
         success: false,
         message: 'Job ya está en ejecución',
@@ -215,7 +219,7 @@ export class CleanupJob {
         } catch (entityError) {
           const errorMsg = entityError instanceof Error ? entityError.message : 'Error desconocido';
           errors.push(`${entityName}: ${errorMsg}`);
-          this.logger.error(`[${this.jobName}] Error limpiando ${tableName}: ${errorMsg}`);
+          this.logError(`[${this.jobName}] Error limpiando ${tableName}: ${errorMsg}`);
           results[tableName] = { counted: 0, deleted: 0 };
         }
       }
@@ -223,7 +227,7 @@ export class CleanupJob {
       const duration = Date.now() - startTime;
 
       if (errors.length > 0) {
-        this.logger.warn(
+        this.logWarn(
           `[${this.jobName}] Limpieza completada con ${errors.length} errores: ${totalDeleted} registros eliminados`,
         );
         return {
@@ -272,7 +276,7 @@ export class CleanupJob {
       const duration = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
 
-      this.logger.error(`[${this.jobName}] Error en limpieza: ${errorMessage}`);
+      this.logError(`[${this.jobName}] Error en limpieza: ${errorMessage}`);
 
       return {
         success: false,
@@ -310,4 +314,23 @@ export class CleanupJob {
       entities,
     };
   }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.SYSTEM,
+      service: CleanupJob.name,
+    });
+  }
+
+  private logError(message: string, details?: unknown): void {
+    const stack = details instanceof Error ? details.stack : undefined;
+    this.logger.error(message, stack);
+    void this.loggerService?.error(message, {
+      context: LogContext.SYSTEM,
+      service: CleanupJob.name,
+      stack,
+    });
+  }
 }
+

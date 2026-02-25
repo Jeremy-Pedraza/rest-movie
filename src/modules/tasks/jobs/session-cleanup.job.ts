@@ -8,11 +8,12 @@
  * @requires AuthRepository - Para eliminar sesiones
  */
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
 
 import { AuthRepository } from '@modules/auth/auth.repository';
+import { LoggerService, LogContext } from '@modules/logger';
 import { IJobExecutionResult } from '../interfaces';
 import { CRON_EXPRESSIONS, DEFAULT_JOB_CONFIG, getEnvKey, JOB_NAMES } from '../tasks.constants';
 
@@ -25,6 +26,9 @@ export class SessionCleanupJob {
   constructor(
     private readonly authRepository: AuthRepository,
     private readonly configService: ConfigService,
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
   ) {}
 
   /**
@@ -74,7 +78,7 @@ export class SessionCleanupJob {
 
     // Evitar ejecuciones concurrentes
     if (this.isRunning) {
-      this.logger.warn(`[${this.jobName}] Job ya está en ejecución, saltando`);
+      this.logWarn(`[${this.jobName}] Job ya está en ejecución, saltando`);
       return {
         success: false,
         message: 'Job ya está en ejecución',
@@ -121,7 +125,7 @@ export class SessionCleanupJob {
       const duration = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
 
-      this.logger.error(`[${this.jobName}] Error en limpieza de sesiones: ${errorMessage}`);
+      this.logError(`[${this.jobName}] Error en limpieza de sesiones: ${errorMessage}`);
 
       return {
         success: false,
@@ -147,4 +151,23 @@ export class SessionCleanupJob {
       config: DEFAULT_JOB_CONFIG[this.jobName],
     };
   }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.SYSTEM,
+      service: SessionCleanupJob.name,
+    });
+  }
+
+  private logError(message: string, details?: unknown): void {
+    const stack = details instanceof Error ? details.stack : undefined;
+    this.logger.error(message, stack);
+    void this.loggerService?.error(message, {
+      context: LogContext.SYSTEM,
+      service: SessionCleanupJob.name,
+      stack,
+    });
+  }
 }
+

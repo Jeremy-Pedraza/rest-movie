@@ -16,6 +16,7 @@
 
 import { Repository, SelectQueryBuilder, EntityManager, ObjectLiteral } from 'typeorm';
 import { Logger } from '@nestjs/common';
+import { LoggerService, LogContext } from '@modules/logger';
 import { SchemaContext } from './schema.context';
 
 /**
@@ -69,6 +70,7 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
   constructor(
     protected readonly repository: Repository<T>,
     protected readonly schemaContext: SchemaContext,
+    protected readonly loggerService?: LoggerService,
   ) {
     this.logger = new Logger(this.constructor.name);
   }
@@ -153,14 +155,14 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
 
       return result;
     } catch (error) {
-      this.logger.error(`Error ejecutando query con schema ${schema}:`, error);
+      this.logError(`Error ejecutando query con schema ${schema}:`, error);
       throw error;
     } finally {
       // Restaurar search_path a public
       try {
         await queryRunner.query(`SET search_path TO public`);
       } catch (err) {
-        this.logger.warn('No se pudo restaurar search_path a public:', err);
+        this.logWarn('No se pudo restaurar search_path a public:', err);
       }
 
       // Liberar QueryRunner
@@ -217,14 +219,14 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
     } catch (error) {
       // Rollback en caso de error
       await queryRunner.rollbackTransaction();
-      this.logger.error(`Error en transacción con schema ${schema}:`, error);
+      this.logError(`Error en transacción con schema ${schema}:`, error);
       throw error;
     } finally {
       // Restaurar search_path y liberar conexión
       try {
         await queryRunner.query(`SET search_path TO public`);
       } catch (err) {
-        this.logger.warn('No se pudo restaurar search_path a public:', err);
+        this.logWarn('No se pudo restaurar search_path a public:', err);
       }
       await queryRunner.release();
     }
@@ -338,4 +340,26 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
         'Usar withSchema() en su lugar. Ver docs/BASE-REPOSITORY.md para guía de migración.',
     );
   }
+
+  protected logWarn(message: string, details?: unknown): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.DATABASE,
+      service: this.constructor.name,
+      metadata: details ? { details: String(details) } : undefined,
+    });
+  }
+
+  protected logError(message: string, details?: unknown): void {
+    const stack = details instanceof Error ? details.stack : undefined;
+    this.logger.error(message, stack);
+    void this.loggerService?.error(message, {
+      context: LogContext.DATABASE,
+      service: this.constructor.name,
+      stack,
+      metadata: details ? { details: String(details) } : undefined,
+    });
+  }
 }
+
+

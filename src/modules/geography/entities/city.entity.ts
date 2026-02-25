@@ -12,14 +12,12 @@
 
 import {
   Entity,
-  PrimaryGeneratedColumn,
   Column,
-  CreateDateColumn,
-  UpdateDateColumn,
   ManyToOne,
   JoinColumn,
   Index,
 } from 'typeorm';
+import { BaseTimestampEntity } from '@shared/common';
 import type { GeoDepartmentEntity } from './department.entity';
 
 /**
@@ -41,9 +39,7 @@ import type { GeoDepartmentEntity } from './department.entity';
  */
 @Entity({ name: 'geo_cities', schema: 'public' })
 @Index(['department_id', 'name'], { unique: true })
-export class GeoCityEntity {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+export class GeoCityEntity extends BaseTimestampEntity {
 
   /**
    * ID del departamento al que pertenece
@@ -218,20 +214,4 @@ export class GeoCityEntity {
   @JoinColumn({ name: 'department_id' })
   department?: GeoDepartmentEntity;
 
-  // ============================================
-  // TIMESTAMPS
-  // ============================================
-
-  @CreateDateColumn({
-    type: 'timestamptz',
-    name: 'created_at',
-  })
-  created_at: Date;
-
-  @UpdateDateColumn({
-    type: 'timestamptz',
-    nullable: true,
-    name: 'updated_at',
-  })
-  updated_at?: Date;
 }

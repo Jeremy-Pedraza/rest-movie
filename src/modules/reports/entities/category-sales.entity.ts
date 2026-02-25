@@ -2,22 +2,18 @@
 
 import {
   Entity,
-  PrimaryGeneratedColumn,
   Column,
-  CreateDateColumn,
   Index,
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
+import { BaseReadOnlyEntity } from '@shared/common';
 import { ReportHeaderEntity } from './report-header.entity';
 
 @Entity({ name: 'report_category_sales' })
 @Index(['report_header_id'])
 @Index(['category_id'])
-export class CategorySalesEntity {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
+export class CategorySalesEntity extends BaseReadOnlyEntity {
   @Column({
     type: 'uuid',
     nullable: false,
@@ -66,13 +62,4 @@ export class CategorySalesEntity {
   @JoinColumn({ name: 'report_header_id' })
   report_header?: ReportHeaderEntity;
 
-  // ============================================
-  // TIMESTAMPS
-  // ============================================
-
-  @CreateDateColumn({
-    type: 'timestamptz',
-    name: 'created_at',
-  })
-  created_at: Date;
 }

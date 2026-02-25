@@ -5,7 +5,8 @@
  * @module modules/geography
  */
 
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { HandleErrorService } from '@shared/common';
 import { GeographyRepository } from './geography.repository';
 import {
   QueryCountriesDto,
@@ -25,7 +26,10 @@ import { GeoCountryEntity, GeoDepartmentEntity, GeoCityEntity } from './entities
 
 @Injectable()
 export class GeographyService {
-  constructor(private readonly repository: GeographyRepository) {}
+  constructor(
+    private readonly repository: GeographyRepository,
+    private readonly handleError: HandleErrorService,
+  ) {}
 
   // ============================================
   // PAÍSES
@@ -48,7 +52,7 @@ export class GeographyService {
   async findCountryByCode(code: string): Promise<CountryResponseDto> {
     const country = await this.repository.findCountryByCode(code);
     if (!country) {
-      throw new NotFoundException(`País con código '${code}' no encontrado`);
+      this.handleError.notFound('País', code);
     }
     return this.mapCountryToDto(country);
   }
@@ -59,7 +63,7 @@ export class GeographyService {
   async findCountryById(id: string): Promise<CountryResponseDto> {
     const country = await this.repository.findCountryById(id);
     if (!country) {
-      throw new NotFoundException(`País con ID '${id}' no encontrado`);
+      this.handleError.notFound('País', id);
     }
     return this.mapCountryToDto(country);
   }
@@ -86,7 +90,7 @@ export class GeographyService {
     // Verificar que el país existe
     const country = await this.repository.findCountryByCode(countryCode);
     if (!country) {
-      throw new NotFoundException(`País con código '${countryCode}' no encontrado`);
+      this.handleError.notFound('País', countryCode);
     }
 
     const departments = await this.repository.findDepartmentsByCountryCode(countryCode);
@@ -102,7 +106,7 @@ export class GeographyService {
   async findDepartmentById(id: string): Promise<DepartmentResponseDto> {
     const department = await this.repository.findDepartmentById(id);
     if (!department) {
-      throw new NotFoundException(`Departamento con ID '${id}' no encontrado`);
+      this.handleError.notFound('Departamento', id);
     }
     return this.mapDepartmentToDto(department);
   }
@@ -129,7 +133,7 @@ export class GeographyService {
     // Verificar que el departamento existe
     const department = await this.repository.findDepartmentById(departmentId);
     if (!department) {
-      throw new NotFoundException(`Departamento con ID '${departmentId}' no encontrado`);
+      this.handleError.notFound('Departamento', departmentId);
     }
 
     const cities = await this.repository.findCitiesByDepartmentId(departmentId);
@@ -145,7 +149,7 @@ export class GeographyService {
   async findCityById(id: string): Promise<CityResponseDto> {
     const city = await this.repository.findCityById(id);
     if (!city) {
-      throw new NotFoundException(`Ciudad con ID '${id}' no encontrado`);
+      this.handleError.notFound('Ciudad', id);
     }
     return this.mapCityToDto(city);
   }

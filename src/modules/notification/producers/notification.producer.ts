@@ -6,8 +6,9 @@
  */
 
 import { InjectQueue } from '@nestjs/bull';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, Optional } from '@nestjs/common';
 import { JobOptions, Queue } from 'bull';
+import { LoggerService, LogContext } from '@modules/logger';
 
 // DTOs
 import { SendEmailDto, SendNotificationDto, SendPushDto, SendSmsDto } from '../dto';
@@ -84,6 +85,9 @@ export class NotificationProducer {
   constructor(
     @InjectQueue('notifications')
     private readonly notificationQueue: Queue,
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
   ) {}
 
   // ============================================
@@ -426,7 +430,7 @@ export class NotificationProducer {
    */
   async pauseQueue(): Promise<void> {
     await this.notificationQueue.pause();
-    this.logger.warn('Notification queue paused');
+    this.logWarn('Notification queue paused');
   }
 
   /**
@@ -442,6 +446,23 @@ export class NotificationProducer {
    */
   async emptyQueue(): Promise<void> {
     await this.notificationQueue.empty();
-    this.logger.warn('Notification queue emptied');
+    this.logWarn('Notification queue emptied');
+  }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.QUEUE,
+      service: NotificationProducer.name,
+    });
+  }
+
+  private logError(message: string): void {
+    this.logger.error(message);
+    void this.loggerService?.error(message, {
+      context: LogContext.QUEUE,
+      service: NotificationProducer.name,
+    });
   }
 }
+

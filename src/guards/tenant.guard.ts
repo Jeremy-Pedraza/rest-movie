@@ -9,9 +9,12 @@
  * y la establece en request.tenant
  */
 
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException, Logger } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, Logger, Inject, Optional } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
+import { ERROR_CODES, RESPONSE_MESSAGES } from '@constants';
+import { HandleErrorService } from '@shared/common';
+import { LoggerService, LogContext } from '@modules/logger';
 import { TenantExtractorService, ITenantContext } from '@shared/database';
 
 /**
@@ -86,6 +89,10 @@ export class TenantGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly tenantExtractor: TenantExtractorService,
+    private readonly handleError: HandleErrorService,
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
   ) {}
 
   /**
@@ -157,11 +164,14 @@ export class TenantGuard implements CanActivate {
           }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
-          this.logger.warn(`Fail-closed: señal de tenant presente pero extracción falló: ${errorMessage}`);
+          this.logWarn(`Fail-closed: señal de tenant presente pero extracción falló: ${errorMessage}`);
         }
 
         // Fail-closed: hay señal de tenant pero no se pudo resolver => 403
-        throw new ForbiddenException('Tenant inválido o no encontrado');
+        this.handleError.forbidden(
+          RESPONSE_MESSAGES.AUTH.FORBIDDEN,
+          ERROR_CODES.AUTH_FORBIDDEN,
+        );
       }
 
       // Sin señal de tenant => fallback a public permitido
@@ -185,10 +195,27 @@ export class TenantGuard implements CanActivate {
       );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error extrayendo tenant para user ${userId}: ${errorMessage}`);
+      this.logError(`Error extrayendo tenant para user ${userId}: ${errorMessage}`);
       throw error;
     }
 
     return true;
   }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.AUTH,
+      service: TenantGuard.name,
+    });
+  }
+
+  private logError(message: string): void {
+    this.logger.error(message);
+    void this.loggerService?.error(message, {
+      context: LogContext.AUTH,
+      service: TenantGuard.name,
+    });
+  }
 }
+

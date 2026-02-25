@@ -16,7 +16,7 @@
  * - Cache de sesión con TTL de 3 horas para reducir carga a BD
  */
 
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
@@ -24,6 +24,8 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { IJwtPayload, UserSessionDto } from '../interfaces';
 import { UserService } from '@modules/user/user.service';
 import { RedisService } from '@shared/redis/redis.service';
+import { HandleErrorService } from '@shared/common';
+import { ERROR_CODES, RESPONSE_MESSAGES } from '@constants';
 
 /**
  * TTL del cache de sesión: 55 minutos en segundos
@@ -41,6 +43,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     private readonly configService: ConfigService,
     private readonly userService: UserService,
     private readonly redisService: RedisService,
+    private readonly handleError: HandleErrorService,
   ) {
     const jwtSecret = configService.get<string>('jwt.secret');
     if (!jwtSecret) {
@@ -75,7 +78,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   async validate(payload: IJwtPayload): Promise<UserSessionDto> {
     // Verificar que el payload tenga los campos requeridos
     if (!payload.sub || !payload.email) {
-      throw new UnauthorizedException('Token inválido - payload incompleto');
+      this.handleError.unauthorized(RESPONSE_MESSAGES.AUTH.TOKEN_INVALID, ERROR_CODES.AUTH_TOKEN_INVALID);
     }
 
     const cacheKey = `${SESSION_CACHE_PREFIX}:${payload.schema}:user:${payload.sub}`;
@@ -88,7 +91,10 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       if (cachedSession.status !== 'active') {
         // Invalidar cache si el usuario no está activo
         await this.redisService.del(cacheKey);
-        throw new UnauthorizedException('Usuario inactivo o eliminado');
+        this.handleError.unauthorized(
+          RESPONSE_MESSAGES.AUTH.USER_INACTIVE,
+          ERROR_CODES.AUTH_USER_INACTIVE,
+        );
       }
       return cachedSession;
     }
@@ -97,12 +103,15 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     const user = await this.userService.findByIdWithCompanyAndRoles(payload.sub);
 
     if (!user) {
-      throw new UnauthorizedException('Usuario no encontrado');
+      this.handleError.unauthorized(RESPONSE_MESSAGES.AUTH.USER_NOT_FOUND, ERROR_CODES.AUTH_USER_NOT_FOUND);
     }
 
     // Validar estado del usuario
-    if (!user.isActive || user.deleted_at) {
-      throw new UnauthorizedException('Usuario inactivo o eliminado');
+    if (!user.isActive || user.deletedAt) {
+      this.handleError.unauthorized(
+        RESPONSE_MESSAGES.AUTH.USER_INACTIVE,
+        ERROR_CODES.AUTH_USER_INACTIVE,
+      );
     }
 
     // ✅ Construir UserSessionDto completo
@@ -168,8 +177,8 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
           },
 
       // Timestamps
-      createdAt: user.created_at,
-      updatedAt: user.updated_at || undefined,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt || undefined,
     };
 
     // ✅ Guardar en cache con TTL de 3 horas

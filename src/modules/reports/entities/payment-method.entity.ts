@@ -13,13 +13,12 @@
 
 import {
   Entity,
-  PrimaryGeneratedColumn,
   Column,
-  CreateDateColumn,
   Index,
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
+import { BaseReadOnlyEntity } from '@shared/common';
 import { ReportHeaderEntity } from './report-header.entity';
 
 /**
@@ -48,10 +47,7 @@ import { ReportHeaderEntity } from './report-header.entity';
 @Entity({ name: 'payment_methods' })
 @Index(['report_header_id'])
 @Index(['payment_method'])
-export class PaymentMethodEntity {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
+export class PaymentMethodEntity extends BaseReadOnlyEntity {
   /**
    * ID del reporte padre
    * FK a report_headers (mismo schema)
@@ -126,13 +122,4 @@ export class PaymentMethodEntity {
   @JoinColumn({ name: 'report_header_id' })
   report_header?: ReportHeaderEntity;
 
-  // ============================================
-  // TIMESTAMPS
-  // ============================================
-
-  @CreateDateColumn({
-    type: 'timestamptz',
-    name: 'created_at',
-  })
-  created_at: Date;
 }

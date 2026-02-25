@@ -1,6 +1,7 @@
 // src/modules/store/store.service.ts
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, Optional } from '@nestjs/common';
+import { LoggerService, LogContext } from '@modules/logger';
 import { StoreRepository } from './store.repository';
 import { SanitizerService, HandleErrorService, IPaginatedResponse } from '@shared/common';
 import {
@@ -50,6 +51,9 @@ export class StoreService {
     private readonly sanitizer: SanitizerService,
     private readonly handleError: HandleErrorService,
     private readonly geographyRepository: GeographyRepository,
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
   ) {}
 
   /**
@@ -73,7 +77,7 @@ export class StoreService {
     if (dto.geo_city_id) {
       await this.validateGeoCity(dto.geo_city_id);
     } else {
-      this.logger.warn(
+      this.logWarn(
         `Tienda ${dto.codigo} creada sin geo_city_id. ` +
           `Se recomienda vincular al catálogo geográfico para heredar timezone, moneda e impuestos.`,
       );
@@ -243,7 +247,7 @@ export class StoreService {
         });
         failedCount++;
 
-        this.logger.warn(`Bulk: tienda ${storeDto.codigo} (índice ${i}) falló: ${errorMessage}`);
+        this.logWarn(`Bulk: tienda ${storeDto.codigo} (índice ${i}) falló: ${errorMessage}`);
       }
     }
 
@@ -662,8 +666,8 @@ export class StoreService {
       metadata: store.metadata,
 
       // Timestamps
-      created_at: store.created_at,
-      updated_at: store.updated_at,
+      created_at: store.createdAt,
+      updated_at: store.updatedAt,
     };
 
     // Enriquecer con datos del catálogo geográfico si está cargado
@@ -718,4 +722,21 @@ export class StoreService {
       tags: store.tags,
     };
   }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.BUSINESS,
+      service: StoreService.name,
+    });
+  }
+
+  private logError(message: string): void {
+    this.logger.error(message);
+    void this.loggerService?.error(message, {
+      context: LogContext.BUSINESS,
+      service: StoreService.name,
+    });
+  }
 }
+

@@ -5,10 +5,11 @@
  * @module shared/router/api
  */
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, Optional } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { AxiosError, AxiosRequestConfig } from 'axios';
 import { firstValueFrom, timeout, catchError } from 'rxjs';
+import { LoggerService, LogContext } from '@modules/logger';
 
 import {
   HttpRequestConfig,
@@ -62,7 +63,12 @@ export class HttpClientService {
     averageResponseTime: 0,
   };
 
-  constructor(private readonly httpService: HttpService) {}
+  constructor(
+    private readonly httpService: HttpService,
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
+  ) {}
 
   // ============================================
   // MÉTODOS HTTP PRINCIPALES
@@ -199,7 +205,7 @@ export class HttpClientService {
       const httpError = this.handleError(error as AxiosError, config);
       this.updateStats(false, duration, httpError);
 
-      this.logger.error(
+      this.logError(
         `HTTP Error ${httpError.status || 'N/A'} ${config.url}: ${httpError.message}`,
       );
 
@@ -321,7 +327,7 @@ export class HttpClientService {
       const httpError = this.handleError(error as AxiosError, options);
       this.updateStats(false, duration, httpError);
 
-      this.logger.error(
+      this.logError(
         `HTTP Advanced Error ${httpError.status || 'N/A'} ${options.url}: ${httpError.message}`,
       );
 
@@ -361,7 +367,7 @@ export class HttpClientService {
 
       // Si falla, continuar o detener según preferencia
       if (!result.success) {
-        this.logger.warn(`Request failed in sequence: ${config.url}`);
+        this.logWarn(`Request failed in sequence: ${config.url}`);
       }
     }
 
@@ -392,7 +398,7 @@ export class HttpClientService {
       const status = lastResult.status;
       const retryableCodes: readonly number[] = RETRY_CONFIG.RETRYABLE_STATUS_CODES;
       if (status && !retryableCodes.includes(status)) {
-        this.logger.warn(`Non-retryable status code: ${status}`);
+        this.logWarn(`Non-retryable status code: ${status}`);
         return lastResult;
       }
 
@@ -400,7 +406,7 @@ export class HttpClientService {
         // Añadir jitter ±25% para evitar thundering herd
         const jitter = delay * 0.25 * (Math.random() * 2 - 1);
         const actualDelay = Math.round(delay + jitter);
-        this.logger.warn(
+        this.logWarn(
           `Request failed, retrying in ${actualDelay}ms (attempt ${attempt + 1}/${maxRetries})`,
         );
         await this.sleep(actualDelay);
@@ -595,4 +601,21 @@ export class HttpClientService {
     }
     return redacted;
   }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.EXTERNAL,
+      service: HttpClientService.name,
+    });
+  }
+
+  private logError(message: string): void {
+    this.logger.error(message);
+    void this.loggerService?.error(message, {
+      context: LogContext.EXTERNAL,
+      service: HttpClientService.name,
+    });
+  }
 }
+

@@ -1,9 +1,9 @@
-// src/modules/reports/guards/report-access.guard.ts
+// src/guards/report-access.guard.ts
 
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
+import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 import { ROLES } from '@constants/roles.constant';
-import { ConsolidationLevelEnum } from '../enums';
+import { HandleErrorService } from '@shared/common';
+import { ConsolidationLevelEnum } from '@modules/reports/enums';
 
 /**
  * ReportAccessGuard
@@ -31,14 +31,14 @@ import { ConsolidationLevelEnum } from '../enums';
  */
 @Injectable()
 export class ReportAccessGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+  constructor(private readonly handleError: HandleErrorService) {}
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
     if (!user) {
-      throw new ForbiddenException('Usuario no autenticado');
+      this.handleError.forbidden('Usuario no autenticado');
     }
 
     // Extraer parámetros de la request
@@ -55,12 +55,12 @@ export class ReportAccessGuard implements CanActivate {
       // Validar que solo acceda a su compañía
       // Nota: user viene de UserSessionDto que usa camelCase (companyId)
       if (company_id && company_id !== user.companyId) {
-        throw new ForbiddenException('No tiene permisos para acceder a reportes de otra compañía');
+        this.handleError.forbidden('No tiene permisos para acceder a reportes de otra compañía');
       }
 
       // MANAGER no puede acceder a nivel 'all_companies'
       if (level === ConsolidationLevelEnum.ALL_COMPANIES) {
-        throw new ForbiddenException(
+        this.handleError.forbidden(
           'No tiene permisos para acceder a reportes consolidados de todas las compañías',
         );
       }
@@ -75,14 +75,14 @@ export class ReportAccessGuard implements CanActivate {
         level === ConsolidationLevelEnum.COMPANY ||
         level === ConsolidationLevelEnum.ALL_COMPANIES
       ) {
-        throw new ForbiddenException('No tiene permisos para acceder a reportes consolidados');
+        this.handleError.forbidden('No tiene permisos para acceder a reportes consolidados');
       }
 
       // Validar que solo acceda a sus tiendas asignadas
       if (store_id) {
         const userStoreIds = user.assigned_stores?.map((s: any) => s.id) || [];
         if (!userStoreIds.includes(store_id)) {
-          throw new ForbiddenException('No tiene permisos para acceder a reportes de esta tienda');
+          this.handleError.forbidden('No tiene permisos para acceder a reportes de esta tienda');
         }
       }
 
@@ -90,6 +90,6 @@ export class ReportAccessGuard implements CanActivate {
     }
 
     // Si no tiene ningún rol válido, denegar acceso
-    throw new ForbiddenException('No tiene permisos para acceder a reportes');
+    this.handleError.forbidden('No tiene permisos para acceder a reportes');
   }
 }

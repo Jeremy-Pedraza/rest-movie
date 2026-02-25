@@ -5,7 +5,8 @@
  * @module modules/logger/entities
  */
 
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index } from 'typeorm';
+import { Entity, Column, Index } from 'typeorm';
+import { BaseReadOnlyEntity } from '@shared/common';
 
 /**
  * Niveles de log
@@ -33,14 +34,11 @@ export enum LogContext {
 }
 
 @Entity({ name: 'logs', schema: 'public' })
-@Index(['level', 'created_at'])
-@Index(['context', 'created_at'])
-@Index(['user_id', 'created_at'])
+@Index(['level', 'createdAt'])
+@Index(['context', 'createdAt'])
+@Index(['user_id', 'createdAt'])
 @Index(['request_id'])
-export class LogEntity {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
+export class LogEntity extends BaseReadOnlyEntity {
   /**
    * Nivel de log
    */
@@ -148,10 +146,4 @@ export class LogEntity {
   @Column({ type: 'varchar', length: 50, nullable: true, name: 'error_code' })
   error_code: string | null;
 
-  /**
-   * Fecha de creación
-   */
-  @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
-  @Index()
-  created_at: Date;
 }

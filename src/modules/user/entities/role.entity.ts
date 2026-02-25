@@ -7,23 +7,19 @@
 
 import {
   Entity,
-  PrimaryGeneratedColumn,
   Column,
-  CreateDateColumn,
-  UpdateDateColumn,
   Index,
   ManyToMany,
   JoinTable,
 } from 'typeorm';
+import { BaseTimestampEntity } from '@shared/common';
 
 import { UserEntity } from './user.entity';
 import { PermissionEntity } from './permission.entity';
 
 @Entity({ name: 'roles', schema: 'public' })
 @Index(['name'], { unique: true })
-export class RoleEntity {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+export class RoleEntity extends BaseTimestampEntity {
 
   /**
    * Nombre del rol (único)
@@ -71,18 +67,6 @@ export class RoleEntity {
     inverseJoinColumn: { name: 'permission_id', referencedColumnName: 'id' },
   })
   permissions: PermissionEntity[];
-
-  /**
-   * Fecha de creación
-   */
-  @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
-  created_at: Date;
-
-  /**
-   * Fecha de actualización
-   */
-  @UpdateDateColumn({ type: 'timestamptz', name: 'updated_at' })
-  updated_at: Date;
 
   // ============================================
   // VIRTUAL PROPERTIES

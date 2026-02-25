@@ -7,22 +7,18 @@
 
 import {
   Entity,
-  PrimaryGeneratedColumn,
   Column,
-  CreateDateColumn,
-  UpdateDateColumn,
   Index,
   ManyToMany,
 } from 'typeorm';
+import { BaseTimestampEntity } from '@shared/common';
 
 import { RoleEntity } from './role.entity';
 
 @Entity({ name: 'permissions', schema: 'public' })
 @Index(['name'], { unique: true })
 @Index(['module', 'action'])
-export class PermissionEntity {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+export class PermissionEntity extends BaseTimestampEntity {
 
   /**
    * Nombre del permiso (único) - formato: module.action
@@ -70,15 +66,4 @@ export class PermissionEntity {
   @ManyToMany(() => RoleEntity, (role) => role.permissions)
   roles: RoleEntity[];
 
-  /**
-   * Fecha de creación
-   */
-  @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
-  created_at: Date;
-
-  /**
-   * Fecha de actualización
-   */
-  @UpdateDateColumn({ type: 'timestamptz', name: 'updated_at' })
-  updated_at: Date;
 }

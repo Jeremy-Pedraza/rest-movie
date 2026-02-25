@@ -12,7 +12,8 @@
  * - Sin I/O en runtime (import directo)
  */
 
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Inject, Optional } from '@nestjs/common';
+import { LoggerService, LogContext } from '@modules/logger';
 import {
   SECURITY_WHITELIST,
   ISecurityConfig,
@@ -94,7 +95,7 @@ export class SecurityConfigService implements OnModuleInit {
 
     // Log de rechazos si está habilitado
     if (!isAllowed && this.config.logUnauthorizedAttempts) {
-      this.logger.warn(`⚠️ Dominio rechazado: ${normalizedDomain} (original: ${domain})`);
+      this.logWarn(`⚠️ Dominio rechazado: ${normalizedDomain} (original: ${domain})`);
     }
 
     return isAllowed;
@@ -118,7 +119,7 @@ export class SecurityConfigService implements OnModuleInit {
 
     // Log de rechazos si está habilitado
     if (!isAllowed && this.config.logUnauthorizedAttempts) {
-      this.logger.warn(`⚠️ Schema rechazado: ${schema}`);
+      this.logWarn(`⚠️ Schema rechazado: ${schema}`);
     }
 
     return isAllowed;
@@ -234,4 +235,25 @@ export class SecurityConfigService implements OnModuleInit {
     const normalized = this.normalizeDomain(domain);
     return normalized === 'localhost' || normalized === '127.0.0.1' || normalized === '::1';
   }
+
+  @Optional()
+  @Inject(LoggerService)
+  private readonly loggerService?: LoggerService;
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.AUTH,
+      service: SecurityConfigService.name,
+    });
+  }
+
+  private logError(message: string): void {
+    this.logger.error(message);
+    void this.loggerService?.error(message, {
+      context: LogContext.AUTH,
+      service: SecurityConfigService.name,
+    });
+  }
 }
+

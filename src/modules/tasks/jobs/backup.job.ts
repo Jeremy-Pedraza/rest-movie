@@ -8,12 +8,13 @@
  * @requires DataSource - Para acceder a entidades
  */
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
 import * as fs from 'fs';
 import * as path from 'path';
 import { DataSource } from 'typeorm';
+import { LoggerService, LogContext } from '@modules/logger';
 
 import { IJobExecutionResult } from '../interfaces';
 import {
@@ -33,6 +34,9 @@ export class BackupJob {
   constructor(
     private readonly dataSource: DataSource,
     private readonly configService: ConfigService,
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
   ) {}
 
   /**
@@ -132,7 +136,7 @@ export class BackupJob {
           deletedCount++;
           this.logger.debug(`[${this.jobName}] Backup antiguo eliminado: ${file.name}`);
         } catch {
-          this.logger.warn(`[${this.jobName}] No se pudo eliminar backup: ${file.name}`);
+          this.logWarn(`[${this.jobName}] No se pudo eliminar backup: ${file.name}`);
         }
       }
     }
@@ -175,7 +179,7 @@ export class BackupJob {
 
     // Evitar ejecuciones concurrentes
     if (this.isRunning) {
-      this.logger.warn(`[${this.jobName}] Job ya está en ejecución, saltando`);
+      this.logWarn(`[${this.jobName}] Job ya está en ejecución, saltando`);
       return {
         success: false,
         message: 'Job ya está en ejecución',
@@ -220,7 +224,7 @@ export class BackupJob {
 
           if (!metadata) {
             errors.push(`Tabla '${tableName}' no encontrada`);
-            this.logger.warn(`[${this.jobName}] Tabla no encontrada: ${tableName}`);
+            this.logWarn(`[${this.jobName}] Tabla no encontrada: ${tableName}`);
             continue;
           }
 
@@ -276,7 +280,7 @@ export class BackupJob {
         } catch (tableError) {
           const errorMsg = tableError instanceof Error ? tableError.message : 'Error desconocido';
           errors.push(`${tableName}: ${errorMsg}`);
-          this.logger.error(`[${this.jobName}] Error respaldando ${tableName}: ${errorMsg}`);
+          this.logError(`[${this.jobName}] Error respaldando ${tableName}: ${errorMsg}`);
         }
       }
 
@@ -296,7 +300,7 @@ export class BackupJob {
 
       if (errors.length > 0) {
         // Algunos fallaron
-        this.logger.warn(
+        this.logWarn(
           `[${this.jobName}] Backup parcial: ${totalRecords} registros, ${errors.length} errores`,
         );
         return {
@@ -347,7 +351,7 @@ export class BackupJob {
       const duration = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
 
-      this.logger.error(`[${this.jobName}] Error en backup: ${errorMessage}`);
+      this.logError(`[${this.jobName}] Error en backup: ${errorMessage}`);
 
       return {
         success: false,
@@ -407,4 +411,23 @@ export class BackupJob {
       existingBackups,
     };
   }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.SYSTEM,
+      service: BackupJob.name,
+    });
+  }
+
+  private logError(message: string, details?: unknown): void {
+    const stack = details instanceof Error ? details.stack : undefined;
+    this.logger.error(message, stack);
+    void this.loggerService?.error(message, {
+      context: LogContext.SYSTEM,
+      service: BackupJob.name,
+      stack,
+    });
+  }
 }
+

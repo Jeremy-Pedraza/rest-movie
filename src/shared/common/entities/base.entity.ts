@@ -1,16 +1,17 @@
 // src/shared/common/entities/base.entity.ts
-import {
-  PrimaryGeneratedColumn,
-  CreateDateColumn,
-  UpdateDateColumn,
-  DeleteDateColumn,
-} from 'typeorm';
+import { DeleteDateColumn } from 'typeorm';
+import { BaseTimestampEntity } from './base-timestamp.entity';
 
 /**
- * BaseEntity - Entidad base abstracta
+ * BaseEntity - Entidad base abstracta con soporte completo de CRUD y soft delete
  *
- * Todas las entidades del sistema DEBEN heredar de esta clase.
  * Proporciona campos comunes: id (UUID), timestamps y soft delete.
+ * Usar para: entidades principales que requieren soft delete (Company, Store, User).
+ *
+ * Jerarquía:
+ * - BaseReadOnlyEntity (id + createdAt)
+ *   └─ BaseTimestampEntity (+ updatedAt)
+ *      └─ BaseEntity (+ deletedAt + isDeleted)  ← esta clase
  *
  * @example
  * ```typescript
@@ -21,36 +22,7 @@ import {
  * }
  * ```
  */
-export abstract class BaseEntity {
-  /**
-   * Identificador único (UUID v4)
-   * Generado automáticamente por PostgreSQL
-   */
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
-  /**
-   * Fecha de creación del registro
-   * Se establece automáticamente al insertar
-   */
-  @CreateDateColumn({
-    type: 'timestamptz',
-    name: 'created_at',
-    comment: 'Fecha de creación del registro',
-  })
-  createdAt: Date;
-
-  /**
-   * Fecha de última actualización
-   * Se actualiza automáticamente en cada UPDATE
-   */
-  @UpdateDateColumn({
-    type: 'timestamptz',
-    name: 'updated_at',
-    comment: 'Fecha de última actualización',
-  })
-  updatedAt: Date;
-
+export abstract class BaseEntity extends BaseTimestampEntity {
   /**
    * Fecha de eliminación (soft delete)
    * NULL = registro activo

@@ -12,8 +12,9 @@
  * Modo stub disponible si Twilio no está configurado (development)
  */
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { LoggerService } from '@modules/logger';
 import { NotificationChannel } from '../dto/send-notification.dto';
 import { INotificationOptions, ISmsResponse, NotificationStatus } from '../interfaces';
 import { NotificationChannelAbstract } from './notification-channel.abstract';
@@ -50,8 +51,13 @@ export class SmsChannel extends NotificationChannelAbstract {
   /**
    * Constructor
    */
-  constructor(configService: ConfigService) {
-    super('SMS', configService);
+  constructor(
+    configService: ConfigService,
+    @Optional()
+    @Inject(LoggerService)
+    loggerService?: LoggerService,
+  ) {
+    super('SMS', configService, loggerService);
   }
 
   /**
@@ -69,7 +75,7 @@ export class SmsChannel extends NotificationChannelAbstract {
 
       // Si no hay credenciales, usar modo stub
       if (!accountSid || !authToken) {
-        this.logger.warn('Twilio credentials not configured. Using stub mode.');
+        this.logWarn('Twilio credentials not configured. Using stub mode.');
         this.stubMode = true;
         return;
       }
@@ -80,7 +86,7 @@ export class SmsChannel extends NotificationChannelAbstract {
 
       this.logger.log('Twilio client initialized successfully');
     } catch (error) {
-      this.logger.error(
+      this.logError(
         'Failed to initialize Twilio client. Using stub mode.',
         (error as Error).stack,
       );
@@ -169,7 +175,7 @@ export class SmsChannel extends NotificationChannelAbstract {
         failed.push(recipients[index]);
         const errorMessage =
           result.reason instanceof Error ? result.reason.message : String(result.reason);
-        this.logger.error(`Failed to send SMS to ${recipients[index]}: ${errorMessage}`);
+        this.logError(`Failed to send SMS to ${recipients[index]}: ${errorMessage}`);
       }
     });
 
@@ -211,8 +217,8 @@ export class SmsChannel extends NotificationChannelAbstract {
     const recipients = this.normalizeRecipients(options.recipient);
     const stubMessageId = `stub_sms_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-    this.logger.warn(`[STUB MODE] SMS would be sent to: ${recipients.join(', ')}`);
-    this.logger.warn(`[STUB MODE] Message: ${options.message}`);
+    this.logWarn(`[STUB MODE] SMS would be sent to: ${recipients.join(', ')}`);
+    this.logWarn(`[STUB MODE] Message: ${options.message}`);
 
     return {
       success: true,
@@ -283,7 +289,7 @@ export class SmsChannel extends NotificationChannelAbstract {
     // Verificar si el canal está habilitado
     const enabled = this.getConfig<boolean>('NOTIFICATION_SMS_ENABLED', false);
     if (!enabled) {
-      this.logger.warn('SMS notifications are disabled');
+      this.logWarn('SMS notifications are disabled');
       return false;
     }
 
@@ -307,12 +313,12 @@ export class SmsChannel extends NotificationChannelAbstract {
       if (available) {
         this.logger.log('SMS channel is available (Twilio configured)');
       } else {
-        this.logger.warn('SMS channel is not fully configured');
+        this.logWarn('SMS channel is not fully configured');
       }
 
       return available;
     } catch (error) {
-      this.logger.error('SMS channel is not available', (error as Error).message);
+      this.logError('SMS channel is not available', (error as Error).message);
       return false;
     }
   }
@@ -353,8 +359,9 @@ export class SmsChannel extends NotificationChannelAbstract {
       const messageStatus = message.status ? String(message.status) : 'sent';
       return statusMap[messageStatus] || NotificationStatus.SENT;
     } catch (error) {
-      this.logger.error(`Failed to get SMS status for ${messageId}`, (error as Error).message);
+      this.logError(`Failed to get SMS status for ${messageId}`, (error as Error).message);
       return NotificationStatus.SENT;
     }
   }
 }
+

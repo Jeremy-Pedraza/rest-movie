@@ -8,9 +8,10 @@
  * de forma dinámica basándose en el template_tenant.
  */
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, Optional } from '@nestjs/common';
 import { DataSource, QueryRunner, Repository } from 'typeorm';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { LoggerService, LogContext } from '@modules/logger';
 import { TenantSchemaEntity, TenantSchemaStatus } from './entities';
 
 /**
@@ -100,6 +101,9 @@ export class TenantSchemaService {
 
     @InjectRepository(TenantSchemaEntity)
     private readonly tenantSchemaRepo: Repository<TenantSchemaEntity>,
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
   ) {}
 
   // ============================================
@@ -172,7 +176,7 @@ export class TenantSchemaService {
         });
         await this.tenantSchemaRepo.save(schemaRecord);
       } catch (error) {
-        this.logger.warn(`No se pudo registrar schema en tabla de control: ${error}`);
+        this.logWarn(`No se pudo registrar schema en tabla de control: ${error}`);
       }
     }
 
@@ -238,7 +242,7 @@ export class TenantSchemaService {
       };
     } catch (error) {
       await queryRunner.rollbackTransaction();
-      this.logger.error(`Error creando schema ${normalizedName}:`, error);
+      this.logError(`Error creando schema ${normalizedName}:`, error);
 
       // Actualizar registro con error
       if (schemaRecord) {
@@ -270,7 +274,7 @@ export class TenantSchemaService {
   async dropTenantSchema(schemaName: string, force = false): Promise<ISchemaOperationResult> {
     const normalizedName = this.normalizeSchemaName(schemaName);
 
-    this.logger.warn(`Solicitada eliminación de schema: ${normalizedName}`);
+    this.logWarn(`Solicitada eliminación de schema: ${normalizedName}`);
 
     // Proteger schemas del sistema
     if (this.isProtectedSchema(normalizedName)) {
@@ -315,7 +319,7 @@ export class TenantSchemaService {
         await this.tenantSchemaRepo.remove(schemaRecord);
       }
 
-      this.logger.warn(`Schema ${normalizedName} eliminado`);
+      this.logWarn(`Schema ${normalizedName} eliminado`);
 
       return {
         success: true,
@@ -323,7 +327,7 @@ export class TenantSchemaService {
         message: 'Schema eliminado exitosamente',
       };
     } catch (error) {
-      this.logger.error(`Error eliminando schema ${normalizedName}:`, error);
+      this.logError(`Error eliminando schema ${normalizedName}:`, error);
 
       // Restaurar estado anterior
       if (schemaRecord) {
@@ -694,7 +698,7 @@ export class TenantSchemaService {
       };
     } catch (error) {
       await queryRunner.rollbackTransaction();
-      this.logger.error(`Error sincronizando schema ${normalizedName}:`, error);
+      this.logError(`Error sincronizando schema ${normalizedName}:`, error);
 
       return {
         success: false,
@@ -748,4 +752,25 @@ export class TenantSchemaService {
       await queryRunner.release();
     }
   }
+
+  private logWarn(message: string, details?: unknown): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.DATABASE,
+      service: TenantSchemaService.name,
+      metadata: details ? { details: String(details) } : undefined,
+    });
+  }
+
+  private logError(message: string, details?: unknown): void {
+    const stack = details instanceof Error ? details.stack : undefined;
+    this.logger.error(message, stack);
+    void this.loggerService?.error(message, {
+      context: LogContext.DATABASE,
+      service: TenantSchemaService.name,
+      stack,
+      metadata: details ? { details: String(details) } : undefined,
+    });
+  }
 }
+

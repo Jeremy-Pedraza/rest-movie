@@ -6,9 +6,10 @@
  * @description Wrapper sobre HttpClientService con funcionalidades adicionales
  */
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'crypto';
+import { LoggerService, LogContext } from '@modules/logger';
 
 import { HttpClientService } from './http-client.service';
 import {
@@ -46,6 +47,9 @@ export class ApiService {
     private readonly httpClient: HttpClientService,
     private readonly configService: ConfigService,
     private readonly redisService: RedisService,
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
   ) {
     this.defaultCacheTTL = this.configService.get<number>('redis.ttl') || 3600;
   }
@@ -330,7 +334,7 @@ export class ApiService {
       // Todos fallaron - retornar el último error del AggregateError
       const errors = (aggregateError as AggregateError).errors as HttpResult<T>[];
       const lastError = errors[errors.length - 1];
-      this.logger.warn(
+      this.logWarn(
         `race(): todos los ${requests.length} requests fallaron`,
       );
       return lastError;
@@ -365,4 +369,21 @@ export class ApiService {
     const hash = createHash('sha256').update(canonical).digest('hex').slice(0, 16);
     return hash;
   }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.EXTERNAL,
+      service: ApiService.name,
+    });
+  }
+
+  private logError(message: string): void {
+    this.logger.error(message);
+    void this.loggerService?.error(message, {
+      context: LogContext.EXTERNAL,
+      service: ApiService.name,
+    });
+  }
 }
+

@@ -13,8 +13,9 @@
  * Modo stub disponible si Firebase no está configurado (development)
  */
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { LoggerService } from '@modules/logger';
 import { NotificationChannel } from '../dto/send-notification.dto';
 import { INotificationOptions, IPushResponse, NotificationStatus } from '../interfaces';
 import { NotificationChannelAbstract } from './notification-channel.abstract';
@@ -51,8 +52,13 @@ export class PushChannel extends NotificationChannelAbstract {
   /**
    * Constructor
    */
-  constructor(configService: ConfigService) {
-    super('Push', configService);
+  constructor(
+    configService: ConfigService,
+    @Optional()
+    @Inject(LoggerService)
+    loggerService?: LoggerService,
+  ) {
+    super('Push', configService, loggerService);
   }
 
   /**
@@ -71,7 +77,7 @@ export class PushChannel extends NotificationChannelAbstract {
 
       // Si no hay credenciales, usar modo stub
       if (!projectId || !privateKey || !clientEmail) {
-        this.logger.warn('Firebase credentials not configured. Using stub mode.');
+        this.logWarn('Firebase credentials not configured. Using stub mode.');
         this.stubMode = true;
         return;
       }
@@ -90,7 +96,7 @@ export class PushChannel extends NotificationChannelAbstract {
 
       this.logger.log('Firebase Admin SDK initialized successfully');
     } catch (error) {
-      this.logger.error(
+      this.logError(
         'Failed to initialize Firebase Admin SDK. Using stub mode.',
         (error as Error).stack,
       );
@@ -183,7 +189,7 @@ export class PushChannel extends NotificationChannelAbstract {
           error: errorMessage,
         });
 
-        this.logger.error(
+        this.logError(
           `Failed to send push to token ${token.substring(0, 10)}...: ${errorMessage}`,
         );
       }
@@ -231,9 +237,9 @@ export class PushChannel extends NotificationChannelAbstract {
     const tokens = this.normalizeRecipients(options.recipient);
     const stubMessageId = `stub_push_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-    this.logger.warn(`[STUB MODE] Push would be sent to ${tokens.length} tokens`);
-    this.logger.warn(`[STUB MODE] Title: ${options.subject}`);
-    this.logger.warn(`[STUB MODE] Body: ${options.message}`);
+    this.logWarn(`[STUB MODE] Push would be sent to ${tokens.length} tokens`);
+    this.logWarn(`[STUB MODE] Title: ${options.subject}`);
+    this.logWarn(`[STUB MODE] Body: ${options.message}`);
 
     return {
       success: true,
@@ -396,7 +402,7 @@ export class PushChannel extends NotificationChannelAbstract {
     // Verificar si el canal está habilitado
     const enabled = this.getConfig<boolean>('NOTIFICATION_PUSH_ENABLED', false);
     if (!enabled) {
-      this.logger.warn('Push notifications are disabled');
+      this.logWarn('Push notifications are disabled');
       return false;
     }
 
@@ -420,13 +426,14 @@ export class PushChannel extends NotificationChannelAbstract {
       if (available) {
         this.logger.log('Push channel is available (Firebase configured)');
       } else {
-        this.logger.warn('Push channel is not fully configured');
+        this.logWarn('Push channel is not fully configured');
       }
 
       return available;
     } catch (error) {
-      this.logger.error('Push channel is not available', (error as Error).message);
+      this.logError('Push channel is not available', (error as Error).message);
       return false;
     }
   }
 }
+

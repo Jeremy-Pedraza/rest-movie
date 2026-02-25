@@ -19,7 +19,7 @@ import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { Request, Response } from 'express';
 
-import { LoggerService } from '@modules/logger';
+import { LoggerService, LogContext } from '@modules/logger';
 import { LogDbLevel } from '@config/app.config';
 import {
   shouldLogToDb as checkShouldLogToDb,
@@ -92,7 +92,7 @@ export class LoggingInterceptor implements NestInterceptor {
                 userAgent: userAgent || undefined,
               })
               .catch((err: Error) => {
-                this.logger.warn(`Error al escribir log HTTP en DB: ${err.message}`);
+                this.logWarn(`Error al escribir log HTTP en DB: ${err.message}`);
               });
           }
         },
@@ -101,7 +101,7 @@ export class LoggingInterceptor implements NestInterceptor {
           const statusCode = error.status || 500;
 
           // Log en consola (siempre para errores)
-          this.logger.error(
+          this.logError(
             `${method} ${safeUrl} ${statusCode} - ${responseTime}ms [${requestId}]`,
           );
 
@@ -119,7 +119,7 @@ export class LoggingInterceptor implements NestInterceptor {
                 userAgent: userAgent || undefined,
               })
               .catch((err: Error) => {
-                this.logger.warn(`Error al escribir log HTTP en DB: ${err.message}`);
+                this.logWarn(`Error al escribir log HTTP en DB: ${err.message}`);
               });
           }
         },
@@ -150,4 +150,21 @@ export class LoggingInterceptor implements NestInterceptor {
   private redactUrl(url: string): string {
     return redactSensitiveUrl(url);
   }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.HTTP,
+      service: 'HTTP',
+    });
+  }
+
+  private logError(message: string): void {
+    this.logger.error(message);
+    void this.loggerService?.error(message, {
+      context: LogContext.HTTP,
+      service: 'HTTP',
+    });
+  }
 }
+

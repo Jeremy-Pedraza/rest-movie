@@ -31,7 +31,7 @@ import {
 import { ROLES } from '@constants/roles.constant';
 import { Roles } from '@decorators/roles.decorator';
 import { Cacheable } from '@decorators/cacheable.decorator';
-import { IApiResponse, IPaginatedResponse } from '@shared/common';
+import { HandleErrorService, IApiResponse, IPaginatedResponse } from '@shared/common';
 import { CreateLogDto, LogStatsQueryDto, QueryLogDto } from './dto';
 import { LogEntity } from './entities/log.entity';
 import { LoggerService } from './logger.service';
@@ -40,7 +40,10 @@ import { LoggerService } from './logger.service';
 @ApiBearerAuth()
 @Controller('logs')
 export class LoggerController {
-  constructor(private readonly loggerService: LoggerService) {}
+  constructor(
+    private readonly loggerService: LoggerService,
+    private readonly handleError: HandleErrorService,
+  ) {}
 
   // ============================================
   // CRUD ENDPOINTS
@@ -106,15 +109,11 @@ export class LoggerController {
   @ApiParam({ name: 'id', description: 'ID del log', type: 'string' })
   @ApiResponse({ status: 200, description: 'Log encontrado' })
   @ApiResponse({ status: 404, description: 'Log no encontrado' })
-  async findById(@Param('id', ParseUUIDPipe) id: string): Promise<IApiResponse<LogEntity | null>> {
+  async findById(@Param('id', ParseUUIDPipe) id: string): Promise<IApiResponse<LogEntity>> {
     const log = await this.loggerService.findById(id);
 
     if (!log) {
-      return {
-        success: false,
-        message: 'Log no encontrado',
-        data: null,
-      };
+      this.handleError.notFound('Log', id);
     }
 
     return {

@@ -11,12 +11,21 @@
  * NO es global - usar selectivamente con @Cacheable()
  */
 
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NestInterceptor,
+  ExecutionContext,
+  CallHandler,
+  Logger,
+  Inject,
+  Optional,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Observable, of } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { Request } from 'express';
 
+import { LoggerService, LogContext } from '@modules/logger';
 import { RedisService } from '@shared/redis';
 
 // ============================================
@@ -68,6 +77,9 @@ export class CacheInterceptor implements NestInterceptor {
   constructor(
     private readonly redisService: RedisService,
     private readonly reflector: Reflector,
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
   ) {}
 
   /**
@@ -144,13 +156,13 @@ export class CacheInterceptor implements NestInterceptor {
               }
             })
             .catch((err: Error) => {
-              this.logger.warn(`Cache SET error [${cacheKey}]: ${err.message}`);
+              this.logWarn(`Cache SET error [${cacheKey}]: ${err.message}`);
             });
         }),
       );
     } catch (error) {
       // Si hay error en Redis, continuar sin cache
-      this.logger.warn(`Cache error: ${error instanceof Error ? error.message : 'Unknown'}`);
+      this.logWarn(`Cache error: ${error instanceof Error ? error.message : 'Unknown'}`);
       return next.handle();
     }
   }
@@ -226,4 +238,21 @@ export class CacheInterceptor implements NestInterceptor {
     if (sortedEntries.length === 0) return normalizedPath;
     return `${normalizedPath}?${sortedEntries.join('&')}`;
   }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.CACHE,
+      service: CacheInterceptor.name,
+    });
+  }
+
+  private logError(message: string): void {
+    this.logger.error(message);
+    void this.loggerService?.error(message, {
+      context: LogContext.CACHE,
+      service: CacheInterceptor.name,
+    });
+  }
 }
+

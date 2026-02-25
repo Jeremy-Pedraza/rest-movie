@@ -1,8 +1,9 @@
 // src/modules/reports/reports.service.ts
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, Optional } from '@nestjs/common';
 import { ReportsRepository } from './reports.repository';
 import { SanitizerService, HandleErrorService, IPaginatedResponse } from '@shared/common';
+import { LoggerService, LogContext } from '@modules/logger';
 import { StoreRepository } from '@modules/store/store.repository';
 import { CompanyRepository } from '@modules/company/company.repository';
 import {
@@ -69,6 +70,9 @@ export class ReportsService {
     private readonly companyRepository: CompanyRepository,
     private readonly sanitizer: SanitizerService,
     private readonly handleError: HandleErrorService,
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
   ) {}
 
   // ============================================
@@ -1514,49 +1518,49 @@ export class ReportsService {
         },
         user,
       ).catch((e) => {
-        this.logger.warn(`Dashboard: error en consolidation - ${e.message}`);
+        this.logWarn(`Dashboard: error en consolidation - ${e.message}`);
         return null;
       }),
       this.quickCompare(
         { quick_compare_type: 'this_month_vs_last_month', company_id: companyId },
         user,
       ).catch((e) => {
-        this.logger.warn(`Dashboard: error en comparison - ${e.message}`);
+        this.logWarn(`Dashboard: error en comparison - ${e.message}`);
         return null;
       }),
       this.quickRanking({ period: 'this_month', company_id: companyId }, user).catch((e) => {
-        this.logger.warn(`Dashboard: error en ranking - ${e.message}`);
+        this.logWarn(`Dashboard: error en ranking - ${e.message}`);
         return null;
       }),
       // Datos v1.1.0
       this.reportsRepository
         .getTopCategories(storeIds, thisMonthStart, thisMonthEnd, 10)
         .catch((e) => {
-          this.logger.warn(`Dashboard: error en top_categories - ${e.message}`);
+          this.logWarn(`Dashboard: error en top_categories - ${e.message}`);
           return [];
         }),
       this.reportsRepository
         .getTopEmployees(storeIds, thisMonthStart, thisMonthEnd, 10)
         .catch((e) => {
-          this.logger.warn(`Dashboard: error en top_employees - ${e.message}`);
+          this.logWarn(`Dashboard: error en top_employees - ${e.message}`);
           return [];
         }),
       this.reportsRepository
         .getPaymentDistribution(storeIds, thisMonthStart, thisMonthEnd)
         .catch((e) => {
-          this.logger.warn(`Dashboard: error en payment_distribution - ${e.message}`);
+          this.logWarn(`Dashboard: error en payment_distribution - ${e.message}`);
           return [];
         }),
       this.reportsRepository
         .getRevenueCenterBreakdown(storeIds, thisMonthStart, thisMonthEnd)
         .catch((e) => {
-          this.logger.warn(`Dashboard: error en revenue_centers - ${e.message}`);
+          this.logWarn(`Dashboard: error en revenue_centers - ${e.message}`);
           return [];
         }),
       this.reportsRepository
         .getServiceChargesBreakdown(storeIds, thisMonthStart, thisMonthEnd)
         .catch((e) => {
-          this.logger.warn(`Dashboard: error en service_charges - ${e.message}`);
+          this.logWarn(`Dashboard: error en service_charges - ${e.message}`);
           return [];
         }),
     ]);
@@ -1917,7 +1921,7 @@ export class ReportsService {
     }
 
     if (store.company_id !== user.companyId) {
-      this.logger.error(
+      this.logError(
         `🚨 TENANT MISMATCH BLOCKED — Usuario ${user.email} (companyId=${user.companyId}, ` +
           `schema=${user.schema}) intentó crear reporte para tienda ${storeId} ` +
           `que pertenece a company_id=${store.company_id}. Bloqueado.`,
@@ -2086,7 +2090,7 @@ export class ReportsService {
     const failedRules = rules.filter((r) => !r.passed);
     if (failedRules.length > 0) {
       for (const rule of failedRules) {
-        this.logger.warn(
+        this.logWarn(
           `[Validación Financiera] ${rule.rule}: esperado=${rule.expected}, ` +
             `actual=${rule.actual}, diferencia=${rule.difference} (tolerancia=${rule.tolerance})`,
         );
@@ -2164,8 +2168,8 @@ export class ReportsService {
       total_payment: report.total_payment || 0,
       status: report.status as ReportStatusEnum,
       metadata: report.metadata,
-      created_at: report.created_at,
-      updated_at: report.updated_at,
+      created_at: report.createdAt,
+      updated_at: report.updatedAt,
     };
   }
 
@@ -2198,7 +2202,7 @@ export class ReportsService {
         average_ticket: s.average_ticket,
         net_percentage: s.net_percentage,
         quantity_percentage: s.quantity_percentage,
-        created_at: s.created_at,
+        created_at: s.createdAt,
       })),
       payment_methods: report.payment_methods?.map((p) => ({
         id: p.id,
@@ -2207,7 +2211,7 @@ export class ReportsService {
         total_amount: p.total_amount,
         transactions_count: p.transactions_count,
         average_amount: p.average_amount,
-        created_at: p.created_at,
+        created_at: p.createdAt,
       })),
       dynamic_discounts: report.dynamic_discounts?.map((d) => ({
         id: d.id,
@@ -2217,7 +2221,7 @@ export class ReportsService {
         total_discount: d.total_discount,
         times_applied: d.times_applied,
         average_discount: d.average_discount,
-        created_at: d.created_at,
+        created_at: d.createdAt,
       })),
       adjustments: report.adjustments?.map((a) => ({
         id: a.id,
@@ -2227,7 +2231,7 @@ export class ReportsService {
         total_amount: a.total_amount,
         count: a.count,
         average_amount: a.average_amount,
-        created_at: a.created_at,
+        created_at: a.createdAt,
       })),
       effective_orders: report.effective_orders?.map((e) => ({
         id: e.id,
@@ -2242,7 +2246,7 @@ export class ReportsService {
         order_datetime: e.order_datetime,
         status: e.status,
         metadata: e.metadata,
-        created_at: e.created_at,
+        created_at: e.createdAt,
       })),
       shortage_overage: report.shortage_overage?.map((s) => ({
         id: s.id,
@@ -2259,7 +2263,7 @@ export class ReportsService {
         reason: s.reason,
         class_name: s.class_name,
         currency: s.currency,
-        created_at: s.created_at,
+        created_at: s.createdAt,
       })),
       cash_summary: report.cash_summary?.map((c) => ({
         id: c.id,
@@ -2267,7 +2271,7 @@ export class ReportsService {
         tender_name: c.tender_name,
         quantity: c.quantity,
         total_amount: c.total_amount,
-        created_at: c.created_at,
+        created_at: c.createdAt,
       })),
       employee_sales: report.employee_sales?.map((e) => ({
         id: e.id,
@@ -2279,7 +2283,7 @@ export class ReportsService {
         total_tax: e.total_tax,
         net_sales: e.net_sales,
         average_ticket: e.average_ticket,
-        created_at: e.created_at,
+        created_at: e.createdAt,
       })),
       category_sales: report.category_sales?.map((c) => ({
         id: c.id,
@@ -2288,7 +2292,7 @@ export class ReportsService {
         category_name: c.category_name,
         items_sold: c.items_sold,
         total_sales: c.total_sales,
-        created_at: c.created_at,
+        created_at: c.createdAt,
       })),
       revenue_center_sales: report.revenue_center_sales?.map((r) => ({
         id: r.id,
@@ -2298,7 +2302,7 @@ export class ReportsService {
         total_checks: r.total_checks,
         total_sales: r.total_sales,
         average_ticket: r.average_ticket,
-        created_at: r.created_at,
+        created_at: r.createdAt,
       })),
       service_charges: report.service_charges?.map((s) => ({
         id: s.id,
@@ -2306,7 +2310,7 @@ export class ReportsService {
         service_charge_name: s.service_charge_name,
         quantity: s.quantity,
         total_amount: s.total_amount,
-        created_at: s.created_at,
+        created_at: s.createdAt,
       })),
       income_by_class: report.income_by_class?.map((i) => ({
         id: i.id,
@@ -2316,7 +2320,7 @@ export class ReportsService {
         currency_symbol: i.currency_symbol,
         transaction_count: i.transaction_count,
         total_amount: i.total_amount,
-        created_at: i.created_at,
+        created_at: i.createdAt,
       })),
       income_by_tender_type: report.income_by_tender_type?.map((t) => ({
         id: t.id,
@@ -2325,7 +2329,7 @@ export class ReportsService {
         tender_name: t.tender_name,
         transaction_count: t.transaction_count,
         total_amount: t.total_amount,
-        created_at: t.created_at,
+        created_at: t.createdAt,
       })),
     };
   }
@@ -2543,4 +2547,21 @@ export class ReportsService {
       return 'Las ventas se mantuvieron estables respecto al período anterior';
     }
   }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.BUSINESS,
+      service: ReportsService.name,
+    });
+  }
+
+  private logError(message: string): void {
+    this.logger.error(message);
+    void this.loggerService?.error(message, {
+      context: LogContext.BUSINESS,
+      service: ReportsService.name,
+    });
+  }
 }
+

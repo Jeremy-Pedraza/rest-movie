@@ -10,10 +10,11 @@
  * - Retry automático
  */
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import SMTPTransport from 'nodemailer/lib/smtp-transport';
+import { LoggerService } from '@modules/logger';
 import { NotificationChannel } from '../dto/send-notification.dto';
 import { IEmailResponse, INotificationOptions, NotificationStatus } from '../interfaces';
 import { NotificationChannelAbstract } from './notification-channel.abstract';
@@ -67,8 +68,13 @@ export class EmailChannel extends NotificationChannelAbstract {
   /**
    * Constructor
    */
-  constructor(configService: ConfigService) {
-    super('Email', configService);
+  constructor(
+    configService: ConfigService,
+    @Optional()
+    @Inject(LoggerService)
+    loggerService?: LoggerService,
+  ) {
+    super('Email', configService, loggerService);
   }
 
   /**
@@ -104,7 +110,7 @@ export class EmailChannel extends NotificationChannelAbstract {
 
       this.logger.log('Email transporter initialized successfully');
     } catch (error) {
-      this.logger.error('Failed to initialize email transporter', (error as Error).stack);
+      this.logError('Failed to initialize email transporter', (error as Error).stack);
       throw error;
     }
   }
@@ -229,7 +235,7 @@ export class EmailChannel extends NotificationChannelAbstract {
     // Verificar si el canal está habilitado
     const enabled = this.getConfig<boolean>('NOTIFICATION_EMAIL_ENABLED', true);
     if (!enabled) {
-      this.logger.warn('Email notifications are disabled');
+      this.logWarn('Email notifications are disabled');
       return false;
     }
 
@@ -246,7 +252,7 @@ export class EmailChannel extends NotificationChannelAbstract {
       const requiredVars = ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASSWORD', 'SMTP_FROM'];
       for (const varName of requiredVars) {
         if (!this.hasConfig(varName)) {
-          this.logger.warn(`Missing required configuration: ${varName}`);
+          this.logWarn(`Missing required configuration: ${varName}`);
           this.cacheAvailability(false);
           return false;
         }
@@ -262,7 +268,7 @@ export class EmailChannel extends NotificationChannelAbstract {
       this.cacheAvailability(true);
       return true;
     } catch (error) {
-      this.logger.error('Email channel is not available', (error as Error).message);
+      this.logError('Email channel is not available', (error as Error).message);
       this.cacheAvailability(false);
       return false;
     }
@@ -367,3 +373,4 @@ export class EmailChannel extends NotificationChannelAbstract {
     }
   }
 }
+

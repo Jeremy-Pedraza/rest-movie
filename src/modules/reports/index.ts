@@ -37,7 +37,7 @@ export * from './dto';
 export * from './interfaces';
 
 // Guards
-export * from './guards';
+export { ReportAccessGuard } from '@guards/report-access.guard';
 
 // Repository
 export * from './reports.repository';

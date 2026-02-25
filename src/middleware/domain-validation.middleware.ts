@@ -16,9 +16,11 @@
  * - Logging automático de rechazos
  */
 
-import { Injectable, NestMiddleware, ForbiddenException, Logger } from '@nestjs/common';
+import { Injectable, NestMiddleware, ForbiddenException, Logger, Inject, Optional } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { SecurityConfigService } from '@config/security';
+import { ERROR_CODES } from '@constants/error-codes.constant';
+import { LoggerService, LogContext } from '@modules/logger';
 
 /**
  * Middleware para validar que el origen del request esté en la whitelist.
@@ -51,7 +53,12 @@ import { SecurityConfigService } from '@config/security';
 export class DomainValidationMiddleware implements NestMiddleware {
   private readonly logger = new Logger(DomainValidationMiddleware.name);
 
-  constructor(private readonly securityConfig: SecurityConfigService) {}
+  constructor(
+    private readonly securityConfig: SecurityConfigService,
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
+  ) {}
 
   use(req: Request, res: Response, next: NextFunction) {
     const rawOrigin = (req.headers.origin || req.headers.referer || '') as string;
@@ -65,7 +72,7 @@ export class DomainValidationMiddleware implements NestMiddleware {
     const canonicalHost = this.extractHostname(rawOrigin);
     if (!canonicalHost) {
       // Origin mal formado: rechazar
-      this.logger.warn(
+      this.logWarn(
         `Request bloqueado - origin mal formado | path=${req.method} ${req.path} | ip=${req.ip}`,
       );
       throw new ForbiddenException({
@@ -73,7 +80,7 @@ export class DomainValidationMiddleware implements NestMiddleware {
         statusCode: 403,
         message: 'Origen de la solicitud no es válido',
         error: 'Forbidden',
-        code: 'SEC_403',
+        code: ERROR_CODES.AUTH_FORBIDDEN,
       });
     }
 
@@ -82,7 +89,7 @@ export class DomainValidationMiddleware implements NestMiddleware {
 
     if (!isAllowed) {
       // Log interno con detalle técnico; respuesta al cliente sin exponer origin
-      this.logger.warn(
+      this.logWarn(
         `Request bloqueado - dominio no permitido: ${canonicalHost} | path=${req.method} ${req.path} | ip=${req.ip}`,
       );
 
@@ -91,7 +98,7 @@ export class DomainValidationMiddleware implements NestMiddleware {
         statusCode: 403,
         message: 'Origen de la solicitud no permitido',
         error: 'Forbidden',
-        code: 'SEC_403',
+        code: ERROR_CODES.AUTH_FORBIDDEN,
       });
     }
 
@@ -113,4 +120,21 @@ export class DomainValidationMiddleware implements NestMiddleware {
       return null;
     }
   }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.AUTH,
+      service: DomainValidationMiddleware.name,
+    });
+  }
+
+  private logError(message: string): void {
+    this.logger.error(message);
+    void this.loggerService?.error(message, {
+      context: LogContext.AUTH,
+      service: DomainValidationMiddleware.name,
+    });
+  }
 }
+

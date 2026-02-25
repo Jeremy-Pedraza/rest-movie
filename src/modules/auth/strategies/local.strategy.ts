@@ -9,15 +9,20 @@
  * es útil para validar credenciales en el endpoint de login.
  */
 
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-local';
 
 import { AuthService } from '../auth.service';
+import { HandleErrorService } from '@shared/common';
+import { ERROR_CODES, RESPONSE_MESSAGES } from '@constants';
 
 @Injectable()
 export class LocalStrategy extends PassportStrategy(Strategy, 'local') {
-  constructor(private readonly authService: AuthService) {
+  constructor(
+    private readonly authService: AuthService,
+    private readonly handleError: HandleErrorService,
+  ) {
     super({
       usernameField: 'email', // Usar email en lugar de username
       passwordField: 'password',
@@ -39,8 +44,9 @@ export class LocalStrategy extends PassportStrategy(Strategy, 'local') {
     // Evitar warning de parámetro no usado
     void args;
 
-    throw new UnauthorizedException(
-      'Local strategy not implemented - use AuthService.login() directly',
+    this.handleError.unauthorized(
+      `${RESPONSE_MESSAGES.AUTH.UNAUTHORIZED}: use AuthService.login() directly`,
+      ERROR_CODES.AUTH_UNAUTHORIZED,
     );
   }
 }

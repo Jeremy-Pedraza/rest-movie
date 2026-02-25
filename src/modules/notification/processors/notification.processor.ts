@@ -11,8 +11,9 @@
  */
 
 import { Process, Processor } from '@nestjs/bull';
-import { Logger } from '@nestjs/common';
+import { Logger, Inject, Optional } from '@nestjs/common';
 import { Job } from 'bull';
+import { LoggerService, LogContext } from '@modules/logger';
 
 // Service
 import { NotificationService } from '../notification.service';
@@ -152,7 +153,12 @@ export type NotificationJobData =
 export class NotificationProcessor {
   private readonly logger = new Logger(NotificationProcessor.name);
 
-  constructor(private readonly notificationService: NotificationService) {}
+  constructor(
+    private readonly notificationService: NotificationService,
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
+  ) {}
 
   /**
    * Type predicate para filtrar valores null
@@ -180,7 +186,7 @@ export class NotificationProcessor {
 
       return result;
     } catch (error) {
-      this.logger.error(`Email job ${job.id} failed: ${error.message}`, error.stack);
+      this.logError(`Email job ${job.id} failed: ${error.message}`, error.stack);
       throw error; // Bull reintentará automáticamente
     }
   }
@@ -199,7 +205,7 @@ export class NotificationProcessor {
 
       return result;
     } catch (error) {
-      this.logger.error(`SMS job ${job.id} failed: ${error.message}`, error.stack);
+      this.logError(`SMS job ${job.id} failed: ${error.message}`, error.stack);
       throw error;
     }
   }
@@ -218,7 +224,7 @@ export class NotificationProcessor {
 
       return result;
     } catch (error) {
-      this.logger.error(`Push job ${job.id} failed: ${error.message}`, error.stack);
+      this.logError(`Push job ${job.id} failed: ${error.message}`, error.stack);
       throw error;
     }
   }
@@ -239,7 +245,7 @@ export class NotificationProcessor {
 
       return result;
     } catch (error) {
-      this.logger.error(`Multi-channel job ${job.id} failed: ${error.message}`, error.stack);
+      this.logError(`Multi-channel job ${job.id} failed: ${error.message}`, error.stack);
       throw error;
     }
   }
@@ -268,7 +274,7 @@ export class NotificationProcessor {
 
         const emailPromises = job.data.data.emails.map((emailDto) =>
           this.notificationService.sendEmail(emailDto).catch((error) => {
-            this.logger.error(`Batch email failed: ${error.message}`);
+            this.logError(`Batch email failed: ${error.message}`);
             return null;
           }),
         );
@@ -283,7 +289,7 @@ export class NotificationProcessor {
 
         const smsPromises = job.data.data.sms.map((smsDto) =>
           this.notificationService.sendSms(smsDto).catch((error) => {
-            this.logger.error(`Batch SMS failed: ${error.message}`);
+            this.logError(`Batch SMS failed: ${error.message}`);
             return null;
           }),
         );
@@ -298,7 +304,7 @@ export class NotificationProcessor {
 
         const pushPromises = job.data.data.push.map((pushDto) =>
           this.notificationService.sendPush(pushDto).catch((error) => {
-            this.logger.error(`Batch push failed: ${error.message}`);
+            this.logError(`Batch push failed: ${error.message}`);
             return null;
           }),
         );
@@ -313,7 +319,7 @@ export class NotificationProcessor {
 
       return results;
     } catch (error) {
-      this.logger.error(`Batch job ${job.id} failed: ${error.message}`, error.stack);
+      this.logError(`Batch job ${job.id} failed: ${error.message}`, error.stack);
       throw error;
     }
   }
@@ -339,7 +345,7 @@ export class NotificationProcessor {
 
       return result;
     } catch (error) {
-      this.logger.error(`Welcome email job ${job.id} failed: ${error.message}`, error.stack);
+      this.logError(`Welcome email job ${job.id} failed: ${error.message}`, error.stack);
       throw error;
     }
   }
@@ -361,7 +367,7 @@ export class NotificationProcessor {
 
       return result;
     } catch (error) {
-      this.logger.error(`Reset password email job ${job.id} failed: ${error.message}`, error.stack);
+      this.logError(`Reset password email job ${job.id} failed: ${error.message}`, error.stack);
       throw error;
     }
   }
@@ -383,7 +389,7 @@ export class NotificationProcessor {
 
       return result;
     } catch (error) {
-      this.logger.error(`Verify email job ${job.id} failed: ${error.message}`, error.stack);
+      this.logError(`Verify email job ${job.id} failed: ${error.message}`, error.stack);
       throw error;
     }
   }
@@ -405,8 +411,27 @@ export class NotificationProcessor {
 
       return result;
     } catch (error) {
-      this.logger.error(`Notification email job ${job.id} failed: ${error.message}`, error.stack);
+      this.logError(`Notification email job ${job.id} failed: ${error.message}`, error.stack);
       throw error;
     }
   }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.QUEUE,
+      service: NotificationProcessor.name,
+    });
+  }
+
+  private logError(message: string, details?: unknown): void {
+    const stack = details instanceof Error ? details.stack : undefined;
+    this.logger.error(message, stack);
+    void this.loggerService?.error(message, {
+      context: LogContext.QUEUE,
+      service: NotificationProcessor.name,
+      stack,
+    });
+  }
 }
+

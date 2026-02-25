@@ -1,8 +1,9 @@
 import { InjectQueue } from '@nestjs/bull';
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Inject, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HandleErrorService } from '@shared/common/handle-error.service';
 import { SanitizerService } from '@shared/common/sanitizer.service';
+import { LoggerService, LogContext } from '@modules/logger';
 import { JobStatus as BullJobStatus, Job, JobCounts, JobStatusClean, Queue } from 'bull';
 import { AddJobDto, CleanJobsDto, JobStatus, QueryJobDto } from './dto';
 import {
@@ -44,6 +45,9 @@ export class QueueService implements OnModuleInit {
     private readonly configService: ConfigService,
     private readonly sanitizer: SanitizerService,
     private readonly handleError: HandleErrorService,
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
   ) {}
 
   /**
@@ -415,7 +419,7 @@ export class QueueService implements OnModuleInit {
 
     await queue.pause();
 
-    this.logger.warn(`⏸️ Cola pausada: ${queueName}`);
+    this.logWarn(`⏸️ Cola pausada: ${queueName}`);
 
     return {
       queueName,
@@ -455,7 +459,7 @@ export class QueueService implements OnModuleInit {
 
     await queue.empty();
 
-    this.logger.warn(`🗑️ Cola vaciada: ${queueName}`);
+    this.logWarn(`🗑️ Cola vaciada: ${queueName}`);
 
     return {
       queueName,
@@ -634,4 +638,21 @@ export class QueueService implements OnModuleInit {
 
     return data;
   }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.QUEUE,
+      service: QueueService.name,
+    });
+  }
+
+  private logError(message: string): void {
+    this.logger.error(message);
+    void this.loggerService?.error(message, {
+      context: LogContext.QUEUE,
+      service: QueueService.name,
+    });
+  }
 }
+

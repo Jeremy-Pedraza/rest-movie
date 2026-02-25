@@ -25,9 +25,11 @@
  * await this.cacheService.invalidateTag('user:123');
  */
 
-import { ForbiddenException, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Inject, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { LoggerService, LogContext } from '@modules/logger';
 import { RedisService } from '@shared/redis';
+import { HandleErrorService } from '@shared/common';
 import { CacheStatsDto } from './dto';
 import { ICacheConfig, ICacheOptions, ICacheResult, ICacheStats } from './interfaces';
 
@@ -93,6 +95,10 @@ export class CacheService implements OnModuleInit {
   constructor(
     private readonly redis: RedisService,
     private readonly configService: ConfigService,
+    private readonly handleError: HandleErrorService,
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
   ) {}
 
   async onModuleInit() {
@@ -194,7 +200,7 @@ export class CacheService implements OnModuleInit {
 
       this.logger.debug(`Cache SET: ${key} (TTL: ${finalTtl}s, Tags: ${tags.join(', ')})`);
     } catch (error) {
-      this.logger.error(`Error setting cache: ${key}`, error);
+      this.logError(`Error setting cache: ${key}`, error);
       throw error;
     }
   }
@@ -213,7 +219,7 @@ export class CacheService implements OnModuleInit {
       // Deserializar
       return JSON.parse(value) as T;
     } catch (error) {
-      this.logger.error(`Error getting cache: ${key}`, error);
+      this.logError(`Error getting cache: ${key}`, error);
       return null;
     }
   }
@@ -326,14 +332,14 @@ export class CacheService implements OnModuleInit {
     const flushEnabled = this.configService.get<boolean>('redis.flushEnabled');
 
     if (isProduction && !flushEnabled) {
-      this.logger.warn('Cache FLUSH bloqueado: CACHE_FLUSH_ENABLED no está habilitado en producción');
-      throw new ForbiddenException('Flush de cache no permitido en este ambiente');
+      this.logWarn('Cache FLUSH bloqueado: CACHE_FLUSH_ENABLED no está habilitado en producción');
+      this.handleError.forbidden('Flush de cache no permitido en este ambiente');
     }
 
-    this.logger.warn(`Cache FLUSH ejecutado en ambiente: ${this.configService.get<string>('app.nodeEnv')}`);
+    this.logWarn(`Cache FLUSH ejecutado en ambiente: ${this.configService.get<string>('app.nodeEnv')}`);
     await this.redis.flushDb();
     await this.initializeStats();
-    this.logger.warn('Cache FLUSH: All keys deleted');
+    this.logWarn('Cache FLUSH: All keys deleted');
   }
 
   /**
@@ -474,7 +480,7 @@ export class CacheService implements OnModuleInit {
         await this.redis.hIncr(tagStatsKey, stat, 1);
       }
     } catch (error) {
-      this.logger.error('Error updating stats', error);
+      this.logError('Error updating stats', error);
     }
   }
 
@@ -701,5 +707,23 @@ export class CacheService implements OnModuleInit {
       const chunk = items.slice(i, i + concurrency);
       await Promise.all(chunk.map(fn));
     }
+  }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.SYSTEM,
+      service: CacheService.name,
+    });
+  }
+
+  private logError(message: string, details?: unknown): void {
+    const stack = details instanceof Error ? details.stack : undefined;
+    this.logger.error(message, stack);
+    void this.loggerService?.error(message, {
+      context: LogContext.SYSTEM,
+      service: CacheService.name,
+      stack,
+    });
   }
 }

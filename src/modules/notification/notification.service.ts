@@ -9,10 +9,11 @@
  * - Integrar EmailChannel, SmsChannel, PushChannel
  */
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, Optional } from '@nestjs/common';
 
 // Shared Services (OBLIGATORIOS)
 import { ERROR_CODES } from '@constants/error-codes.constant';
+import { LoggerService, LogContext } from '@modules/logger';
 import { HandleErrorService, SanitizerService } from '@shared/common';
 
 // Local imports - Channels
@@ -71,6 +72,9 @@ export class NotificationService {
     private readonly pushChannel: PushChannel,
     private readonly sanitizer: SanitizerService, // ✅ OBLIGATORIO
     private readonly handleError: HandleErrorService, // ✅ OBLIGATORIO
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
   ) {}
 
   // ============================================
@@ -116,7 +120,7 @@ export class NotificationService {
 
       return response;
     } catch (error) {
-      this.logger.error(
+      this.logError(
         `Failed to send email: ${(error as Error).message}`,
         (error as Error).stack,
       );
@@ -159,7 +163,7 @@ export class NotificationService {
 
       return response;
     } catch (error) {
-      this.logger.error(`Failed to send SMS: ${(error as Error).message}`, (error as Error).stack);
+      this.logError(`Failed to send SMS: ${(error as Error).message}`, (error as Error).stack);
       this.handleError.internalServerError('Error al enviar SMS', ERROR_CODES.SMS_SEND_ERROR);
     }
   }
@@ -210,7 +214,7 @@ export class NotificationService {
 
       return response;
     } catch (error) {
-      this.logger.error(
+      this.logError(
         `Failed to send push notification: ${(error as Error).message}`,
         (error as Error).stack,
       );
@@ -258,7 +262,7 @@ export class NotificationService {
               break;
             default:
               // Exhaustiveness check - TypeScript infiere que channel es never aquí
-              this.logger.warn(`Unknown channel: ${channel as string}`);
+              this.logWarn(`Unknown channel: ${channel as string}`);
               return;
           }
 
@@ -271,7 +275,7 @@ export class NotificationService {
           }
         } catch (error) {
           const errorMessage = (error as Error).message;
-          this.logger.error(`Failed to send via ${channel as string}: ${errorMessage}`);
+          this.logError(`Failed to send via ${channel as string}: ${errorMessage}`);
           responses.failedChannels.push(channel);
         }
       });
@@ -287,7 +291,7 @@ export class NotificationService {
 
       return responses;
     } catch (error) {
-      this.logger.error(
+      this.logError(
         `Failed multi-channel send: ${(error as Error).message}`,
         (error as Error).stack,
       );
@@ -470,4 +474,22 @@ export class NotificationService {
         return false;
     }
   }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.EXTERNAL,
+      service: NotificationService.name,
+    });
+  }
+
+  private logError(message: string, stack?: string): void {
+    this.logger.error(message, stack);
+    void this.loggerService?.error(message, {
+      context: LogContext.EXTERNAL,
+      service: NotificationService.name,
+      stack,
+    });
+  }
 }
+

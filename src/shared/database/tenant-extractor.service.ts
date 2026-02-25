@@ -10,12 +10,14 @@
  * - Header X-Tenant-Subdomain
  */
 
-import { Injectable, Logger, UnauthorizedException, ForbiddenException } from '@nestjs/common';
+import { Injectable, Logger, Inject, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UserEntity } from '@modules/user/entities';
 import { CompanyEntity } from '@modules/company/entities';
 import { SecurityConfigService } from '@config/security';
+import { HandleErrorService } from '@shared/common';
+import { LoggerService, LogContext } from '@modules/logger';
 import { ITenantContext } from './schema.context';
 
 /**
@@ -50,6 +52,10 @@ export class TenantExtractorService {
     @InjectRepository(CompanyEntity)
     private readonly companyRepo: Repository<CompanyEntity>,
     private readonly securityConfig: SecurityConfigService,
+    private readonly handleError: HandleErrorService,
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
   ) {}
 
   /**
@@ -78,8 +84,8 @@ export class TenantExtractorService {
     });
 
     if (!user) {
-      this.logger.error(`Usuario no encontrado: ${userId}`);
-      throw new UnauthorizedException('Usuario no encontrado');
+      this.logError(`Usuario no encontrado: ${userId}`);
+      this.handleError.unauthorized('Usuario no encontrado');
     }
 
     // 2. Si no tiene company, usar schema public
@@ -94,8 +100,8 @@ export class TenantExtractorService {
 
     // 3. Validar que la company esté activa
     if (!user.company.is_active) {
-      this.logger.warn(`Company ${user.company.id} inactiva, usuario ${userId} bloqueado`);
-      throw new ForbiddenException('Empresa desactivada');
+      this.logWarn(`Company ${user.company.id} inactiva, usuario ${userId} bloqueado`);
+      this.handleError.forbidden('Empresa desactivada');
     }
 
     // 4. Obtener schema de la company
@@ -103,10 +109,10 @@ export class TenantExtractorService {
 
     // 5. Validar que el schema esté permitido en whitelist
     if (!this.securityConfig.isSchemaAllowed(schema)) {
-      this.logger.error(
+      this.logError(
         `Schema no permitido: ${schema} para company ${user.company.id}, usuario ${userId}`,
       );
-      throw new ForbiddenException(`Schema no permitido: ${schema}`);
+      this.handleError.forbidden(`Schema no permitido: ${schema}`);
     }
 
     // 6. Retornar contexto completo
@@ -202,14 +208,14 @@ export class TenantExtractorService {
     });
 
     if (!company) {
-      this.logger.warn(`Tenant no encontrado o inactivo: ${subdomain}`);
-      throw new ForbiddenException(`Tenant no encontrado: ${subdomain}`);
+      this.logWarn(`Tenant no encontrado o inactivo: ${subdomain}`);
+      this.handleError.forbidden(`Tenant no encontrado: ${subdomain}`);
     }
 
     // Validar que el schema esté permitido
     if (!this.securityConfig.isSchemaAllowed(company.schema)) {
-      this.logger.error(`Schema no permitido: ${company.schema} para subdomain ${subdomain}`);
-      throw new ForbiddenException(`Schema no permitido: ${company.schema}`);
+      this.logError(`Schema no permitido: ${company.schema} para subdomain ${subdomain}`);
+      this.handleError.forbidden(`Schema no permitido: ${company.schema}`);
     }
 
     this.logger.debug(
@@ -246,14 +252,14 @@ export class TenantExtractorService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Usuario no encontrado');
+      this.handleError.unauthorized('Usuario no encontrado');
     }
 
     if (!user.company || user.company.id !== companyId) {
-      this.logger.warn(
+      this.logWarn(
         `Usuario ${userId} intentó acceder a company ${companyId} sin permiso (su company: ${user.company?.id || 'null'})`,
       );
-      throw new ForbiddenException('No tienes acceso a esta empresa');
+      this.handleError.forbidden('No tienes acceso a esta empresa');
     }
 
     return true;
@@ -282,4 +288,21 @@ export class TenantExtractorService {
 
     return user?.company || null;
   }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.AUTH,
+      service: TenantExtractorService.name,
+    });
+  }
+
+  private logError(message: string): void {
+    this.logger.error(message);
+    void this.loggerService?.error(message, {
+      context: LogContext.AUTH,
+      service: TenantExtractorService.name,
+    });
+  }
 }
+

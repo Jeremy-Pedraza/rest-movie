@@ -1,6 +1,7 @@
 import { Process, Processor } from '@nestjs/bull';
-import { Logger } from '@nestjs/common';
+import { Logger, Inject, Optional } from '@nestjs/common';
 import { Job } from 'bull';
+import { LoggerService, LogContext } from '@modules/logger';
 import { ReportJobDataDto } from '../dto';
 import { JOB_NAMES, QUEUE_NAMES } from '../queue.constants';
 
@@ -19,6 +20,11 @@ import { JOB_NAMES, QUEUE_NAMES } from '../queue.constants';
 @Processor(QUEUE_NAMES.REPORT)
 export class ReportProcessor {
   private readonly logger = new Logger(ReportProcessor.name);
+  constructor(
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
+  ) {}
 
   /**
    * Procesar job de generación de reporte
@@ -85,7 +91,7 @@ export class ReportProcessor {
 
       return result;
     } catch (error) {
-      this.logger.error(`❌ [${job.id}] Error al generar reporte: ${error.message}`, error.stack);
+      this.logError(`❌ [${job.id}] Error al generar reporte: ${error.message}`, error.stack);
       throw error;
     }
   }
@@ -139,7 +145,7 @@ export class ReportProcessor {
 
       return result;
     } catch (error) {
-      this.logger.error(`❌ [${job.id}] Error al programar reporte: ${error.message}`, error.stack);
+      this.logError(`❌ [${job.id}] Error al programar reporte: ${error.message}`, error.stack);
       throw error;
     }
   }
@@ -192,7 +198,7 @@ export class ReportProcessor {
 
       return result;
     } catch (error) {
-      this.logger.error(`❌ [${job.id}] Error al exportar reporte: ${error.message}`, error.stack);
+      this.logError(`❌ [${job.id}] Error al exportar reporte: ${error.message}`, error.stack);
       throw error;
     }
   }
@@ -230,4 +236,23 @@ export class ReportProcessor {
   private delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.QUEUE,
+      service: ReportProcessor.name,
+    });
+  }
+
+  private logError(message: string, details?: unknown): void {
+    const stack = details instanceof Error ? details.stack : undefined;
+    this.logger.error(message, stack);
+    void this.loggerService?.error(message, {
+      context: LogContext.QUEUE,
+      service: ReportProcessor.name,
+      stack,
+    });
+  }
 }
+

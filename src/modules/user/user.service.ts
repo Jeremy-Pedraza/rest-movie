@@ -14,10 +14,11 @@
  * ✅ FASE 4 (Sesión 22): Cache keys incluyen schema para multi-tenant
  */
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, Optional } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 
 import { CacheService } from '@modules/cache';
+import { LoggerService, LogContext } from '@modules/logger';
 import { HandleErrorService, IPaginatedResponse, SanitizerService } from '@shared/common';
 import { SchemaContext, TransactionService } from '@shared/database';
 import { UtilsService } from '@shared/utils';
@@ -39,6 +40,9 @@ export class UserService {
     private readonly cacheService: CacheService, // ✅ Cache inteligente
     private readonly utils: UtilsService, // ✅ Utilidades (validación, formateo, crypto)
     private readonly schemaContext: SchemaContext, // ✅ FASE 4: Contexto multi-tenant
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
   ) {}
 
   // ============================================
@@ -593,8 +597,8 @@ export class UserService {
           name: role.name,
           description: role.description,
         })) || [],
-      createdAt: user.created_at,
-      updatedAt: user.updated_at,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
     };
   }
 
@@ -705,7 +709,7 @@ export class UserService {
     }
 
     await this.userRepository.registerFailedLogin(id);
-    this.logger.warn(`Failed login attempt registered for user: ${id}`);
+    this.logWarn(`Failed login attempt registered for user: ${id}`);
   }
 
   /**
@@ -812,4 +816,21 @@ export class UserService {
     await this.userRepository.invalidatePasswordResetToken(id);
     this.logger.log(`Password reset token invalidated for user: ${id}`);
   }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.BUSINESS,
+      service: UserService.name,
+    });
+  }
+
+  private logError(message: string): void {
+    this.logger.error(message);
+    void this.loggerService?.error(message, {
+      context: LogContext.BUSINESS,
+      service: UserService.name,
+    });
+  }
 }
+

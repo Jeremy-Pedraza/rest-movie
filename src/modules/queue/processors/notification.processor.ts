@@ -1,6 +1,7 @@
 import { Process, Processor } from '@nestjs/bull';
-import { Logger } from '@nestjs/common';
+import { Logger, Inject, Optional } from '@nestjs/common';
 import { Job } from 'bull';
+import { LoggerService, LogContext } from '@modules/logger';
 import { NotificationJobDataDto } from '../dto';
 import { JOB_NAMES, QUEUE_NAMES } from '../queue.constants';
 
@@ -18,6 +19,11 @@ import { JOB_NAMES, QUEUE_NAMES } from '../queue.constants';
 @Processor(QUEUE_NAMES.NOTIFICATION)
 export class NotificationProcessor {
   private readonly logger = new Logger(NotificationProcessor.name);
+  constructor(
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
+  ) {}
 
   /**
    * Procesar job de envío de notificación individual
@@ -62,7 +68,7 @@ export class NotificationProcessor {
 
       return result;
     } catch (error) {
-      this.logger.error(
+      this.logError(
         `❌ [${job.id}] Error al enviar notificación: ${error.message}`,
         error.stack,
       );
@@ -121,7 +127,7 @@ export class NotificationProcessor {
         completedAt: new Date().toISOString(),
       };
     } catch (error) {
-      this.logger.error(
+      this.logError(
         `❌ [${job.id}] Error al enviar notificación multi-canal: ${error.message}`,
         error.stack,
       );
@@ -177,7 +183,7 @@ export class NotificationProcessor {
         completedAt: new Date().toISOString(),
       };
     } catch (error) {
-      this.logger.error(
+      this.logError(
         `❌ [${job.id}] Error al enviar lote de notificaciones: ${error.message}`,
         error.stack,
       );
@@ -192,4 +198,23 @@ export class NotificationProcessor {
   private delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
+
+  private logWarn(message: string): void {
+    this.logger.warn(message);
+    void this.loggerService?.warn(message, {
+      context: LogContext.QUEUE,
+      service: NotificationProcessor.name,
+    });
+  }
+
+  private logError(message: string, details?: unknown): void {
+    const stack = details instanceof Error ? details.stack : undefined;
+    this.logger.error(message, stack);
+    void this.loggerService?.error(message, {
+      context: LogContext.QUEUE,
+      service: NotificationProcessor.name,
+      stack,
+    });
+  }
 }
+

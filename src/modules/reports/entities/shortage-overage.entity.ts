@@ -13,13 +13,12 @@
 
 import {
   Entity,
-  PrimaryGeneratedColumn,
   Column,
-  CreateDateColumn,
   Index,
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
+import { BaseReadOnlyEntity } from '@shared/common';
 import { ReportHeaderEntity } from './report-header.entity';
 
 /**
@@ -55,10 +54,7 @@ import { ReportHeaderEntity } from './report-header.entity';
 @Index(['employee_id'])
 @Index(['variance_type'])
 @Index(['counted_at'])
-export class ShortageOverageEntity {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
+export class ShortageOverageEntity extends BaseReadOnlyEntity {
   /**
    * ID del reporte padre
    * FK a report_headers (mismo schema)
@@ -223,13 +219,4 @@ export class ShortageOverageEntity {
   @JoinColumn({ name: 'report_header_id' })
   report_header?: ReportHeaderEntity;
 
-  // ============================================
-  // TIMESTAMPS
-  // ============================================
-
-  @CreateDateColumn({
-    type: 'timestamptz',
-    name: 'created_at',
-  })
-  created_at: Date;
 }

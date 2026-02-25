@@ -1874,8 +1874,8 @@ export class ReportsService {
   // ============================================
 
   private async validateStoreAccess(storeId: string, user: UserSessionDto): Promise<void> {
-    // SUPER_ADMIN y ADMIN tienen acceso a todo
-    if (hasAnyRole(user.roles, [ROLES.SUPER_ADMIN, ROLES.ADMIN])) {
+    // SUPER_ADMIN, ADMIN y SYSTEM tienen acceso a todo
+    if (hasAnyRole(user.roles, [ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.SYSTEM])) {
       return;
     }
 
@@ -1939,8 +1939,8 @@ export class ReportsService {
   }
 
   private validateCompanyAccess(companyId: string, user: UserSessionDto): void {
-    // SUPER_ADMIN y ADMIN tienen acceso a todo
-    if (hasAnyRole(user.roles, [ROLES.SUPER_ADMIN, ROLES.ADMIN])) {
+    // SUPER_ADMIN, ADMIN y SYSTEM tienen acceso a todo
+    if (hasAnyRole(user.roles, [ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.SYSTEM])) {
       return;
     }
 

@@ -103,7 +103,7 @@ export class ReportsController {
    * La idempotencia se verifica por (storeId + report_date + employee_id)
    */
   @Post()
-  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.SYSTEM)
   @UseGuards(ReportAccessGuard)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
@@ -145,7 +145,7 @@ export class ReportsController {
    * Consolidar reportes
    */
   @Post('consolidate')
-  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER)
   @UseGuards(ReportAccessGuard)
   @ApiOperation({
     summary: 'Consolidar reportes',
@@ -172,7 +172,7 @@ export class ReportsController {
    * Comparar reportes
    */
   @Post('compare')
-  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER)
   @UseGuards(ReportAccessGuard)
   @ApiOperation({
     summary: 'Comparar reportes',
@@ -259,7 +259,7 @@ export class ReportsController {
    * - consolidated: Filtrar consolidados (true) o individuales (false)
    */
   @Get()
-  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER)
   @UseGuards(ReportAccessGuard)
   @ApiOperation({
     summary: 'Listar reportes con filtros',
@@ -296,7 +296,7 @@ export class ReportsController {
    * Consolidación rápida por período predefinido
    */
   @Get('consolidate/quick')
-  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER)
   @UseGuards(ReportAccessGuard)
   @Cacheable({ ttl: 60, strategy: 'per-tenant' }) // Cache 1 minuto por tenant
   @ApiOperation({
@@ -328,7 +328,7 @@ export class ReportsController {
    * Comparación rápida predefinida
    */
   @Get('compare/quick')
-  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER)
   @UseGuards(ReportAccessGuard)
   @Cacheable({ ttl: 60, strategy: 'per-tenant' }) // Cache 1 minuto por tenant
   @ApiOperation({
@@ -422,7 +422,7 @@ export class ReportsController {
    * Tendencias de reportes
    */
   @Get('trends')
-  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER)
   @Cacheable({ ttl: 120, strategy: 'per-tenant' }) // Cache 2 minutos por tenant
   @ApiOperation({
     summary: 'Obtener tendencias',
@@ -470,7 +470,7 @@ export class ReportsController {
    * para evitar que NestJS la capture incorrectamente.
    */
   @Get('daily-summary')
-  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER)
   @UseGuards(ReportAccessGuard)
   @Cacheable({ ttl: 60, strategy: 'per-tenant' }) // Cache 1 minuto por tenant
   @ApiOperation({
@@ -519,7 +519,7 @@ export class ReportsController {
    * Reportes de una tienda
    */
   @Get('store/:storeId')
-  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER)
   @UseGuards(ReportAccessGuard)
   @ApiOperation({
     summary: 'Reportes de una tienda',
@@ -556,7 +556,7 @@ export class ReportsController {
    * Reporte de hoy para una tienda
    */
   @Get('store/:storeId/today')
-  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER)
   @UseGuards(ReportAccessGuard)
   @Cacheable({ ttl: 60, strategy: 'per-tenant' }) // Cache 1 minuto por tenant
   @ApiOperation({
@@ -592,7 +592,7 @@ export class ReportsController {
    * Resumen de tienda (consolidado del mes)
    */
   @Get('store/:storeId/summary')
-  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER)
   @UseGuards(ReportAccessGuard)
   @Cacheable({ ttl: 300, strategy: 'per-tenant' }) // Cache 5 minutos por tenant
   @ApiOperation({
@@ -625,7 +625,7 @@ export class ReportsController {
    * Top categorías de una tienda por período
    */
   @Get('store/:storeId/categories')
-  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER)
   @UseGuards(ReportAccessGuard)
   @Cacheable({ ttl: 120, strategy: 'per-tenant' })
   @ApiOperation({
@@ -668,7 +668,7 @@ export class ReportsController {
    * Revenue centers de una tienda por período
    */
   @Get('store/:storeId/revenue-centers')
-  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER)
   @UseGuards(ReportAccessGuard)
   @Cacheable({ ttl: 120, strategy: 'per-tenant' })
   @ApiOperation({
@@ -705,7 +705,7 @@ export class ReportsController {
    * Ranking de empleados de una tienda por período
    */
   @Get('store/:storeId/employees')
-  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER)
   @UseGuards(ReportAccessGuard)
   @Cacheable({ ttl: 120, strategy: 'per-tenant' })
   @ApiOperation({
@@ -748,7 +748,7 @@ export class ReportsController {
    * Análisis completo de pagos de una tienda por período
    */
   @Get('store/:storeId/payment-analysis')
-  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER)
   @UseGuards(ReportAccessGuard)
   @Cacheable({ ttl: 120, strategy: 'per-tenant' })
   @ApiOperation({
@@ -951,7 +951,7 @@ export class ReportsController {
    * estáticas para evitar que capture rutas como /trends, /stats/global, etc.
    */
   @Get(':id')
-  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER)
   @UseGuards(ReportAccessGuard)
   @ApiOperation({
     summary: 'Obtener reporte por ID',
@@ -978,7 +978,7 @@ export class ReportsController {
    * Obtener reporte con todos los detalles
    */
   @Get(':id/details')
-  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER, ROLES.USER)
+  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER)
   @UseGuards(ReportAccessGuard)
   @ApiOperation({
     summary: 'Obtener reporte con detalles completos',

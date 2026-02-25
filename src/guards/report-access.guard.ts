@@ -45,8 +45,12 @@ export class ReportAccessGuard implements CanActivate {
     const { level, company_id, storeId } = request.query || request.body || {};
     const userRoles = user.roles || [];
 
-    // SUPER_ADMIN y ADMIN tienen acceso completo
-    if (userRoles.includes(ROLES.SUPER_ADMIN) || userRoles.includes(ROLES.ADMIN)) {
+    // SUPER_ADMIN, ADMIN y SYSTEM tienen acceso completo
+    if (
+      userRoles.includes(ROLES.SUPER_ADMIN) ||
+      userRoles.includes(ROLES.ADMIN) ||
+      userRoles.includes(ROLES.SYSTEM)
+    ) {
       return true;
     }
 

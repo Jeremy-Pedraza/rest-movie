@@ -41,5 +41,7 @@ push_to_github:
     - rest-valdez
     - core
   script:
+    - git config http.postBuffer 524288000
+    - git config http.version HTTP/1.1
     - git remote add github https://${GITHUB_TOKEN}@github.com/SOFTLOGY-SAS/Rest-API.git || true
     - git push github $CI_COMMIT_SHA:refs/heads/$CI_COMMIT_REF_NAME --force

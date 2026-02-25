@@ -40,8 +40,10 @@ push_to_github:
     - rest-whatsapp
     - rest-valdez
     - core
+  variables:
+    GIT_DEPTH: 0 # ← Clonar historial completo
   script:
-    - git config http.postBuffer 524288000
-    - git config http.version HTTP/1.1
-    - git remote add github https://${GITHUB_TOKEN}@github.com/SOFTLOGY-SAS/Rest-API.git || true
+    - git remote remove github 2>/dev/null || true
+    - git remote add github https://${GITHUB_TOKEN}@github.com/SOFTLOGY-SAS/Rest-API.git
+    - git fetch --unshallow 2>/dev/null || true
     - git push github $CI_COMMIT_SHA:refs/heads/$CI_COMMIT_REF_NAME --force

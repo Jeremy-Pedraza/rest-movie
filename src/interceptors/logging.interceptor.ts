@@ -19,7 +19,7 @@ import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { Request, Response } from 'express';
 
-import { LoggerService, LogContext } from '@modules/logger';
+import { LoggerService } from '@modules/logger';
 import { LogDbLevel } from '@config/app.config';
 import {
   shouldLogToDb as checkShouldLogToDb,
@@ -92,7 +92,7 @@ export class LoggingInterceptor implements NestInterceptor {
                 userAgent: userAgent || undefined,
               })
               .catch((err: Error) => {
-                this.logWarn(`Error al escribir log HTTP en DB: ${err.message}`);
+                this.logger.warn(`Error al escribir log HTTP en DB: ${err.message}`);
               });
           }
         },
@@ -100,27 +100,12 @@ export class LoggingInterceptor implements NestInterceptor {
           const responseTime = Date.now() - startTime;
           const statusCode = error.status || 500;
 
-          // Log en consola (siempre para errores)
-          this.logError(
-            `${method} ${safeUrl} ${statusCode} - ${responseTime}ms [${requestId}]`,
-          );
-
-          // Log en base de datos (según configuración)
-          if (this.shouldLogToDb(statusCode)) {
-            void this.loggerService
-              ?.logHttpRequest({
-                method,
-                url: pathOnly,
-                statusCode,
-                responseTime,
-                requestId: requestId !== '-' ? requestId : undefined,
-                userId,
-                ip: ip || undefined,
-                userAgent: userAgent || undefined,
-              })
-              .catch((err: Error) => {
-                this.logWarn(`Error al escribir log HTTP en DB: ${err.message}`);
-              });
+          // Solo log en consola — la persistencia en BD la maneja AllExceptionsFilter
+          // que captura la excepción con contexto completo (ip, userId, method, etc.)
+          if (this.logConsole) {
+            this.logger.error(
+              `${method} ${safeUrl} ${statusCode} - ${responseTime}ms [${requestId}]`,
+            );
           }
         },
       }),
@@ -151,20 +136,5 @@ export class LoggingInterceptor implements NestInterceptor {
     return redactSensitiveUrl(url);
   }
 
-  private logWarn(message: string): void {
-    this.logger.warn(message);
-    void this.loggerService?.warn(message, {
-      context: LogContext.HTTP,
-      service: 'HTTP',
-    });
-  }
-
-  private logError(message: string): void {
-    this.logger.error(message);
-    void this.loggerService?.error(message, {
-      context: LogContext.HTTP,
-      service: 'HTTP',
-    });
-  }
 }
 

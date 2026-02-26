@@ -167,6 +167,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         method: request.method,
         url: request.url,
         statusCode: status,
+        action: exception instanceof Error ? exception.constructor.name : 'UnknownException',
         metadata: {
           error,
           exceptionName: exception instanceof Error ? exception.name : 'Unknown',

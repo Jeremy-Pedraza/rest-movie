@@ -136,6 +136,7 @@ export class ValidationExceptionFilter implements ExceptionFilter {
         method: request.method,
         url: request.url,
         statusCode: status,
+        action: 'ValidationException',
         metadata: {
           errors: validationErrors,
           details: details !== undefined ? this.safeStringify(details) : undefined,

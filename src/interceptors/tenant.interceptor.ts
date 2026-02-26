@@ -15,12 +15,9 @@ import {
   ExecutionContext,
   CallHandler,
   Logger,
-  Inject,
-  Optional,
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { Request } from 'express';
-import { LoggerService, LogContext } from '@modules/logger';
 import { SchemaContext, ITenantContext } from '@shared/database';
 
 /**
@@ -75,12 +72,7 @@ interface RequestWithTenant extends Request {
 export class TenantInterceptor implements NestInterceptor {
   private readonly logger = new Logger(TenantInterceptor.name);
 
-  constructor(
-    private readonly schemaContext: SchemaContext,
-    @Optional()
-    @Inject(LoggerService)
-    private readonly loggerService?: LoggerService,
-  ) {}
+  constructor(private readonly schemaContext: SchemaContext) {}
 
   /**
    * Intercepta el request e inyecta el contexto del tenant
@@ -169,19 +161,14 @@ export class TenantInterceptor implements NestInterceptor {
   }
 
   private logWarn(message: string): void {
+    // Solo consola — la persistencia la maneja AllExceptionsFilter
     this.logger.warn(message);
-    void this.loggerService?.warn(message, {
-      context: LogContext.AUTH,
-      service: TenantInterceptor.name,
-    });
   }
 
   private logError(message: string): void {
+    // Solo consola — la persistencia la maneja AllExceptionsFilter
+    // que captura la excepción propagada por observer.error()
     this.logger.error(message);
-    void this.loggerService?.error(message, {
-      context: LogContext.AUTH,
-      service: TenantInterceptor.name,
-    });
   }
 }
 

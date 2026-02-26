@@ -6,10 +6,18 @@
  * @description Wrapper sobre ioredis con operaciones comunes y tipadas
  */
 
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy, Inject, Optional } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+  Inject,
+  Optional,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis, { RedisOptions } from 'ioredis';
-import { LoggerService, LogContext } from '@modules/logger';
+import { LoggerService } from '@modules/logger/logger.service';
+import { LogContext } from '@modules/logger/entities/log.entity';
 
 /**
  * Opciones para operaciones con TTL
@@ -82,7 +90,8 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     private readonly loggerService?: LoggerService,
   ) {
     this.defaultTTL = this.configService.get<number>('redis.ttl') || 3600;
-    this.errorPolicy = this.configService.get<'fail-open' | 'fail-fast'>('redis.errorPolicy') || 'fail-open';
+    this.errorPolicy =
+      this.configService.get<'fail-open' | 'fail-fast'>('redis.errorPolicy') || 'fail-open';
   }
 
   // ============================================
@@ -105,8 +114,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       const maxRetries = this.configService.get<number>('redis.maxRetries') || 10;
       const retryDelayMs = this.configService.get<number>('redis.retryDelayMs') || 200;
       const retryMaxDelayMs = this.configService.get<number>('redis.retryMaxDelayMs') || 5000;
-      const maxRetriesPerRequest = this.configService.get<number>('redis.maxRetriesPerRequest') || 3;
-      const enableOfflineQueue = this.configService.get<boolean>('redis.enableOfflineQueue') !== false;
+      const maxRetriesPerRequest =
+        this.configService.get<number>('redis.maxRetriesPerRequest') || 3;
+      const enableOfflineQueue =
+        this.configService.get<boolean>('redis.enableOfflineQueue') !== false;
 
       const options: RedisOptions = {
         host: this.configService.get<string>('redis.host') || 'localhost',
@@ -1270,23 +1281,51 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   private logWarn(message: string, details?: unknown): void {
+    const serializedDetails = this.serializeDetails(details);
     this.logger.warn(message);
     void this.loggerService?.warn(message, {
       context: LogContext.CACHE,
       service: RedisService.name,
-      metadata: details ? { details: String(details) } : undefined,
+      metadata: serializedDetails ? { details: serializedDetails } : undefined,
     });
   }
 
   private logError(message: string, details?: unknown): void {
+    const serializedDetails = this.serializeDetails(details);
     const stack = details instanceof Error ? details.stack : undefined;
     this.logger.error(message, stack);
     void this.loggerService?.error(message, {
       context: LogContext.CACHE,
       service: RedisService.name,
       stack,
-      metadata: details ? { details: String(details) } : undefined,
+      metadata: serializedDetails ? { details: serializedDetails } : undefined,
     });
   }
-}
 
+  private serializeDetails(details: unknown): string | undefined {
+    if (details === undefined) return undefined;
+    if (details === null) return 'null';
+    if (details instanceof Error) return details.message;
+
+    switch (typeof details) {
+      case 'string':
+        return details;
+      case 'number':
+        return Number.isFinite(details) ? details.toString() : '[non-finite number]';
+      case 'boolean':
+        return details ? 'true' : 'false';
+      case 'bigint':
+        return details.toString();
+      case 'symbol':
+        return details.description ? `Symbol(${details.description})` : 'Symbol()';
+      default:
+        break;
+    }
+
+    try {
+      return JSON.stringify(details);
+    } catch {
+      return '[unserializable details]';
+    }
+  }
+}

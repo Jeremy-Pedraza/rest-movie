@@ -57,7 +57,11 @@ export class SecurityConfigService implements OnModuleInit {
   private readonly allowedSchemasSet: Set<string>;
   private readonly config: ISecurityConfig;
 
-  constructor() {
+  constructor(
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
+  ) {
     // Inicializar Sets para búsqueda O(1)
     this.allowedDomainsSet = new Set(SECURITY_WHITELIST.allowedDomains);
     this.allowedSchemasSet = new Set(SECURITY_WHITELIST.allowedSchemas);
@@ -236,10 +240,6 @@ export class SecurityConfigService implements OnModuleInit {
     return normalized === 'localhost' || normalized === '127.0.0.1' || normalized === '::1';
   }
 
-  @Optional()
-  @Inject(LoggerService)
-  private readonly loggerService?: LoggerService;
-
   private logWarn(message: string): void {
     this.logger.warn(message);
     void this.loggerService?.warn(message, {
@@ -256,4 +256,3 @@ export class SecurityConfigService implements OnModuleInit {
     });
   }
 }
-

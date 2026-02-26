@@ -131,11 +131,14 @@ import { bullConfig } from '@config/bull';
       }),
     }),
 
-    // ✅ Security Config Module (Global - debe estar antes de shared modules)
+    // Shared Modules (Global)
+    // LoggerModule debe ir primero: muchos módulos inyectan LoggerService con @Optional()
+    CommonModule,
+    LoggerModule,
+
+    // ✅ Security Config Module (Global - debe estar antes de shared modules de features)
     SecurityConfigModule,
 
-    // Shared Modules (Global)
-    CommonModule,
     DatabaseModule,
     UtilsModule,
     RedisModule,
@@ -143,7 +146,6 @@ import { bullConfig } from '@config/bull';
 
     // Feature Modules
     HealthModule,
-    LoggerModule,
     UserModule,
     AuthModule, // JWT Strategy + Passport
     CompanyModule, // ✅ FASE 1 - Gestión de compañías
@@ -281,4 +283,3 @@ export class AppModule implements NestModule {
       .forRoutes('/*path'); // Aplicar a todas las rutas
   }
 }
-

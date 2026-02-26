@@ -75,7 +75,7 @@ const ALLOWED_DOMAINS = [
   'http://127.0.0.1:4200',
 
   // === Producción ===
-  'tacobell.rest-services.com',
+  'tbapi.tacobell.co.cr',
 
   // === Staging (agregar según necesidad) ===
   // 'staging.tacobell.rest-services.com',

@@ -35,6 +35,10 @@ async function bootstrap() {
     exclude: ['/docs', '/docs-json', '/health', '/health/ready'],
   });
 
+  // Trust proxy (IIS, Nginx, etc.) para obtener IP real del cliente en request.ip
+  const expressApp = app.getHttpAdapter().getInstance();
+  expressApp.set('trust proxy', true);
+
   // Security
   app.use(helmet(helmetConfig));
 

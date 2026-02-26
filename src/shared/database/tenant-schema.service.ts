@@ -481,7 +481,7 @@ export class TenantSchemaService {
     if (tableName === 'report_headers') {
       await queryRunner.query(`
         CREATE TABLE "${targetSchema}"."${tableName}" (
-          "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+          "id" uuid NOT NULL DEFAULT gen_random_uuid(),
           "store_id" uuid NOT NULL,
           "report_date" date NOT NULL,
           "report_type" "${targetSchema}"."report_type_enum" NOT NULL DEFAULT 'daily',

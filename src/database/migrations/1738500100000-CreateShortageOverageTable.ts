@@ -71,7 +71,7 @@ export class CreateShortageOverageTable1738500100000 implements MigrationInterfa
     // Crear tabla
     await queryRunner.query(`
       CREATE TABLE "${schemaName}"."shortage_overage" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "report_header_id" uuid NOT NULL,
         "receptacle_type" varchar(50) NOT NULL,
         "receptacle_name" varchar(100) NOT NULL,

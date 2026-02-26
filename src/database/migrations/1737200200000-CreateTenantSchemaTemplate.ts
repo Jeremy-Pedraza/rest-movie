@@ -29,11 +29,6 @@ export class CreateTenantSchemaTemplate1737200200000 implements MigrationInterfa
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // ============================================
-    // 0. VERIFICAR EXTENSIÓN UUID
-    // ============================================
-    await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`);
-
-    // ============================================
     // 1. CREAR SCHEMA TEMPLATE
     // ============================================
     await queryRunner.query(`CREATE SCHEMA IF NOT EXISTS "template_tenant"`);
@@ -58,7 +53,7 @@ export class CreateTenantSchemaTemplate1737200200000 implements MigrationInterfa
     // ============================================
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "template_tenant"."report_headers" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "store_id" uuid NOT NULL,
         "report_date" date NOT NULL,
         "report_type" "template_tenant"."report_type_enum" NOT NULL DEFAULT 'daily',
@@ -101,7 +96,7 @@ export class CreateTenantSchemaTemplate1737200200000 implements MigrationInterfa
     // ============================================
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "template_tenant"."sales_by_order_type" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "report_header_id" uuid NOT NULL,
         "order_type" varchar(50) NOT NULL,
         "total_sales" decimal(12,2) NOT NULL DEFAULT 0,
@@ -128,7 +123,7 @@ export class CreateTenantSchemaTemplate1737200200000 implements MigrationInterfa
     // ============================================
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "template_tenant"."payment_methods" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "report_header_id" uuid NOT NULL,
         "payment_method" varchar(50) NOT NULL,
         "total_amount" decimal(12,2) NOT NULL DEFAULT 0,
@@ -153,7 +148,7 @@ export class CreateTenantSchemaTemplate1737200200000 implements MigrationInterfa
     // ============================================
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "template_tenant"."dynamic_discounts" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "report_header_id" uuid NOT NULL,
         "discount_name" varchar(100) NOT NULL,
         "discount_type" varchar(50) NOT NULL DEFAULT 'percentage',
@@ -175,7 +170,7 @@ export class CreateTenantSchemaTemplate1737200200000 implements MigrationInterfa
     // ============================================
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "template_tenant"."adjustments" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "report_header_id" uuid NOT NULL,
         "adjustment_type" varchar(50) NOT NULL,
         "reason" varchar(255),
@@ -200,7 +195,7 @@ export class CreateTenantSchemaTemplate1737200200000 implements MigrationInterfa
     // ============================================
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "template_tenant"."effective_orders" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "report_header_id" uuid NOT NULL,
         "order_number" varchar(50) NOT NULL,
         "order_datetime" timestamptz NOT NULL,
@@ -290,7 +285,7 @@ export class CreateTenantSchemaTemplate1737200200000 implements MigrationInterfa
     if (tableExists.length === 0) {
       await queryRunner.query(`
         CREATE TABLE "public"."tenant_schemas" (
-          "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+          "id" uuid NOT NULL DEFAULT gen_random_uuid(),
           "company_id" uuid NOT NULL,
           "schema_name" varchar(100) NOT NULL,
           "status" varchar(20) NOT NULL DEFAULT 'active',

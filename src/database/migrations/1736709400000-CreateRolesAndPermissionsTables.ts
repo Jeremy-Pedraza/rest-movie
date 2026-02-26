@@ -29,7 +29,7 @@ export class CreateRolesAndPermissionsTables1736709400000 implements MigrationIn
             type: 'uuid',
             isPrimary: true,
             generationStrategy: 'uuid',
-            default: 'uuid_generate_v4()',
+            default: 'gen_random_uuid()',
           },
           {
             name: 'name',
@@ -91,7 +91,7 @@ export class CreateRolesAndPermissionsTables1736709400000 implements MigrationIn
             type: 'uuid',
             isPrimary: true,
             generationStrategy: 'uuid',
-            default: 'uuid_generate_v4()',
+            default: 'gen_random_uuid()',
           },
           {
             name: 'name',

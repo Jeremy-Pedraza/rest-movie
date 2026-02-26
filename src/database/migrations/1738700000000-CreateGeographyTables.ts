@@ -44,7 +44,7 @@ export class CreateGeographyTables1738700000000 implements MigrationInterface {
               type: 'uuid',
               isPrimary: true,
               generationStrategy: 'uuid',
-              default: 'uuid_generate_v4()',
+              default: 'gen_random_uuid()',
             },
             {
               name: 'code',
@@ -201,7 +201,7 @@ export class CreateGeographyTables1738700000000 implements MigrationInterface {
               type: 'uuid',
               isPrimary: true,
               generationStrategy: 'uuid',
-              default: 'uuid_generate_v4()',
+              default: 'gen_random_uuid()',
             },
             {
               name: 'country_id',
@@ -317,7 +317,7 @@ export class CreateGeographyTables1738700000000 implements MigrationInterface {
               type: 'uuid',
               isPrimary: true,
               generationStrategy: 'uuid',
-              default: 'uuid_generate_v4()',
+              default: 'gen_random_uuid()',
             },
             {
               name: 'department_id',

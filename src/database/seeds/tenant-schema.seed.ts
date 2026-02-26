@@ -117,7 +117,7 @@ async function createTenantSchema(
         // report_headers necesita el enum del schema correcto
         await queryRunner.query(`
           CREATE TABLE "${schemaName}"."${tableName}" (
-            "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+            "id" uuid NOT NULL DEFAULT gen_random_uuid(),
             "store_id" uuid NOT NULL,
             "report_date" date NOT NULL,
             "report_type" "${schemaName}"."report_type_enum" NOT NULL DEFAULT 'daily',

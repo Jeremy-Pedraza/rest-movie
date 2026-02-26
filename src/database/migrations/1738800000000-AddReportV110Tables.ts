@@ -74,7 +74,7 @@ export class AddReportV110Tables1738800000000 implements MigrationInterface {
     // TABLA: report_cash_summary
     // ============================================
     await this.createTableIfNotExists(queryRunner, schema, 'report_cash_summary', `
-      "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+      "id" uuid NOT NULL DEFAULT gen_random_uuid(),
       "report_header_id" uuid NOT NULL,
       "tender_name" varchar(100) NOT NULL,
       "quantity" integer NOT NULL DEFAULT 0,
@@ -89,7 +89,7 @@ export class AddReportV110Tables1738800000000 implements MigrationInterface {
     // TABLA: report_employee_sales
     // ============================================
     await this.createTableIfNotExists(queryRunner, schema, 'report_employee_sales', `
-      "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+      "id" uuid NOT NULL DEFAULT gen_random_uuid(),
       "report_header_id" uuid NOT NULL,
       "employee_id" integer NOT NULL,
       "employee_name" varchar(200) NOT NULL,
@@ -109,7 +109,7 @@ export class AddReportV110Tables1738800000000 implements MigrationInterface {
     // TABLA: report_category_sales
     // ============================================
     await this.createTableIfNotExists(queryRunner, schema, 'report_category_sales', `
-      "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+      "id" uuid NOT NULL DEFAULT gen_random_uuid(),
       "report_header_id" uuid NOT NULL,
       "category_id" integer NOT NULL,
       "category_name" varchar(200) NOT NULL,
@@ -126,7 +126,7 @@ export class AddReportV110Tables1738800000000 implements MigrationInterface {
     // TABLA: report_revenue_center_sales
     // ============================================
     await this.createTableIfNotExists(queryRunner, schema, 'report_revenue_center_sales', `
-      "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+      "id" uuid NOT NULL DEFAULT gen_random_uuid(),
       "report_header_id" uuid NOT NULL,
       "revenue_center_id" integer NOT NULL,
       "revenue_center_name" varchar(200) NOT NULL,
@@ -144,7 +144,7 @@ export class AddReportV110Tables1738800000000 implements MigrationInterface {
     // TABLA: report_service_charges
     // ============================================
     await this.createTableIfNotExists(queryRunner, schema, 'report_service_charges', `
-      "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+      "id" uuid NOT NULL DEFAULT gen_random_uuid(),
       "report_header_id" uuid NOT NULL,
       "service_charge_name" varchar(200) NOT NULL,
       "quantity" integer NOT NULL DEFAULT 0,
@@ -159,7 +159,7 @@ export class AddReportV110Tables1738800000000 implements MigrationInterface {
     // TABLA: report_income_by_class
     // ============================================
     await this.createTableIfNotExists(queryRunner, schema, 'report_income_by_class', `
-      "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+      "id" uuid NOT NULL DEFAULT gen_random_uuid(),
       "report_header_id" uuid NOT NULL,
       "class_name" varchar(100) NOT NULL,
       "currency_name" varchar(100) NOT NULL,
@@ -176,7 +176,7 @@ export class AddReportV110Tables1738800000000 implements MigrationInterface {
     // TABLA: report_income_by_tender_type
     // ============================================
     await this.createTableIfNotExists(queryRunner, schema, 'report_income_by_tender_type', `
-      "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+      "id" uuid NOT NULL DEFAULT gen_random_uuid(),
       "report_header_id" uuid NOT NULL,
       "tender_type" varchar(100) NOT NULL,
       "tender_name" varchar(200) NOT NULL,

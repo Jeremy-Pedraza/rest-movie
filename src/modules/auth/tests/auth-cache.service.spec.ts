@@ -1,13 +1,13 @@
-// src/modules/auth/tests/auth-cache.service.spec.ts
+﻿// src/modules/auth/tests/auth-cache.service.spec.ts
 
 /**
- * @fileoverview Tests unitarios para cache de autenticación
+ * @fileoverview Tests unitarios para cache de autenticaciÃ³n
  * @module modules/auth/tests
  *
- * ✅ FASE 2: Tests para verificar:
+ * âœ… FASE 2: Tests para verificar:
  * - Cache hit/miss en login
  * - Cache hit/miss en refreshToken
- * - Invalidación de cache
+ * - InvalidaciÃ³n de cache
  * - TTL correcto (55 min)
  */
 
@@ -291,7 +291,7 @@ describe('AuthService - Cache Integration', () => {
 
       // Mock bcrypt compare - this is tricky in unit tests
       // We'll skip actual password validation for this test
-      jest.spyOn(require('bcrypt'), 'compare')
+      jest.spyOn(require('bcryptjs'), 'compare')
         .mockResolvedValueOnce(true)  // currentPassword valid
         .mockResolvedValueOnce(false); // newPassword is different
 
@@ -383,3 +383,4 @@ describe('RedisService - buildKey and buildPattern', () => {
     expect(result).toBe('session:*:user:123');
   });
 });
+

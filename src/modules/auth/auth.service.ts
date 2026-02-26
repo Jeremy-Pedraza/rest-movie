@@ -18,7 +18,7 @@
 import { Injectable, Logger, Inject, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 
 import { ERROR_CODES, RESPONSE_MESSAGES, ROLES } from '@constants';
 import { EmailProducer } from '@modules/queue';

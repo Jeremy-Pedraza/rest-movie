@@ -1,15 +1,15 @@
-// src/shared/utils/helpers/crypto.helper.ts
+﻿// src/shared/utils/helpers/crypto.helper.ts
 
 /**
- * @fileoverview Utilidades criptográficas para hash, encriptación y tokens
+ * @fileoverview Utilidades criptogrÃ¡ficas para hash, encriptaciÃ³n y tokens
  * @module shared/utils/helpers/crypto
  */
 
 import * as crypto from 'crypto';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 
 // ============================================
-// CONFIGURACIÓN
+// CONFIGURACIÃ“N
 // ============================================
 
 const BCRYPT_ROUNDS = 10;
@@ -24,7 +24,7 @@ const SALT_LENGTH = 32;
 /**
  * Genera un hash bcrypt para un texto (ideal para passwords)
  * @param plainText - Texto a hashear
- * @param rounds - Número de rondas (default: 10)
+ * @param rounds - NÃºmero de rondas (default: 10)
  * @returns Hash bcrypt
  * @example
  * const hash = await hashPassword('mypassword123')
@@ -49,9 +49,9 @@ export async function verifyPassword(plainText: string, hash: string): Promise<b
 }
 
 /**
- * Genera un hash bcrypt de forma síncrona (usar solo si es necesario)
+ * Genera un hash bcrypt de forma sÃ­ncrona (usar solo si es necesario)
  * @param plainText - Texto a hashear
- * @param rounds - Número de rondas
+ * @param rounds - NÃºmero de rondas
  * @returns Hash bcrypt
  */
 export function hashPasswordSync(plainText: string, rounds: number = BCRYPT_ROUNDS): string {
@@ -59,7 +59,7 @@ export function hashPasswordSync(plainText: string, rounds: number = BCRYPT_ROUN
 }
 
 /**
- * Verifica password de forma síncrona
+ * Verifica password de forma sÃ­ncrona
  * @param plainText - Texto plano
  * @param hash - Hash a comparar
  * @returns true si coinciden
@@ -120,11 +120,11 @@ export function hmacSha512(data: string, secret: string): string {
 }
 
 // ============================================
-// FUNCIONES DE ENCRIPTACIÓN SIMÉTRICA
+// FUNCIONES DE ENCRIPTACIÃ“N SIMÃ‰TRICA
 // ============================================
 
 /**
- * Resultado de una encriptación
+ * Resultado de una encriptaciÃ³n
  */
 export interface EncryptionResult {
   encrypted: string;
@@ -187,7 +187,7 @@ export function decrypt(encryptedData: EncryptionResult, secretKey: string): str
 }
 
 /**
- * Encripta y devuelve un string único (para almacenar en DB)
+ * Encripta y devuelve un string Ãºnico (para almacenar en DB)
  * @param plainText - Texto a encriptar
  * @param secretKey - Clave secreta
  * @returns String encriptado completo
@@ -209,7 +209,7 @@ export function decryptFromString(encryptedString: string, secretKey: string): s
 }
 
 // ============================================
-// GENERACIÓN DE TOKENS Y STRINGS ALEATORIOS
+// GENERACIÃ“N DE TOKENS Y STRINGS ALEATORIOS
 // ============================================
 
 /**
@@ -223,7 +223,7 @@ export function randomBytes(length: number): Buffer {
 
 /**
  * Genera un token hexadecimal aleatorio
- * @param length - Longitud en bytes (el resultado será el doble en caracteres)
+ * @param length - Longitud en bytes (el resultado serÃ¡ el doble en caracteres)
  * @returns Token hexadecimal
  * @example
  * generateToken(32) // '64 caracteres hexadecimales'
@@ -247,9 +247,9 @@ export function generateBase64Token(length: number = 32): string {
 }
 
 /**
- * Genera un código numérico aleatorio (para OTP, verificación)
- * @param digits - Número de dígitos
- * @returns Código numérico
+ * Genera un cÃ³digo numÃ©rico aleatorio (para OTP, verificaciÃ³n)
+ * @param digits - NÃºmero de dÃ­gitos
+ * @returns CÃ³digo numÃ©rico
  * @example
  * generateNumericCode(6) // '123456'
  */
@@ -261,10 +261,10 @@ export function generateNumericCode(digits: number = 6): string {
 }
 
 /**
- * Genera un código alfanumérico aleatorio
- * @param length - Longitud del código
- * @param options - Opciones de generación
- * @returns Código alfanumérico
+ * Genera un cÃ³digo alfanumÃ©rico aleatorio
+ * @param length - Longitud del cÃ³digo
+ * @param options - Opciones de generaciÃ³n
+ * @returns CÃ³digo alfanumÃ©rico
  */
 export function generateAlphanumericCode(
   length: number = 8,
@@ -340,7 +340,7 @@ export function generateSalt(length: number = SALT_LENGTH): string {
 }
 
 // ============================================
-// FUNCIONES DE COMPARACIÓN SEGURA
+// FUNCIONES DE COMPARACIÃ“N SEGURA
 // ============================================
 
 /**
@@ -370,7 +370,7 @@ export function secureCompareBuffers(a: Buffer, b: Buffer): boolean {
 }
 
 // ============================================
-// FUNCIONES DE DERIVACIÓN DE CLAVES
+// FUNCIONES DE DERIVACIÃ“N DE CLAVES
 // ============================================
 
 /**
@@ -398,7 +398,7 @@ export async function deriveKey(
 }
 
 /**
- * Deriva una clave de forma síncrona
+ * Deriva una clave de forma sÃ­ncrona
  */
 export function deriveKeySync(
   password: string,
@@ -534,7 +534,7 @@ export function sign(data: string, secret: string): string {
  * @param data - Datos originales
  * @param signature - Firma a verificar
  * @param secret - Clave secreta
- * @returns true si la firma es válida
+ * @returns true si la firma es vÃ¡lida
  */
 export function verifySignature(data: string, signature: string, secret: string): boolean {
   const expectedSignature = sign(data, secret);
@@ -557,7 +557,7 @@ export function createSignedToken(data: object, secret: string): string {
  * Verifica y extrae datos de un token firmado
  * @param token - Token firmado
  * @param secret - Clave secreta
- * @returns Datos del token o null si es inválido
+ * @returns Datos del token o null si es invÃ¡lido
  */
 export function verifySignedToken<T = object>(token: string, secret: string): T | null {
   const [payload, signature] = token.split('.');
@@ -576,3 +576,4 @@ export function verifySignedToken<T = object>(token: string, secret: string): T 
     return null;
   }
 }
+

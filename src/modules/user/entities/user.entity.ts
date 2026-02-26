@@ -1,4 +1,4 @@
-// src/modules/user/entities/user.entity.ts
+﻿// src/modules/user/entities/user.entity.ts
 
 /**
  * @fileoverview Entidad principal de usuarios
@@ -16,7 +16,7 @@ import {
   JoinTable,
   JoinColumn,
 } from 'typeorm';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 import { BaseEntity } from '@shared/common';
 
 import { RoleEntity } from './role.entity';
@@ -39,14 +39,14 @@ export enum UserStatus {
 @Index(['deletedAt'])
 export class UserEntity extends BaseEntity {
   /**
-   * Email del usuario (único)
+   * Email del usuario (Ãºnico)
    */
   @Column({ type: 'varchar', length: 255, unique: true, name: 'email' })
   @Index()
   email: string;
 
   /**
-   * Contraseña hasheada
+   * ContraseÃ±a hasheada
    */
   @Column({ type: 'varchar', length: 255, select: false, name: 'password' })
   password: string;
@@ -64,7 +64,7 @@ export class UserEntity extends BaseEntity {
   last_name: string;
 
   /**
-   * Teléfono (opcional)
+   * TelÃ©fono (opcional)
    */
   @Column({ type: 'varchar', length: 20, nullable: true, name: 'phone' })
   phone: string | null;
@@ -94,19 +94,19 @@ export class UserEntity extends BaseEntity {
   email_verified: boolean;
 
   /**
-   * Fecha de verificación del email
+   * Fecha de verificaciÃ³n del email
    */
   @Column({ type: 'timestamptz', nullable: true, name: 'email_verified_at' })
   email_verified_at: Date | null;
 
   /**
-   * Último login
+   * Ãšltimo login
    */
   @Column({ type: 'timestamptz', nullable: true, name: 'last_login_at' })
   last_login_at: Date | null;
 
   /**
-   * IP del último login
+   * IP del Ãºltimo login
    */
   @Column({ type: 'varchar', length: 45, nullable: true, name: 'last_login_ip' })
   last_login_ip: string | null;
@@ -136,13 +136,13 @@ export class UserEntity extends BaseEntity {
   password_reset_token: string | null;
 
   /**
-   * Expiración del token de reset
+   * ExpiraciÃ³n del token de reset
    */
   @Column({ type: 'timestamptz', nullable: true, select: false, name: 'password_reset_expires' })
   password_reset_expires: Date | null;
 
   /**
-   * Token de verificación de email
+   * Token de verificaciÃ³n de email
    */
   @Column({
     type: 'varchar',
@@ -177,7 +177,7 @@ export class UserEntity extends BaseEntity {
   roles: RoleEntity[];
 
   // ============================================
-  // MULTI-TENANT: RELACIÓN CON COMPANY
+  // MULTI-TENANT: RELACIÃ“N CON COMPANY
   // ============================================
 
   /**
@@ -191,7 +191,7 @@ export class UserEntity extends BaseEntity {
   /**
    * Empresa (tenant) a la que pertenece el usuario
    *
-   * Esta relación determina el schema en el que se ejecutarán las queries
+   * Esta relaciÃ³n determina el schema en el que se ejecutarÃ¡n las queries
    * del usuario. Si es null, usa schema public.
    *
    * @example
@@ -202,21 +202,21 @@ export class UserEntity extends BaseEntity {
   company: CompanyEntity | null;
 
   // ============================================
-  // RELACIÓN CON STORES (SOLO ROL USER)
+  // RELACIÃ“N CON STORES (SOLO ROL USER)
   // ============================================
 
   /**
    * Tiendas asignadas al usuario (solo para rol USER)
    *
    * @description
-   * Relación ManyToMany con StoreEntity usando tabla intermedia user_stores.
+   * RelaciÃ³n ManyToMany con StoreEntity usando tabla intermedia user_stores.
    * Solo usuarios con rol USER tienen tiendas asignadas.
    * Los usuarios asignados solo pueden ver reportes de sus tiendas.
    *
    * Permisos por rol:
-   * - SUPER_ADMIN/ADMIN: Acceso a todas las tiendas (no necesitan asignación)
-   * - MANAGER: Acceso a todas las tiendas de su compañía (no necesitan asignación)
-   * - USER: Solo acceso a tiendas asignadas en esta relación
+   * - SUPER_ADMIN/ADMIN: Acceso a todas las tiendas (no necesitan asignaciÃ³n)
+   * - MANAGER: Acceso a todas las tiendas de su compaÃ±Ã­a (no necesitan asignaciÃ³n)
+   * - USER: Solo acceso a tiendas asignadas en esta relaciÃ³n
    *
    * @example
    * ```typescript
@@ -274,14 +274,14 @@ export class UserEntity extends BaseEntity {
   }
 
   /**
-   * Verifica si el usuario está activo
+   * Verifica si el usuario estÃ¡ activo
    */
   get isActive(): boolean {
     return this.status === UserStatus.ACTIVE;
   }
 
   /**
-   * Verifica si el usuario está bloqueado
+   * Verifica si el usuario estÃ¡ bloqueado
    */
   get isLocked(): boolean {
     if (!this.locked_until) return false;
@@ -293,8 +293,8 @@ export class UserEntity extends BaseEntity {
   // ============================================
 
   /**
-   * Verifica la contraseña
-   * @param plainPassword - Contraseña en texto plano
+   * Verifica la contraseÃ±a
+   * @param plainPassword - ContraseÃ±a en texto plano
    * @returns true si coincide
    */
   async verifyPassword(plainPassword: string): Promise<boolean> {
@@ -302,7 +302,7 @@ export class UserEntity extends BaseEntity {
   }
 
   /**
-   * Verifica si tiene un rol específico
+   * Verifica si tiene un rol especÃ­fico
    * @param roleName - Nombre del rol
    * @returns true si tiene el rol
    */
@@ -325,7 +325,7 @@ export class UserEntity extends BaseEntity {
   registerFailedLogin(): void {
     this.failed_login_attempts += 1;
 
-    // Bloquear después de 5 intentos por 30 minutos
+    // Bloquear despuÃ©s de 5 intentos por 30 minutos
     if (this.failed_login_attempts >= 5) {
       this.locked_until = new Date(Date.now() + 30 * 60 * 1000);
     }
@@ -349,3 +349,4 @@ export class UserEntity extends BaseEntity {
     this.resetFailedAttempts();
   }
 }
+

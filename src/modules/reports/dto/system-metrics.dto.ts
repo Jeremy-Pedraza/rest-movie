@@ -392,6 +392,41 @@ export class ReportMetadataDto {
   @IsOptional()
   exchangeRate?: number;
 
+  // ============================================
+  // RECONCILIACIÓN FINANCIERA (Agente alinea total_payment con sum(payment_methods))
+  // ============================================
+
+  @ApiPropertyOptional({
+    description: 'Valor crudo original de total_payment antes de alineación',
+    example: 2076196,
+  })
+  @IsNumber({}, { message: 'paymentRaw debe ser un número' })
+  @IsOptional()
+  paymentRaw?: number;
+
+  @ApiPropertyOptional({
+    description: 'Suma calculada de payment_methods por el agente',
+    example: 2306077,
+  })
+  @IsNumber({}, { message: 'paymentFromMethods debe ser un número' })
+  @IsOptional()
+  paymentFromMethods?: number;
+
+  @ApiPropertyOptional({
+    description: 'Diferencia entre paymentRaw y paymentFromMethods (delta de reconciliación)',
+    example: 229881,
+  })
+  @IsNumber({}, { message: 'paymentDelta debe ser un número' })
+  @IsOptional()
+  paymentDelta?: number;
+
+  @ApiPropertyOptional({
+    description: 'Indica si total_payment fue alineado a sum(payment_methods) por el agente',
+    example: true,
+  })
+  @IsOptional()
+  paymentAlignedToMethods?: boolean;
+
   @ApiPropertyOptional({
     description: 'Métricas del sistema del agente',
     type: SystemMetricsDto,

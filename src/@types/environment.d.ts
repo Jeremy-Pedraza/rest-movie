@@ -61,6 +61,9 @@ declare namespace NodeJS {
 
     // Logging
     LOG_LEVEL: string;
+    LOG_DB_LEVEL: 'all' | 'warnings' | 'errors' | 'none';
+    LOG_CONSOLE: string;
+    LOG_TO_FILE: string;
     LOG_DIR: string;
     LOG_MAX_SIZE: string;
     LOG_MAX_FILES: string;

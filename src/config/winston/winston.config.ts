@@ -3,6 +3,11 @@ import * as winston from 'winston';
 import 'winston-daily-rotate-file';
 
 const { combine, timestamp, printf, colorize, errors } = winston.format;
+const nodeEnv = process.env.NODE_ENV || 'development';
+const isProduction = nodeEnv === 'production';
+const isTest = nodeEnv === 'test';
+const effectiveLogLevel = process.env.LOG_LEVEL || (isProduction ? 'warn' : 'debug');
+const writeLogsToFiles = process.env.LOG_TO_FILE === 'true';
 
 // Custom log format
 const logFormat = printf(({ level, message, timestamp, stack, context, ...metadata }) => {
@@ -50,12 +55,16 @@ const consoleTransport = new winston.transports.Console({
 });
 
 export const winstonConfig: WinstonModuleOptions = {
-  level: process.env.LOG_LEVEL || 'debug',
+  level: effectiveLogLevel,
   format: combine(timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }), errors({ stack: true }), logFormat),
   transports: [
     consoleTransport,
-    ...(process.env.NODE_ENV !== 'test' ? [errorFileTransport, combinedFileTransport] : []),
+    ...(!isTest && writeLogsToFiles ? [errorFileTransport, combinedFileTransport] : []),
   ],
-  exceptionHandlers: [new winston.transports.File({ filename: 'logs/exceptions.log' })],
-  rejectionHandlers: [new winston.transports.File({ filename: 'logs/rejections.log' })],
+  exceptionHandlers: writeLogsToFiles
+    ? [new winston.transports.File({ filename: 'logs/exceptions.log' })]
+    : [new winston.transports.Console()],
+  rejectionHandlers: writeLogsToFiles
+    ? [new winston.transports.File({ filename: 'logs/rejections.log' })]
+    : [new winston.transports.Console()],
 };

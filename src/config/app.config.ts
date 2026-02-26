@@ -11,6 +11,29 @@ import { registerAs } from '@nestjs/config';
  */
 export type LogDbLevel = 'all' | 'warnings' | 'errors' | 'none';
 
+const LOG_DB_LEVEL_VALUES: LogDbLevel[] = ['all', 'warnings', 'errors', 'none'];
+
+function resolveLogDbLevel(nodeEnv: string): LogDbLevel {
+  const envLevel = process.env.LOG_DB_LEVEL as LogDbLevel | undefined;
+  const isValidEnvLevel = !!envLevel && LOG_DB_LEVEL_VALUES.includes(envLevel);
+
+  if (nodeEnv === 'production') {
+    // En producción, evitar persistencia masiva por configuración heredada.
+    if (!isValidEnvLevel) return 'errors';
+    return envLevel === 'all' ? 'warnings' : envLevel;
+  }
+
+  if (isValidEnvLevel) return envLevel;
+  return 'all';
+}
+
+function resolveConsoleLogging(nodeEnv: string): boolean {
+  if (process.env.LOG_CONSOLE === 'true') return true;
+  if (process.env.LOG_CONSOLE === 'false') return false;
+  // En producción reducimos ruido por defecto (solo errores críticos en consola).
+  return nodeEnv !== 'production';
+}
+
 export default registerAs('app', () => ({
   nodeEnv: process.env.NODE_ENV || 'development',
   name: process.env.APP_NAME || 'Rest-backend',
@@ -34,15 +57,13 @@ export default registerAs('app', () => ({
      * Nivel de logging en BD
      * @default 'all' en development, 'errors' en production
      */
-    dbLevel:
-      (process.env.LOG_DB_LEVEL as LogDbLevel) ||
-      (process.env.NODE_ENV === 'production' ? 'errors' : 'all'),
+    dbLevel: resolveLogDbLevel(process.env.NODE_ENV || 'development'),
 
     /**
      * Si se debe loggear en consola
      * @default true
      */
-    console: process.env.LOG_CONSOLE !== 'false',
+    console: resolveConsoleLogging(process.env.NODE_ENV || 'development'),
 
     /**
      * Rutas a ignorar del logging (health checks, etc)

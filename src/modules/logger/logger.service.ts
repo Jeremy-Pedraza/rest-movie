@@ -6,11 +6,13 @@
  */
 
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 import { LoggerRepository } from './logger.repository';
 import { LogEntity, LogLevel, LogContext } from './entities/log.entity';
 import { CreateLogDto, QueryLogDto, LogStatsQueryDto } from './dto';
 import { IPaginatedResponse } from '@shared/common';
+import { LogDbLevel } from '@config/app.config';
 
 /**
  * Opciones para crear un log simplificado
@@ -35,12 +37,17 @@ interface LogOptions {
 @Injectable()
 export class LoggerService {
   private readonly logger = new Logger(LoggerService.name);
+  private readonly dbLevel: LogDbLevel;
   private buffer: CreateLogDto[] = [];
   private readonly bufferSize = 100;
   private flushTimeout: NodeJS.Timeout | null = null;
   private readonly flushInterval = 5000; // 5 segundos
 
-  constructor(private readonly repository: LoggerRepository) {
+  constructor(
+    private readonly repository: LoggerRepository,
+    private readonly configService: ConfigService,
+  ) {
+    this.dbLevel = this.configService.get<LogDbLevel>('app.logging.dbLevel') || 'all';
     // Auto-flush periódico
     this.startAutoFlush();
   }
@@ -101,6 +108,10 @@ export class LoggerService {
    * @param options - Opciones adicionales
    */
   async log(level: LogLevel, message: string, options: LogOptions = {}): Promise<void> {
+    if (!this.shouldPersistLevel(level)) {
+      return;
+    }
+
     const dto: CreateLogDto = {
       level,
       message,
@@ -126,6 +137,23 @@ export class LoggerService {
     // Flush si el buffer está lleno
     if (this.buffer.length >= this.bufferSize) {
       await this.flush();
+    }
+  }
+
+  /**
+   * Determina si un nivel debe persistirse en BD según la política configurada.
+   */
+  private shouldPersistLevel(level: LogLevel): boolean {
+    switch (this.dbLevel) {
+      case 'none':
+        return false;
+      case 'errors':
+        return level === LogLevel.ERROR;
+      case 'warnings':
+        return level === LogLevel.ERROR || level === LogLevel.WARN;
+      case 'all':
+      default:
+        return true;
     }
   }
 

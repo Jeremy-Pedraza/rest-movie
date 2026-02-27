@@ -43,6 +43,11 @@ const AUTH_CACHE_PREFIX = 'auth';
 
 /** Prefijo para cache de sesión (usado en JwtStrategy) */
 const SESSION_CACHE_PREFIX = 'session';
+/** Máximo por defecto de sesiones activas por usuario */
+const DEFAULT_MAX_ACTIVE_SESSIONS = 5;
+
+/** Prefijo para timestamp de revocación por usuario (revocación instantánea) */
+const REVOKED_AT_PREFIX = 'auth:revoked_at';
 
 import { AuthRepository } from './auth.repository';
 import {
@@ -296,21 +301,42 @@ export class AuthService {
    * ✅ FASE 4: ACTUALIZADO para incluir companyId y schema en tokens nuevos
    */
   async refreshToken(dto: RefreshTokenDto): Promise<IRefreshTokenResponse> {
-    // 1. Decodificar token para obtener jti y schema
-    const decoded = this.jwtService.decode(dto.refreshToken);
-    if (!decoded || !decoded.jti) {
+    // 1. Verificar firma del refresh token y extraer claims
+    let payload: IJwtPayload & { jti?: string };
+    try {
+      payload = this.jwtService.verify(dto.refreshToken, {
+        secret: this.configService.get<string>('jwt.refreshSecret'),
+      });
+    } catch {
       this.handleError.unauthorized(
         RESPONSE_MESSAGES.AUTH.TOKEN_INVALID,
         ERROR_CODES.AUTH_REFRESH_TOKEN_INVALID,
       );
     }
 
-    const knownSchema = decoded?.schema || null;
+    if (!payload?.jti) {
+      this.handleError.unauthorized(
+        RESPONSE_MESSAGES.AUTH.TOKEN_INVALID,
+        ERROR_CODES.AUTH_REFRESH_TOKEN_INVALID,
+      );
+    }
+
+    const knownSchema = payload.schema || null;
 
     // 2. Buscar sesión por JTI (identificador único del token)
-    const session = await this.authRepository.findByTokenJti(decoded.jti);
+    const session = await this.authRepository.findByTokenJti(payload.jti);
 
     if (!session) {
+      this.handleError.unauthorized(
+        RESPONSE_MESSAGES.AUTH.TOKEN_INVALID,
+        ERROR_CODES.AUTH_REFRESH_TOKEN_INVALID,
+      );
+    }
+
+    // 2.1 Validar hash del token para prevenir suplantación por JTI
+    const hashedToken = this.hashToken(dto.refreshToken);
+    if (session.refresh_token !== hashedToken) {
+      await this.authRepository.revokeSession(session.id, 'Refresh token mismatch');
       this.handleError.unauthorized(
         RESPONSE_MESSAGES.AUTH.TOKEN_INVALID,
         ERROR_CODES.AUTH_REFRESH_TOKEN_INVALID,
@@ -413,6 +439,8 @@ export class AuthService {
 
     // 3. Revocar la sesión
     await this.authRepository.revokeSession(session.id, 'User logout');
+    await this.invalidateUserAuthCache(userId);
+    await this.markUserTokensRevoked(userId);
 
     this.logger.log(`User logged out: ${userId}`);
 
@@ -430,6 +458,7 @@ export class AuthService {
 
     // ✅ FASE 1: Invalidar cache de autenticación
     await this.invalidateUserAuthCache(userId);
+    await this.markUserTokensRevoked(userId);
 
     this.logger.log(`All sessions logged out for user: ${userId} (${revokedCount} sessions)`);
 
@@ -474,6 +503,7 @@ export class AuthService {
 
     // ✅ FASE 1: Invalidar cache de autenticación
     await this.invalidateUserAuthCache(userId);
+    await this.markUserTokensRevoked(userId);
 
     this.logger.log(`Password changed for user: ${userId}`);
 
@@ -610,6 +640,7 @@ export class AuthService {
 
     // ✅ FASE 1: Invalidar cache de autenticación
     await this.invalidateUserAuthCache(payload.userId);
+    await this.markUserTokensRevoked(payload.userId);
 
     this.logger.log(`Password reset for user: ${payload.userId}`);
 
@@ -647,18 +678,24 @@ export class AuthService {
       this.handleError.forbidden('No tienes permiso para revocar esta sesión');
     }
 
-    return await this.authRepository.revokeSession(sessionId, 'Revoked by user');
+    const revoked = await this.authRepository.revokeSession(sessionId, 'Revoked by user');
+    await this.invalidateUserAuthCache(userId);
+    await this.markUserTokensRevoked(userId);
+    return revoked;
   }
 
   /**
    * Revocar todas las sesiones excepto la actual
    */
   async revokeOtherSessions(userId: string, currentSessionId: string): Promise<number> {
-    return await this.authRepository.revokeOtherSessions(
+    const revokedCount = await this.authRepository.revokeOtherSessions(
       userId,
       currentSessionId,
       'Other sessions revoked',
     );
+    await this.invalidateUserAuthCache(userId);
+    await this.markUserTokensRevoked(userId);
+    return revokedCount;
   }
 
   // ============================================
@@ -722,6 +759,7 @@ export class AuthService {
       this.jwtService.signAsync(
         { ...payload, jti },
         {
+          secret: this.configService.get<string>('jwt.refreshSecret'),
           expiresIn: refreshTokenExpiresIn,
         },
       ),
@@ -752,7 +790,7 @@ export class AuthService {
   ): Promise<SessionEntity> {
     const expiresAt = new Date(Date.now() + refreshTokenExpiresIn * 1000);
 
-    return await this.authRepository.createSession({
+    const createdSession = await this.authRepository.createSession({
       user_id: userId,
       refresh_token: this.hashToken(refreshToken),
       refresh_token_family: refreshTokenFamily || this.utils.generateId(),
@@ -764,6 +802,11 @@ export class AuthService {
       location: location || null,
       is_active: true,
     });
+
+    // Evitar crecimiento infinito de sesiones activas por usuario.
+    await this.enforceMaxActiveSessions(userId);
+
+    return createdSession;
   }
 
   /**
@@ -839,6 +882,48 @@ export class AuthService {
       expiresAt: session.expires_at,
       isCurrent: false, // El controller determinará cuál es la actual
     };
+  }
+
+  /**
+   * Revoca sesiones antiguas si el usuario supera el máximo permitido.
+   */
+  private async enforceMaxActiveSessions(userId: string): Promise<void> {
+    const rawLimit = this.configService.get<string>('AUTH_MAX_ACTIVE_SESSIONS');
+    const parsed = rawLimit ? parseInt(rawLimit, 10) : NaN;
+    const maxActiveSessions =
+      Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_MAX_ACTIVE_SESSIONS;
+
+    const activeSessions = await this.authRepository.findActiveByUserId(userId);
+    if (activeSessions.length <= maxActiveSessions) {
+      return;
+    }
+
+    const sessionsToRevoke = activeSessions.slice(maxActiveSessions).map((session) => session.id);
+    const revokedCount = await this.authRepository.revokeSessionsByIds(
+      sessionsToRevoke,
+      `Session limit exceeded (max ${maxActiveSessions})`,
+    );
+
+    if (revokedCount > 0) {
+      this.logger.warn(
+        `Revoked ${revokedCount} old active sessions for user ${userId} (limit ${maxActiveSessions})`,
+      );
+    }
+  }
+
+  // ============================================
+  // TOKEN REVOCATION
+  // ============================================
+
+  /**
+   * Marca un timestamp de revocación en Redis para invalidar access tokens existentes.
+   * JwtStrategy verifica este timestamp antes de servir cache.
+   * TTL = lifetime del access token (tokens emitidos antes de la revocación serán rechazados).
+   */
+  private async markUserTokensRevoked(userId: string): Promise<void> {
+    const key = this.redisService.buildKey(REVOKED_AT_PREFIX, userId);
+    const accessTokenTtl = this.configService.get<number>('jwt.expiresIn') || 900;
+    await this.redisService.set(key, Math.floor(Date.now() / 1000).toString(), { ttl: accessTokenTtl });
   }
 
   // ============================================

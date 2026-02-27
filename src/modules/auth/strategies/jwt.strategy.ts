@@ -37,6 +37,9 @@ const SESSION_CACHE_TTL = 3300;
 /** Prefijo para claves de cache de sesión */
 const SESSION_CACHE_PREFIX = 'session';
 
+/** Prefijo para timestamp de revocación por usuario (revocación instantánea) */
+const REVOKED_AT_PREFIX = 'auth:revoked_at';
+
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
@@ -85,6 +88,17 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     }
 
     const cacheKey = `${SESSION_CACHE_PREFIX}:${payload.schema}:user:${payload.sub}`;
+
+    // ✅ Verificar si los tokens del usuario fueron revocados
+    const revokedAtKey = this.redisService.buildKey(REVOKED_AT_PREFIX, payload.sub);
+    const revokedAt = await this.redisService.get(revokedAtKey);
+    if (revokedAt && payload.iat && payload.iat <= Number(revokedAt)) {
+      await this.redisService.del(cacheKey);
+      this.handleError.unauthorized(
+        RESPONSE_MESSAGES.AUTH.TOKEN_INVALID,
+        ERROR_CODES.AUTH_TOKEN_INVALID,
+      );
+    }
 
     // ✅ Intentar obtener del cache primero
     const cachedSession = await this.redisService.getJson<UserSessionDto>(cacheKey);

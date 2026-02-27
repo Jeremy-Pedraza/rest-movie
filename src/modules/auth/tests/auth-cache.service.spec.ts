@@ -30,6 +30,8 @@ import { UtilsService } from '@shared/utils';
 const mockRedisService = {
   buildKey: jest.fn((...parts) => parts.filter(Boolean).join(':')),
   buildPattern: jest.fn((...parts) => parts.filter(Boolean).join(':')),
+  get: jest.fn(),
+  set: jest.fn(),
   getJson: jest.fn(),
   setJson: jest.fn(),
   del: jest.fn(),
@@ -55,6 +57,10 @@ const mockUserService = {
 
 const mockAuthRepository = {
   findByRefreshToken: jest.fn(),
+  findByTokenJti: jest.fn(),
+  consumeSession: jest.fn(),
+  deactivateExpiredSessions: jest.fn(),
+  revokeSessionsByIds: jest.fn(),
   revokeSession: jest.fn(),
   revokeAllByUserId: jest.fn(),
   createSession: jest.fn(),
@@ -68,13 +74,18 @@ const mockAuthRepository = {
 const mockJwtService = {
   signAsync: jest.fn().mockResolvedValue('mock-token'),
   sign: jest.fn().mockReturnValue('mock-reset-token'),
-  verify: jest.fn(),
+  verify: jest.fn().mockReturnValue({
+    sub: 'user-123',
+    jti: 'mock-jti',
+    schema: 'tenant_test',
+  }),
 };
 
 const mockConfigService = {
   get: jest.fn((key: string) => {
     const config: Record<string, any> = {
       'jwt.secret': 'test-secret',
+      'jwt.refreshSecret': 'test-refresh-secret',
       'jwt.expiresIn': 3600,
       'jwt.refreshExpiresIn': 604800,
       'jwt.resetSecret': 'reset-secret',
@@ -117,6 +128,9 @@ const mockUtilsService = {
   },
   generateId: jest.fn().mockReturnValue('mock-uuid'),
   removeTimestamps: jest.fn((data) => data),
+  crypto: {
+    sha256: jest.fn((input) => `hashed-${input}`),
+  },
 };
 
 // ============================================
@@ -145,9 +159,14 @@ const mockUser = {
 const mockSession = {
   id: 'session-123',
   user_id: 'user-123',
-  refresh_token: 'valid-refresh-token',
+  refresh_token: 'hashed-valid-refresh-token',
+  refresh_token_family: 'family-123',
+  consumed_at: null,
   is_revoked: false,
   expires_at: new Date(Date.now() + 86400000),
+  ip_address: '127.0.0.1',
+  user_agent: 'Mozilla/5.0',
+  location: null,
   isValid: jest.fn().mockReturnValue(true),
 };
 
@@ -187,6 +206,9 @@ describe('AuthService - Cache Integration', () => {
       mockUserService.findByEmailWithPassword.mockResolvedValue(mockUser);
       mockUserService.findById.mockResolvedValue(mockUser);
       mockAuthRepository.createSession.mockResolvedValue(mockSession);
+
+      mockAuthRepository.findActiveByUserId.mockResolvedValue([]);
+      mockAuthRepository.revokeSessionsByIds.mockResolvedValue(0);
     });
 
     it('should fetch from DB and cache on first login (cache miss)', async () => {
@@ -245,8 +267,12 @@ describe('AuthService - Cache Integration', () => {
 
   describe('refreshToken() - Cache behavior', () => {
     beforeEach(() => {
-      mockAuthRepository.findByRefreshToken.mockResolvedValue(mockSession);
-      mockAuthRepository.updateRefreshToken.mockResolvedValue(true);
+      mockAuthRepository.findByTokenJti.mockResolvedValue(mockSession);
+      mockAuthRepository.consumeSession.mockResolvedValue(true);
+      mockAuthRepository.createSession.mockResolvedValue(mockSession);
+
+      mockAuthRepository.findActiveByUserId.mockResolvedValue([]);
+      mockAuthRepository.revokeSessionsByIds.mockResolvedValue(0);
     });
 
     it('should fetch from DB and cache on cache miss', async () => {
@@ -297,7 +323,7 @@ describe('AuthService - Cache Integration', () => {
       await service.changePassword('user-123', {
         currentPassword: 'oldPassword',
         newPassword: 'newPassword123!',
-        confirmPassword: 'newPassword123!',
+        newPasswordConfirmation: 'newPassword123!',
       });
 
       // Assert: Cache should be invalidated

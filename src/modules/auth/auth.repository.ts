@@ -156,9 +156,9 @@ export class AuthRepository extends BaseRepository<SessionEntity> {
         revoked_reason: reason || 'Token reuse detected - family revoked',
         is_active: false,
       })
-      .where('session.refresh_token_family = :family', { family })
-      .andWhere('session.deleted_at IS NULL')
-      .andWhere('session.is_revoked = :is_revoked', { is_revoked: false })
+      .where('refresh_token_family = :family', { family })
+      .andWhere('deleted_at IS NULL')
+      .andWhere('is_revoked = :is_revoked', { is_revoked: false })
       .execute();
 
     return result.affected ?? 0;
@@ -341,15 +341,89 @@ export class AuthRepository extends BaseRepository<SessionEntity> {
    * CONSISTENCIA: Usa alias  como los SELECT
    */
   async deleteExpiredSessions(): Promise<number> {
+    const now = new Date();
+    const staleThreshold = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
     const result = await this.repository
       .createQueryBuilder() // ✅ SIN alias
       .delete()
       .from(SessionEntity) // ✅ Especificar entidad explícitamente
-      .where('expires_at < :now', { now: new Date() }) // ✅ SIN alias
+      .where('expires_at < :now', { now }) // ✅ SIN alias
       .orWhere('deleted_at IS NOT NULL') // ✅ SIN alias
+      .orWhere('(is_revoked = :is_revoked AND revoked_at < :stale_threshold)', {
+        is_revoked: true,
+        stale_threshold: staleThreshold,
+      })
+      .orWhere('consumed_at < :stale_threshold', {
+        stale_threshold: staleThreshold,
+      })
       .execute();
 
     return result.affected ?? 0;
+  }
+
+  /**
+   * Desactivar sesiones expiradas que aún figuran activas
+   */
+  async deactivateExpiredSessions(): Promise<number> {
+    const result = await this.repository
+      .createQueryBuilder()
+      .update()
+      .set({ is_active: false })
+      .where('deleted_at IS NULL')
+      .andWhere('is_active = :is_active', { is_active: true })
+      .andWhere('expires_at <= :now', { now: new Date() })
+      .execute();
+
+    return result.affected ?? 0;
+  }
+
+  /**
+   * Revocar sesiones por IDs para enforcement de límite por usuario
+   */
+  async revokeSessionsByIds(sessionIds: string[], reason?: string): Promise<number> {
+    if (sessionIds.length === 0) {
+      return 0;
+    }
+
+    const result = await this.repository
+      .createQueryBuilder()
+      .update()
+      .set({
+        is_revoked: true,
+        revoked_at: new Date(),
+        revoked_reason: reason || 'Session limit exceeded',
+        is_active: false,
+      })
+      .where('id IN (:...session_ids)', { session_ids: sessionIds })
+      .andWhere('deleted_at IS NULL')
+      .andWhere('is_revoked = :is_revoked', { is_revoked: false })
+      .execute();
+
+    return result.affected ?? 0;
+  }
+
+  /**
+   * Obtener usuarios que superan el límite de sesiones activas
+   */
+  async findUsersExceedingActiveSessions(maxActiveSessions: number): Promise<string[]> {
+    if (maxActiveSessions <= 0) {
+      return [];
+    }
+
+    const rows = await this.createStaticQueryBuilder('session')
+      .select('session.user_id', 'user_id')
+      .where('session.deleted_at IS NULL')
+      .andWhere('session.is_active = :is_active', { is_active: true })
+      .andWhere('session.is_revoked = :is_revoked', { is_revoked: false })
+      .andWhere('session.expires_at > :now', { now: new Date() })
+      .groupBy('session.user_id')
+      .having('COUNT(session.id) > :max_active_sessions', {
+        max_active_sessions: maxActiveSessions,
+      })
+      .getRawMany<{ user_id: string }>();
+
+    return rows.map((row) => row.user_id).filter(Boolean);
   }
 
   /**

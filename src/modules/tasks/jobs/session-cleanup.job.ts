@@ -17,6 +17,8 @@ import { LoggerService, LogContext } from '@modules/logger';
 import { IJobExecutionResult } from '../interfaces';
 import { CRON_EXPRESSIONS, DEFAULT_JOB_CONFIG, getEnvKey, JOB_NAMES } from '../tasks.constants';
 
+const DEFAULT_MAX_ACTIVE_SESSIONS = 5;
+
 @Injectable()
 export class SessionCleanupJob {
   private readonly logger = new Logger(SessionCleanupJob.name);
@@ -92,6 +94,8 @@ export class SessionCleanupJob {
 
     try {
       let deletedCount = 0;
+      let deactivatedExpiredCount = 0;
+      let autoRevokedByLimitCount = 0;
 
       if (dryRun) {
         // En modo dry-run, solo contamos las sesiones que serían eliminadas
@@ -99,9 +103,33 @@ export class SessionCleanupJob {
         deletedCount = stats.expired + stats.revoked;
         this.logger.log(`[${this.jobName}] [DRY-RUN] Se eliminarían ${deletedCount} sesiones`);
       } else {
-        // Ejecutar la limpieza real
+        // 1) Marcar expiradas como inactivas para evitar "activas fantasmas"
+        deactivatedExpiredCount = await this.authRepository.deactivateExpiredSessions();
+
+        // 2) Revocar exceso de sesiones activas por usuario (global)
+        const rawLimit = this.configService.get<string>('AUTH_MAX_ACTIVE_SESSIONS');
+        const parsed = rawLimit ? parseInt(rawLimit, 10) : NaN;
+        const maxActiveSessions =
+          Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_MAX_ACTIVE_SESSIONS;
+        const usersExceedingLimit =
+          await this.authRepository.findUsersExceedingActiveSessions(maxActiveSessions);
+
+        for (const userId of usersExceedingLimit) {
+          const activeSessions = await this.authRepository.findActiveByUserId(userId);
+          const sessionsToRevoke = activeSessions
+            .slice(maxActiveSessions)
+            .map((session) => session.id);
+          autoRevokedByLimitCount += await this.authRepository.revokeSessionsByIds(
+            sessionsToRevoke,
+            `Session limit exceeded (max ${maxActiveSessions})`,
+          );
+        }
+
+        // 3) Ejecutar la limpieza real
         deletedCount = await this.authRepository.deleteExpiredSessions();
-        this.logger.log(`[${this.jobName}] Eliminadas ${deletedCount} sesiones expiradas`);
+        this.logger.log(
+          `[${this.jobName}] Desactivadas ${deactivatedExpiredCount}, auto-revocadas ${autoRevokedByLimitCount} por límite y eliminadas ${deletedCount} sesiones stale`,
+        );
       }
 
       const duration = Date.now() - startTime;
@@ -110,14 +138,16 @@ export class SessionCleanupJob {
         success: true,
         message: dryRun
           ? `Dry-run: se eliminarían ${deletedCount} sesiones`
-          : `Eliminadas ${deletedCount} sesiones expiradas`,
+          : `Desactivadas ${deactivatedExpiredCount}, auto-revocadas ${autoRevokedByLimitCount} y eliminadas ${deletedCount} sesiones stale`,
         duration,
         metrics: {
-          affected: deletedCount,
-          processed: deletedCount,
+          affected: deletedCount + deactivatedExpiredCount + autoRevokedByLimitCount,
+          processed: deletedCount + deactivatedExpiredCount + autoRevokedByLimitCount,
         },
         data: {
           deletedCount,
+          deactivatedExpiredCount,
+          autoRevokedByLimitCount,
           dryRun,
         },
       };

@@ -120,7 +120,7 @@ export class ConsolidateReportsDto {
     description: 'Incluir desglose por tiendas en el consolidado',
     default: true,
   })
-  @Transform(({ value }) => toBoolean(value))
+  @Transform(toBoolean)
   @IsBoolean({ message: 'include_store_breakdown debe ser booleano' })
   @IsOptional()
   include_store_breakdown?: boolean;
@@ -129,7 +129,7 @@ export class ConsolidateReportsDto {
     description: 'Incluir desglose por días en el consolidado',
     default: false,
   })
-  @Transform(({ value }) => toBoolean(value))
+  @Transform(toBoolean)
   @IsBoolean({ message: 'include_daily_breakdown debe ser booleano' })
   @IsOptional()
   include_daily_breakdown?: boolean;
@@ -138,7 +138,7 @@ export class ConsolidateReportsDto {
     description: 'Incluir desglose por tipo de orden',
     default: true,
   })
-  @Transform(({ value }) => toBoolean(value))
+  @Transform(toBoolean)
   @IsBoolean({ message: 'include_order_type_breakdown debe ser booleano' })
   @IsOptional()
   include_order_type_breakdown?: boolean;
@@ -147,7 +147,7 @@ export class ConsolidateReportsDto {
     description: 'Incluir desglose por método de pago',
     default: true,
   })
-  @Transform(({ value }) => toBoolean(value))
+  @Transform(toBoolean)
   @IsBoolean({ message: 'include_payment_method_breakdown debe ser booleano' })
   @IsOptional()
   include_payment_method_breakdown?: boolean;
@@ -156,7 +156,7 @@ export class ConsolidateReportsDto {
     description: 'Calcular porcentajes y variaciones',
     default: true,
   })
-  @Transform(({ value }) => toBoolean(value))
+  @Transform(toBoolean)
   @IsBoolean({ message: 'calculate_percentages debe ser booleano' })
   @IsOptional()
   calculate_percentages?: boolean;
@@ -169,7 +169,7 @@ export class ConsolidateReportsDto {
     description: 'Incluir desglose por categoría de producto (v1.1.0)',
     default: false,
   })
-  @Transform(({ value }) => toBoolean(value))
+  @Transform(toBoolean)
   @IsBoolean({ message: 'include_category_breakdown debe ser booleano' })
   @IsOptional()
   include_category_breakdown?: boolean;
@@ -178,7 +178,7 @@ export class ConsolidateReportsDto {
     description: 'Incluir desglose por revenue center (v1.1.0)',
     default: false,
   })
-  @Transform(({ value }) => toBoolean(value))
+  @Transform(toBoolean)
   @IsBoolean({ message: 'include_revenue_center_breakdown debe ser booleano' })
   @IsOptional()
   include_revenue_center_breakdown?: boolean;
@@ -187,7 +187,7 @@ export class ConsolidateReportsDto {
     description: 'Incluir desglose por empleado (v1.1.0)',
     default: false,
   })
-  @Transform(({ value }) => toBoolean(value))
+  @Transform(toBoolean)
   @IsBoolean({ message: 'include_employee_breakdown debe ser booleano' })
   @IsOptional()
   include_employee_breakdown?: boolean;
@@ -196,7 +196,7 @@ export class ConsolidateReportsDto {
     description: 'Incluir desglose por tender type / método de pago detallado (v1.1.0)',
     default: false,
   })
-  @Transform(({ value }) => toBoolean(value))
+  @Transform(toBoolean)
   @IsBoolean({ message: 'include_tender_type_breakdown debe ser booleano' })
   @IsOptional()
   include_tender_type_breakdown?: boolean;

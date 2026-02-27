@@ -42,7 +42,7 @@ export class QueryUserDto extends PaginationDto {
     description: 'Filtrar por email verificado',
   })
   @IsOptional()
-  @Transform(({ value }) => toBoolean(value))
+  @Transform(toBoolean)
   @IsBoolean()
   emailVerified?: boolean;
 

@@ -122,7 +122,7 @@ export class QueryCompanyDto extends PaginationDto {
     description: 'Filtrar por estado activo',
     example: true,
   })
-  @Transform(({ value }) => toBoolean(value))
+  @Transform(toBoolean)
   @IsBoolean({ message: 'is_active debe ser un valor booleano' })
   @IsOptional()
   is_active?: boolean;

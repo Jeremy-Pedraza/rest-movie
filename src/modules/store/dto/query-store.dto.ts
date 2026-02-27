@@ -80,7 +80,7 @@ export class QueryStoreDto extends PaginationDto {
     description: 'Filtrar por estado activo',
     example: true,
   })
-  @Transform(({ value }) => toBoolean(value))
+  @Transform(toBoolean)
   @IsBoolean({ message: 'activo debe ser un valor booleano' })
   @IsOptional()
   activo?: boolean;
@@ -137,7 +137,7 @@ export class QueryStoreDto extends PaginationDto {
     description: 'Filtrar por servicio drive-thru',
     example: true,
   })
-  @Transform(({ value }) => toBoolean(value))
+  @Transform(toBoolean)
   @IsBoolean({ message: 'has_drive_thru debe ser un valor booleano' })
   @IsOptional()
   has_drive_thru?: boolean;
@@ -146,7 +146,7 @@ export class QueryStoreDto extends PaginationDto {
     description: 'Filtrar por servicio de delivery',
     example: true,
   })
-  @Transform(({ value }) => toBoolean(value))
+  @Transform(toBoolean)
   @IsBoolean({ message: 'has_delivery debe ser un valor booleano' })
   @IsOptional()
   has_delivery?: boolean;

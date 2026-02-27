@@ -40,7 +40,7 @@ export class QueryParamsDto extends PaginationDto {
     example: true,
   })
   @IsOptional()
-  @Transform(({ value }) => toBoolean(value))
+  @Transform(toBoolean)
   @IsBoolean({ message: 'isActive debe ser verdadero o falso' })
   isActive?: boolean;
 
@@ -65,7 +65,7 @@ export class QueryParamsDto extends PaginationDto {
     example: false,
   })
   @IsOptional()
-  @Transform(({ value }) => toBoolean(value))
+  @Transform(toBoolean)
   @IsBoolean({ message: 'withDeleted debe ser verdadero o falso' })
   withDeleted?: boolean = false;
 }

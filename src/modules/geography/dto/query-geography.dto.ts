@@ -19,7 +19,7 @@ export class QueryCountriesDto {
     default: true,
   })
   @IsBoolean()
-  @Transform(({ value }) => toBoolean(value))
+  @Transform(toBoolean)
   @IsOptional()
   is_active?: boolean = true;
 
@@ -58,7 +58,7 @@ export class QueryDepartmentsDto {
     default: true,
   })
   @IsBoolean()
-  @Transform(({ value }) => toBoolean(value))
+  @Transform(toBoolean)
   @IsOptional()
   is_active?: boolean = true;
 
@@ -97,7 +97,7 @@ export class QueryCitiesDto {
     default: true,
   })
   @IsBoolean()
-  @Transform(({ value }) => toBoolean(value))
+  @Transform(toBoolean)
   @IsOptional()
   is_active?: boolean = true;
 
@@ -105,7 +105,7 @@ export class QueryCitiesDto {
     description: 'Filtrar solo capitales',
   })
   @IsBoolean()
-  @Transform(({ value }) => toBoolean(value))
+  @Transform(toBoolean)
   @IsOptional()
   is_capital?: boolean;
 

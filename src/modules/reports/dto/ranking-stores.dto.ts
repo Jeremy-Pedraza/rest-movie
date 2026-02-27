@@ -148,7 +148,7 @@ export class RankingStoresDto {
     description: 'Solo incluir tiendas activas',
     default: true,
   })
-  @Transform(({ value }) => toBoolean(value))
+  @Transform(toBoolean)
   @IsBoolean({ message: 'only_active debe ser booleano' })
   @IsOptional()
   only_active?: boolean;
@@ -161,7 +161,7 @@ export class RankingStoresDto {
     description: 'Incluir datos de la tienda (nombre, código, etc.)',
     default: true,
   })
-  @Transform(({ value }) => toBoolean(value))
+  @Transform(toBoolean)
   @IsBoolean({ message: 'include_store_info debe ser booleano' })
   @IsOptional()
   include_store_info?: boolean;
@@ -170,7 +170,7 @@ export class RankingStoresDto {
     description: 'Incluir datos de la compañía',
     default: false,
   })
-  @Transform(({ value }) => toBoolean(value))
+  @Transform(toBoolean)
   @IsBoolean({ message: 'include_company_info debe ser booleano' })
   @IsOptional()
   include_company_info?: boolean;
@@ -179,7 +179,7 @@ export class RankingStoresDto {
     description: 'Calcular variación vs período anterior',
     default: false,
   })
-  @Transform(({ value }) => toBoolean(value))
+  @Transform(toBoolean)
   @IsBoolean({ message: 'calculate_variation debe ser booleano' })
   @IsOptional()
   calculate_variation?: boolean;
@@ -188,7 +188,7 @@ export class RankingStoresDto {
     description: 'Incluir posición anterior en el ranking',
     default: false,
   })
-  @Transform(({ value }) => toBoolean(value))
+  @Transform(toBoolean)
   @IsBoolean({ message: 'include_previous_position debe ser booleano' })
   @IsOptional()
   include_previous_position?: boolean;
@@ -297,7 +297,7 @@ export class RankingCompaniesDto {
     description: 'Incluir desglose por tiendas',
     default: false,
   })
-  @Transform(({ value }) => toBoolean(value))
+  @Transform(toBoolean)
   @IsBoolean()
   @IsOptional()
   include_stores_breakdown?: boolean;

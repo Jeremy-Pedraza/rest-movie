@@ -14,6 +14,7 @@ import {
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { PaginationDto } from '@shared/common';
+import { toBoolean } from '@shared/utils';
 import { ReportTypeEnum } from '../enums';
 import { ReportStatusEnum } from './create-report.dto';
 
@@ -138,7 +139,7 @@ export class QueryReportDto extends PaginationDto {
       'NOTA: Se ignora si se especifica employee_id.',
     example: true,
   })
-  @Transform(({ value }) => value === 'true' || value === true)
+  @Transform(({ value }) => toBoolean(value))
   @IsBoolean({ message: 'consolidated debe ser booleano' })
   @IsOptional()
   consolidated?: boolean;
@@ -233,7 +234,7 @@ export class QueryReportDto extends PaginationDto {
     description: 'Incluir datos de ventas por tipo de orden',
     default: false,
   })
-  @Transform(({ value }) => value === 'true' || value === true)
+  @Transform(({ value }) => toBoolean(value))
   @IsBoolean({ message: 'include_sales_by_order_type debe ser booleano' })
   @IsOptional()
   include_sales_by_order_type?: boolean;
@@ -242,7 +243,7 @@ export class QueryReportDto extends PaginationDto {
     description: 'Incluir datos de métodos de pago',
     default: false,
   })
-  @Transform(({ value }) => value === 'true' || value === true)
+  @Transform(({ value }) => toBoolean(value))
   @IsBoolean({ message: 'include_payment_methods debe ser booleano' })
   @IsOptional()
   include_payment_methods?: boolean;
@@ -251,7 +252,7 @@ export class QueryReportDto extends PaginationDto {
     description: 'Incluir datos de descuentos',
     default: false,
   })
-  @Transform(({ value }) => value === 'true' || value === true)
+  @Transform(({ value }) => toBoolean(value))
   @IsBoolean({ message: 'include_discounts debe ser booleano' })
   @IsOptional()
   include_discounts?: boolean;
@@ -260,7 +261,7 @@ export class QueryReportDto extends PaginationDto {
     description: 'Incluir datos de ajustes',
     default: false,
   })
-  @Transform(({ value }) => value === 'true' || value === true)
+  @Transform(({ value }) => toBoolean(value))
   @IsBoolean({ message: 'include_adjustments debe ser booleano' })
   @IsOptional()
   include_adjustments?: boolean;
@@ -269,7 +270,7 @@ export class QueryReportDto extends PaginationDto {
     description: 'Incluir detalle de órdenes efectivas',
     default: false,
   })
-  @Transform(({ value }) => value === 'true' || value === true)
+  @Transform(({ value }) => toBoolean(value))
   @IsBoolean({ message: 'include_effective_orders debe ser booleano' })
   @IsOptional()
   include_effective_orders?: boolean;
@@ -278,7 +279,7 @@ export class QueryReportDto extends PaginationDto {
     description: 'Incluir información de la tienda',
     default: false,
   })
-  @Transform(({ value }) => value === 'true' || value === true)
+  @Transform(({ value }) => toBoolean(value))
   @IsBoolean({ message: 'include_store debe ser booleano' })
   @IsOptional()
   include_store?: boolean;
@@ -287,7 +288,7 @@ export class QueryReportDto extends PaginationDto {
     description: 'Incluir todos los detalles relacionados',
     default: false,
   })
-  @Transform(({ value }) => value === 'true' || value === true)
+  @Transform(({ value }) => toBoolean(value))
   @IsBoolean({ message: 'include_all debe ser booleano' })
   @IsOptional()
   include_all?: boolean;

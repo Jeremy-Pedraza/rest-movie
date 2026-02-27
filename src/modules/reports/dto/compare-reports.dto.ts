@@ -13,6 +13,7 @@ import {
   ArrayMaxSize,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
+import { toBoolean } from '@shared/utils';
 import { ReportTypeEnum, ConsolidationLevelEnum } from '../enums';
 
 /**
@@ -161,7 +162,7 @@ export class CompareReportsDto {
     description: 'Calcular diferencias absolutas',
     default: true,
   })
-  @Transform(({ value }) => value === 'true' || value === true)
+  @Transform(({ value }) => toBoolean(value))
   @IsBoolean({ message: 'calculate_differences debe ser booleano' })
   @IsOptional()
   calculate_differences?: boolean;
@@ -170,7 +171,7 @@ export class CompareReportsDto {
     description: 'Calcular diferencias porcentuales',
     default: true,
   })
-  @Transform(({ value }) => value === 'true' || value === true)
+  @Transform(({ value }) => toBoolean(value))
   @IsBoolean({ message: 'calculate_percentages debe ser booleano' })
   @IsOptional()
   calculate_percentages?: boolean;
@@ -179,7 +180,7 @@ export class CompareReportsDto {
     description: 'Incluir desglose por tipo de orden en la comparación',
     default: false,
   })
-  @Transform(({ value }) => value === 'true' || value === true)
+  @Transform(({ value }) => toBoolean(value))
   @IsBoolean({ message: 'include_order_type_comparison debe ser booleano' })
   @IsOptional()
   include_order_type_comparison?: boolean;
@@ -188,7 +189,7 @@ export class CompareReportsDto {
     description: 'Incluir desglose por método de pago en la comparación',
     default: false,
   })
-  @Transform(({ value }) => value === 'true' || value === true)
+  @Transform(({ value }) => toBoolean(value))
   @IsBoolean({ message: 'include_payment_method_comparison debe ser booleano' })
   @IsOptional()
   include_payment_method_comparison?: boolean;
@@ -197,7 +198,7 @@ export class CompareReportsDto {
     description: 'Incluir gráficos y tendencias',
     default: true,
   })
-  @Transform(({ value }) => value === 'true' || value === true)
+  @Transform(({ value }) => toBoolean(value))
   @IsBoolean({ message: 'include_trends debe ser booleano' })
   @IsOptional()
   include_trends?: boolean;

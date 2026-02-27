@@ -9,6 +9,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString, IsEnum, IsBoolean, IsDateString, IsIn } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { PaginationDto, SortOrder } from '@shared/common';
+import { toBoolean } from '@shared/utils';
 
 import { UserStatus } from '../entities/user.entity';
 
@@ -41,7 +42,7 @@ export class QueryUserDto extends PaginationDto {
     description: 'Filtrar por email verificado',
   })
   @IsOptional()
-  @Transform(({ value }) => value === 'true' || value === true)
+  @Transform(({ value }) => toBoolean(value))
   @IsBoolean()
   emailVerified?: boolean;
 

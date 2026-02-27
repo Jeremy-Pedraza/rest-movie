@@ -8,6 +8,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString, IsBoolean, IsUUID, MaxLength, MinLength } from 'class-validator';
 import { Transform } from 'class-transformer';
+import { toBoolean } from '@shared/utils';
 
 /**
  * DTO para consultar países
@@ -18,7 +19,7 @@ export class QueryCountriesDto {
     default: true,
   })
   @IsBoolean()
-  @Transform(({ value }) => value === 'true' || value === true)
+  @Transform(({ value }) => toBoolean(value))
   @IsOptional()
   is_active?: boolean = true;
 
@@ -57,7 +58,7 @@ export class QueryDepartmentsDto {
     default: true,
   })
   @IsBoolean()
-  @Transform(({ value }) => value === 'true' || value === true)
+  @Transform(({ value }) => toBoolean(value))
   @IsOptional()
   is_active?: boolean = true;
 
@@ -96,7 +97,7 @@ export class QueryCitiesDto {
     default: true,
   })
   @IsBoolean()
-  @Transform(({ value }) => value === 'true' || value === true)
+  @Transform(({ value }) => toBoolean(value))
   @IsOptional()
   is_active?: boolean = true;
 
@@ -104,7 +105,7 @@ export class QueryCitiesDto {
     description: 'Filtrar solo capitales',
   })
   @IsBoolean()
-  @Transform(({ value }) => value === 'true' || value === true)
+  @Transform(({ value }) => toBoolean(value))
   @IsOptional()
   is_capital?: boolean;
 

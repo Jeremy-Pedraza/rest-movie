@@ -4,6 +4,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsString, IsBoolean, IsEnum, IsOptional, Length, IsIn } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { PaginationDto, SortOrder } from '@shared/common';
+import { toBoolean } from '@shared/utils';
 import { VALID_COUNTRY_CODES, VALID_CURRENCY_CODES, VALID_TIMEZONES } from './create-company.dto';
 
 /**
@@ -121,7 +122,7 @@ export class QueryCompanyDto extends PaginationDto {
     description: 'Filtrar por estado activo',
     example: true,
   })
-  @Transform(({ value }) => value === 'true' || value === true)
+  @Transform(({ value }) => toBoolean(value))
   @IsBoolean({ message: 'is_active debe ser un valor booleano' })
   @IsOptional()
   is_active?: boolean;
@@ -148,7 +149,8 @@ export class QueryCompanyDto extends PaginationDto {
     message: 'sort_by debe ser: name, created_at, pais, ciudad, country_code o currency_code',
   })
   @IsOptional()
-  sort_by?: 'name' | 'created_at' | 'pais' | 'ciudad' | 'country_code' | 'currency_code' = undefined;
+  sort_by?: 'name' | 'created_at' | 'pais' | 'ciudad' | 'country_code' | 'currency_code' =
+    undefined;
 
   @ApiPropertyOptional({
     description: 'Alias legacy de sortOrder (deprecado)',

@@ -3,6 +3,7 @@ import { IsOptional, IsString, IsBoolean, IsDateString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { PaginationDto } from './pagination.dto';
+import { toBoolean } from '@shared/utils';
 
 /**
  * QueryParamsDto - DTO base para parámetros de consulta
@@ -39,11 +40,7 @@ export class QueryParamsDto extends PaginationDto {
     example: true,
   })
   @IsOptional()
-  @Transform(({ value }): boolean | undefined => {
-    if (value === 'true' || value === true) return true;
-    if (value === 'false' || value === false) return false;
-    return undefined;
-  })
+  @Transform(({ value }) => toBoolean(value))
   @IsBoolean({ message: 'isActive debe ser verdadero o falso' })
   isActive?: boolean;
 
@@ -68,7 +65,7 @@ export class QueryParamsDto extends PaginationDto {
     example: false,
   })
   @IsOptional()
-  @Transform(({ value }): boolean => value === 'true' || value === true)
+  @Transform(({ value }) => toBoolean(value))
   @IsBoolean({ message: 'withDeleted debe ser verdadero o falso' })
   withDeleted?: boolean = false;
 }

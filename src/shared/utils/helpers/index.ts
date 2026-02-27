@@ -212,3 +212,8 @@ export type { PasswordValidationResult, ValidationResult } from './validation.he
 // ROLE HELPERS
 // ============================================
 export { hasRole, hasAnyRole, hasAllRoles } from './role.helper';
+
+// ============================================
+// TRANSFORM HELPERS
+// ============================================
+export { toBoolean } from './transform.helper';

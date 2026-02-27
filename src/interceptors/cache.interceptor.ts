@@ -45,14 +45,7 @@ const DEFAULT_TTL = 60;
 const HTTP_CACHE_PREFIX = 'cache';
 
 /** Query params que NO deben incluirse en la cache key (tracking, timestamps, etc.) */
-const EXCLUDED_CACHE_PARAMS = new Set([
-  '_t',
-  '_',
-  'timestamp',
-  'nocache',
-  'cb',
-  'cache_bust',
-]);
+const EXCLUDED_CACHE_PARAMS = new Set(['_t', '_', 'timestamp', 'nocache', 'cb', 'cache_bust']);
 
 /** Estrategia de generación de cache key */
 export type CacheKeyStrategy =
@@ -255,4 +248,3 @@ export class CacheInterceptor implements NestInterceptor {
     });
   }
 }
-

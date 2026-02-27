@@ -852,7 +852,8 @@ const CR_STORE_DEFINITIONS: StoreSeedData[] = [
   {
     nombre: 'Taco Bell - Teatro Nacional',
     codigo: 'TB-CR-004',
-    direccion: 'Frente a la entrada de los museos del Banco Central, costado este de la Plaza de La Cultura',
+    direccion:
+      'Frente a la entrada de los museos del Banco Central, costado este de la Plaza de La Cultura',
     ciudad: 'San José',
     email: 'tb.teatronacional@tacobell.cr',
     telefono: '+506-2221-0004',
@@ -1092,7 +1093,8 @@ const CR_STORE_DEFINITIONS: StoreSeedData[] = [
   {
     nombre: 'Taco Bell - Granadilla',
     codigo: 'TB-CR-014',
-    direccion: 'Granadilla de Curridabat, Centro comercial Plaza del Barrio, detrás de Liceo Franco Costarricense',
+    direccion:
+      'Granadilla de Curridabat, Centro comercial Plaza del Barrio, detrás de Liceo Franco Costarricense',
     ciudad: 'Curridabat',
     email: 'tb.granadilla@tacobell.cr',
     telefono: '+506-2272-0014',
@@ -1140,7 +1142,8 @@ const CR_STORE_DEFINITIONS: StoreSeedData[] = [
   {
     nombre: 'Taco Bell - Triángulo',
     codigo: 'TB-CR-016',
-    direccion: 'Curridabat 50 metros al oeste de la antigua Casa de José Figueres, contiguo a AM/PM',
+    direccion:
+      'Curridabat 50 metros al oeste de la antigua Casa de José Figueres, contiguo a AM/PM',
     ciudad: 'Curridabat',
     email: 'tb.triangulo@tacobell.cr',
     telefono: '+506-2272-0016',
@@ -1188,7 +1191,8 @@ const CR_STORE_DEFINITIONS: StoreSeedData[] = [
   {
     nombre: 'Taco Bell - Plaza Expresso',
     codigo: 'TB-CR-018',
-    direccion: 'Centro Comercial Expreso Desamparados, Carretera a San Rafael Arriba de Desamparados',
+    direccion:
+      'Centro Comercial Expreso Desamparados, Carretera a San Rafael Arriba de Desamparados',
     ciudad: 'Desamparados',
     email: 'tb.plazaexpresso@tacobell.cr',
     telefono: '+506-2250-0018',
@@ -1236,7 +1240,8 @@ const CR_STORE_DEFINITIONS: StoreSeedData[] = [
   {
     nombre: 'Taco Bell - Zona Centro',
     codigo: 'TB-CR-020',
-    direccion: 'Centro comercial Zona Centro, San Rafael Abajo de Desamparados, 1.5 km al sur de Walmart San Sebastián',
+    direccion:
+      'Centro comercial Zona Centro, San Rafael Abajo de Desamparados, 1.5 km al sur de Walmart San Sebastián',
     ciudad: 'Desamparados',
     email: 'tb.zonacentro@tacobell.cr',
     telefono: '+506-2250-0020',
@@ -1382,7 +1387,8 @@ const CR_STORE_DEFINITIONS: StoreSeedData[] = [
   {
     nombre: 'Taco Bell - San Rafael de Alajuela',
     codigo: 'TB-CR-026',
-    direccion: 'Centro Comercial Piedras Blancas, frente al Banco Nacional de San Rafael de Alajuela',
+    direccion:
+      'Centro Comercial Piedras Blancas, frente al Banco Nacional de San Rafael de Alajuela',
     ciudad: 'Alajuela',
     email: 'tb.sanrafaelalaj@tacobell.cr',
     telefono: '+506-2441-0026',
@@ -1770,7 +1776,8 @@ const CR_STORE_DEFINITIONS: StoreSeedData[] = [
   {
     nombre: 'Taco Bell - Vizcaya',
     codigo: 'TB-CR-042',
-    direccion: 'Centro Comercial Plaza Vizcaya, 300 m al norte de la Escuela Estados Unidos, San Joaquín de Flores',
+    direccion:
+      'Centro Comercial Plaza Vizcaya, 300 m al norte de la Escuela Estados Unidos, San Joaquín de Flores',
     ciudad: 'San Joaquín de Flores',
     email: 'tb.vizcaya@tacobell.cr',
     telefono: '+506-2265-0042',
@@ -2115,7 +2122,13 @@ export async function seedStores(dataSource: DataSource): Promise<void> {
 
   if (tacoBellRD) {
     console.log('\n  -- Taco Bell República Dominicana (20 tiendas) --');
-    const rd = await seedStoresForCompany(storeRepo, cityRepo, tacoBellRD.id, STORE_DEFINITIONS, cityIdCache);
+    const rd = await seedStoresForCompany(
+      storeRepo,
+      cityRepo,
+      tacoBellRD.id,
+      STORE_DEFINITIONS,
+      cityIdCache,
+    );
     totalCreated += rd.created;
     totalUpdated += rd.updated;
   } else {
@@ -2129,7 +2142,13 @@ export async function seedStores(dataSource: DataSource): Promise<void> {
 
   if (tacoBellCR) {
     console.log('\n  -- Taco Bell Costa Rica (49 tiendas) --');
-    const cr = await seedStoresForCompany(storeRepo, cityRepo, tacoBellCR.id, CR_STORE_DEFINITIONS, cityIdCache);
+    const cr = await seedStoresForCompany(
+      storeRepo,
+      cityRepo,
+      tacoBellCR.id,
+      CR_STORE_DEFINITIONS,
+      cityIdCache,
+    );
     totalCreated += cr.created;
     totalUpdated += cr.updated;
   } else {
@@ -2144,5 +2163,3 @@ export async function seedStores(dataSource: DataSource): Promise<void> {
   console.log(`     Total en BD: ${totalStores}`);
   console.log('\n  ✅ Stores seeded successfully');
 }
-
-

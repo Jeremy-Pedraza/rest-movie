@@ -349,4 +349,3 @@ export class UserEntity extends BaseEntity {
     this.resetFailedAttempts();
   }
 }
-

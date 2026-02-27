@@ -349,7 +349,9 @@ export class CacheService implements OnModuleInit {
       this.handleError.forbidden('Flush de cache no permitido en este ambiente');
     }
 
-    this.logWarn(`Cache FLUSH ejecutado en ambiente: ${this.configService.get<string>('app.nodeEnv')}`);
+    this.logWarn(
+      `Cache FLUSH ejecutado en ambiente: ${this.configService.get<string>('app.nodeEnv')}`,
+    );
     await this.redis.flushDb();
     await this.initializeStats();
     this.logWarn('Cache FLUSH: All keys deleted');

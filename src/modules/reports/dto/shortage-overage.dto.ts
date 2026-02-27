@@ -1,14 +1,7 @@
 // src/modules/reports/dto/shortage-overage.dto.ts
 
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsNotEmpty,
-  IsNumber,
-  IsOptional,
-  IsString,
-  Length,
-  IsDateString,
-} from 'class-validator';
+import { IsNotEmpty, IsNumber, IsOptional, IsString, Length, IsDateString } from 'class-validator';
 
 /**
  * DTO para crear registro de faltante/sobrante de caja

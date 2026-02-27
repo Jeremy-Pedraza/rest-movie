@@ -12,12 +12,7 @@
  * @version 1.0.0
  */
 
-import {
-  Entity,
-  Column,
-  OneToMany,
-  Index,
-} from 'typeorm';
+import { Entity, Column, OneToMany, Index } from 'typeorm';
 import { BaseTimestampEntity } from '@shared/common';
 
 /**
@@ -43,7 +38,6 @@ import { BaseTimestampEntity } from '@shared/common';
  */
 @Entity({ name: 'geo_countries', schema: 'public' })
 export class GeoCountryEntity extends BaseTimestampEntity {
-
   // ============================================
   // CÓDIGOS ISO
   // ============================================
@@ -270,5 +264,4 @@ export class GeoCountryEntity extends BaseTimestampEntity {
    */
   @OneToMany('GeoDepartmentEntity', 'country')
   departments?: any[];
-
 }

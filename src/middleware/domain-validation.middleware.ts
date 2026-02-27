@@ -16,7 +16,14 @@
  * - Logging automático de rechazos
  */
 
-import { Injectable, NestMiddleware, ForbiddenException, Logger, Inject, Optional } from '@nestjs/common';
+import {
+  Injectable,
+  NestMiddleware,
+  ForbiddenException,
+  Logger,
+  Inject,
+  Optional,
+} from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { SecurityConfigService } from '@config/security';
 import { ERROR_CODES } from '@constants/error-codes.constant';
@@ -137,4 +144,3 @@ export class DomainValidationMiddleware implements NestMiddleware {
     });
   }
 }
-

@@ -68,11 +68,13 @@ export class AuthController {
     const explicit = this.getFirstHeaderValue(req.headers['x-location']);
     if (explicit) return explicit;
 
-    const city = this.getFirstHeaderValue(req.headers['x-vercel-ip-city'])
-      || this.getFirstHeaderValue(req.headers['cf-ipcity']);
+    const city =
+      this.getFirstHeaderValue(req.headers['x-vercel-ip-city']) ||
+      this.getFirstHeaderValue(req.headers['cf-ipcity']);
     const region = this.getFirstHeaderValue(req.headers['x-vercel-ip-country-region']);
-    const country = this.getFirstHeaderValue(req.headers['x-vercel-ip-country'])
-      || this.getFirstHeaderValue(req.headers['cf-ipcountry']);
+    const country =
+      this.getFirstHeaderValue(req.headers['x-vercel-ip-country']) ||
+      this.getFirstHeaderValue(req.headers['cf-ipcountry']);
 
     const parts = [city, region, country].filter(Boolean);
     return parts.length > 0 ? parts.join(', ') : undefined;

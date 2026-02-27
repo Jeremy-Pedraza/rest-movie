@@ -189,9 +189,7 @@ export class PushChannel extends NotificationChannelAbstract {
           error: errorMessage,
         });
 
-        this.logError(
-          `Failed to send push to token ${token.substring(0, 10)}...: ${errorMessage}`,
-        );
+        this.logError(`Failed to send push to token ${token.substring(0, 10)}...: ${errorMessage}`);
       }
     });
 
@@ -436,4 +434,3 @@ export class PushChannel extends NotificationChannelAbstract {
     }
   }
 }
-

@@ -10,13 +10,7 @@
  * @version 1.0.0
  */
 
-import {
-  Entity,
-  Column,
-  ManyToOne,
-  JoinColumn,
-  Index,
-} from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { BaseTimestampEntity } from '@shared/common';
 import type { GeoDepartmentEntity } from './department.entity';
 
@@ -40,7 +34,6 @@ import type { GeoDepartmentEntity } from './department.entity';
 @Entity({ name: 'geo_cities', schema: 'public' })
 @Index(['department_id', 'name'], { unique: true })
 export class GeoCityEntity extends BaseTimestampEntity {
-
   /**
    * ID del departamento al que pertenece
    */
@@ -213,5 +206,4 @@ export class GeoCityEntity extends BaseTimestampEntity {
   })
   @JoinColumn({ name: 'department_id' })
   department?: GeoDepartmentEntity;
-
 }

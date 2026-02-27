@@ -73,7 +73,11 @@ export class AddReportV110Tables1738800000000 implements MigrationInterface {
     // ============================================
     // TABLA: report_cash_summary
     // ============================================
-    await this.createTableIfNotExists(queryRunner, schema, 'report_cash_summary', `
+    await this.createTableIfNotExists(
+      queryRunner,
+      schema,
+      'report_cash_summary',
+      `
       "id" uuid NOT NULL DEFAULT gen_random_uuid(),
       "report_header_id" uuid NOT NULL,
       "tender_name" varchar(100) NOT NULL,
@@ -81,14 +85,24 @@ export class AddReportV110Tables1738800000000 implements MigrationInterface {
       "total_amount" decimal(12,2) NOT NULL DEFAULT 0,
       "created_at" timestamptz NOT NULL DEFAULT now(),
       CONSTRAINT "pk_${schema}_report_cash_summary" PRIMARY KEY ("id")
-    `);
-    await this.createIndexIfNotExists(queryRunner, schema, 'report_cash_summary', 'report_header_id');
+    `,
+    );
+    await this.createIndexIfNotExists(
+      queryRunner,
+      schema,
+      'report_cash_summary',
+      'report_header_id',
+    );
     await this.createFkIfNotExists(queryRunner, schema, 'report_cash_summary');
 
     // ============================================
     // TABLA: report_employee_sales
     // ============================================
-    await this.createTableIfNotExists(queryRunner, schema, 'report_employee_sales', `
+    await this.createTableIfNotExists(
+      queryRunner,
+      schema,
+      'report_employee_sales',
+      `
       "id" uuid NOT NULL DEFAULT gen_random_uuid(),
       "report_header_id" uuid NOT NULL,
       "employee_id" integer NOT NULL,
@@ -100,15 +114,25 @@ export class AddReportV110Tables1738800000000 implements MigrationInterface {
       "average_ticket" decimal(12,2) NOT NULL DEFAULT 0,
       "created_at" timestamptz NOT NULL DEFAULT now(),
       CONSTRAINT "pk_${schema}_report_employee_sales" PRIMARY KEY ("id")
-    `);
-    await this.createIndexIfNotExists(queryRunner, schema, 'report_employee_sales', 'report_header_id');
+    `,
+    );
+    await this.createIndexIfNotExists(
+      queryRunner,
+      schema,
+      'report_employee_sales',
+      'report_header_id',
+    );
     await this.createIndexIfNotExists(queryRunner, schema, 'report_employee_sales', 'employee_id');
     await this.createFkIfNotExists(queryRunner, schema, 'report_employee_sales');
 
     // ============================================
     // TABLA: report_category_sales
     // ============================================
-    await this.createTableIfNotExists(queryRunner, schema, 'report_category_sales', `
+    await this.createTableIfNotExists(
+      queryRunner,
+      schema,
+      'report_category_sales',
+      `
       "id" uuid NOT NULL DEFAULT gen_random_uuid(),
       "report_header_id" uuid NOT NULL,
       "category_id" integer NOT NULL,
@@ -117,15 +141,25 @@ export class AddReportV110Tables1738800000000 implements MigrationInterface {
       "total_sales" decimal(12,2) NOT NULL DEFAULT 0,
       "created_at" timestamptz NOT NULL DEFAULT now(),
       CONSTRAINT "pk_${schema}_report_category_sales" PRIMARY KEY ("id")
-    `);
-    await this.createIndexIfNotExists(queryRunner, schema, 'report_category_sales', 'report_header_id');
+    `,
+    );
+    await this.createIndexIfNotExists(
+      queryRunner,
+      schema,
+      'report_category_sales',
+      'report_header_id',
+    );
     await this.createIndexIfNotExists(queryRunner, schema, 'report_category_sales', 'category_id');
     await this.createFkIfNotExists(queryRunner, schema, 'report_category_sales');
 
     // ============================================
     // TABLA: report_revenue_center_sales
     // ============================================
-    await this.createTableIfNotExists(queryRunner, schema, 'report_revenue_center_sales', `
+    await this.createTableIfNotExists(
+      queryRunner,
+      schema,
+      'report_revenue_center_sales',
+      `
       "id" uuid NOT NULL DEFAULT gen_random_uuid(),
       "report_header_id" uuid NOT NULL,
       "revenue_center_id" integer NOT NULL,
@@ -135,15 +169,30 @@ export class AddReportV110Tables1738800000000 implements MigrationInterface {
       "average_ticket" decimal(12,2) NOT NULL DEFAULT 0,
       "created_at" timestamptz NOT NULL DEFAULT now(),
       CONSTRAINT "pk_${schema}_report_revenue_center_sales" PRIMARY KEY ("id")
-    `);
-    await this.createIndexIfNotExists(queryRunner, schema, 'report_revenue_center_sales', 'report_header_id');
-    await this.createIndexIfNotExists(queryRunner, schema, 'report_revenue_center_sales', 'revenue_center_id');
+    `,
+    );
+    await this.createIndexIfNotExists(
+      queryRunner,
+      schema,
+      'report_revenue_center_sales',
+      'report_header_id',
+    );
+    await this.createIndexIfNotExists(
+      queryRunner,
+      schema,
+      'report_revenue_center_sales',
+      'revenue_center_id',
+    );
     await this.createFkIfNotExists(queryRunner, schema, 'report_revenue_center_sales');
 
     // ============================================
     // TABLA: report_service_charges
     // ============================================
-    await this.createTableIfNotExists(queryRunner, schema, 'report_service_charges', `
+    await this.createTableIfNotExists(
+      queryRunner,
+      schema,
+      'report_service_charges',
+      `
       "id" uuid NOT NULL DEFAULT gen_random_uuid(),
       "report_header_id" uuid NOT NULL,
       "service_charge_name" varchar(200) NOT NULL,
@@ -151,14 +200,24 @@ export class AddReportV110Tables1738800000000 implements MigrationInterface {
       "total_amount" decimal(12,2) NOT NULL DEFAULT 0,
       "created_at" timestamptz NOT NULL DEFAULT now(),
       CONSTRAINT "pk_${schema}_report_service_charges" PRIMARY KEY ("id")
-    `);
-    await this.createIndexIfNotExists(queryRunner, schema, 'report_service_charges', 'report_header_id');
+    `,
+    );
+    await this.createIndexIfNotExists(
+      queryRunner,
+      schema,
+      'report_service_charges',
+      'report_header_id',
+    );
     await this.createFkIfNotExists(queryRunner, schema, 'report_service_charges');
 
     // ============================================
     // TABLA: report_income_by_class
     // ============================================
-    await this.createTableIfNotExists(queryRunner, schema, 'report_income_by_class', `
+    await this.createTableIfNotExists(
+      queryRunner,
+      schema,
+      'report_income_by_class',
+      `
       "id" uuid NOT NULL DEFAULT gen_random_uuid(),
       "report_header_id" uuid NOT NULL,
       "class_name" varchar(100) NOT NULL,
@@ -168,14 +227,24 @@ export class AddReportV110Tables1738800000000 implements MigrationInterface {
       "total_amount" decimal(12,2) NOT NULL DEFAULT 0,
       "created_at" timestamptz NOT NULL DEFAULT now(),
       CONSTRAINT "pk_${schema}_report_income_by_class" PRIMARY KEY ("id")
-    `);
-    await this.createIndexIfNotExists(queryRunner, schema, 'report_income_by_class', 'report_header_id');
+    `,
+    );
+    await this.createIndexIfNotExists(
+      queryRunner,
+      schema,
+      'report_income_by_class',
+      'report_header_id',
+    );
     await this.createFkIfNotExists(queryRunner, schema, 'report_income_by_class');
 
     // ============================================
     // TABLA: report_income_by_tender_type
     // ============================================
-    await this.createTableIfNotExists(queryRunner, schema, 'report_income_by_tender_type', `
+    await this.createTableIfNotExists(
+      queryRunner,
+      schema,
+      'report_income_by_tender_type',
+      `
       "id" uuid NOT NULL DEFAULT gen_random_uuid(),
       "report_header_id" uuid NOT NULL,
       "tender_type" varchar(100) NOT NULL,
@@ -184,8 +253,14 @@ export class AddReportV110Tables1738800000000 implements MigrationInterface {
       "total_amount" decimal(12,2) NOT NULL DEFAULT 0,
       "created_at" timestamptz NOT NULL DEFAULT now(),
       CONSTRAINT "pk_${schema}_report_income_by_tender_type" PRIMARY KEY ("id")
-    `);
-    await this.createIndexIfNotExists(queryRunner, schema, 'report_income_by_tender_type', 'report_header_id');
+    `,
+    );
+    await this.createIndexIfNotExists(
+      queryRunner,
+      schema,
+      'report_income_by_tender_type',
+      'report_header_id',
+    );
     await this.createFkIfNotExists(queryRunner, schema, 'report_income_by_tender_type');
 
     console.log(`  ✓ Schema ${schema}: v1.1.0 aplicada`);
@@ -273,11 +348,7 @@ export class AddReportV110Tables1738800000000 implements MigrationInterface {
     `);
   }
 
-  private async createFkIfNotExists(
-    qr: QueryRunner,
-    schema: string,
-    table: string,
-  ): Promise<void> {
+  private async createFkIfNotExists(qr: QueryRunner, schema: string, table: string): Promise<void> {
     const fkName = `fk_${schema}_${table}_report`;
     const exists = await qr.query(`
       SELECT 1 FROM information_schema.table_constraints

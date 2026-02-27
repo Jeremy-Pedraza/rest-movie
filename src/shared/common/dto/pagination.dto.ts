@@ -70,7 +70,9 @@ export class PaginationDto {
     example: 'created_at',
     deprecated: true,
   })
-  private readonly _sortByLegacyDoc?: string;
+  @IsOptional()
+  @IsString({ message: 'sort_by debe ser texto' })
+  sort_by?: string;
 
   @ApiPropertyOptional({
     description: 'Dirección del ordenamiento',
@@ -91,7 +93,9 @@ export class PaginationDto {
     example: 'DESC',
     deprecated: true,
   })
-  private readonly _sortOrderLegacyDoc?: SortOrder;
+  @IsOptional()
+  @IsEnum(SortOrder, { message: 'sort_order debe ser ASC o DESC' })
+  sort_order?: SortOrder;
 
   /**
    * Calcula el offset para la query SQL

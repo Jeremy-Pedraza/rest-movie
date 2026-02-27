@@ -156,9 +156,7 @@ export class TransactionService {
 
         // Solo reintentar errores transitorios de PostgreSQL
         if (!this.isTransientError(error)) {
-          this.logError(
-            `[${context}] Non-transient error, not retrying: ${lastError.message}`,
-          );
+          this.logError(`[${context}] Non-transient error, not retrying: ${lastError.message}`);
           throw lastError;
         }
 
@@ -286,9 +284,7 @@ export class TransactionService {
     return new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
         reject(
-          new TransactionTimeoutError(
-            `[${context}] Transaction timed out after ${timeoutMs}ms`,
-          ),
+          new TransactionTimeoutError(`[${context}] Transaction timed out after ${timeoutMs}ms`),
         );
       }, timeoutMs);
 
@@ -333,4 +329,3 @@ export class TransactionTimeoutError extends Error {
     this.name = 'TransactionTimeoutError';
   }
 }
-

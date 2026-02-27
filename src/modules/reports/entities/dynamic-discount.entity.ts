@@ -11,13 +11,7 @@
  * @version 3.0.0 - FASE 5: Soporte multi-tenant
  */
 
-import {
-  Entity,
-  Column,
-  Index,
-  ManyToOne,
-  JoinColumn,
-} from 'typeorm';
+import { Entity, Column, Index, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseReadOnlyEntity } from '@shared/common';
 import { ReportHeaderEntity } from './report-header.entity';
 
@@ -135,5 +129,4 @@ export class DynamicDiscountEntity extends BaseReadOnlyEntity {
   })
   @JoinColumn({ name: 'report_header_id' })
   report_header?: ReportHeaderEntity;
-
 }

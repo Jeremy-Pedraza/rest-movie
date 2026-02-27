@@ -120,10 +120,7 @@ export class EmailProcessor {
         completedAt: new Date().toISOString(),
       };
     } catch (error) {
-      this.logError(
-        `❌ [${job.id}] Error al enviar lote de emails: ${error.message}`,
-        error.stack,
-      );
+      this.logError(`❌ [${job.id}] Error al enviar lote de emails: ${error.message}`, error.stack);
       throw error;
     }
   }
@@ -209,4 +206,3 @@ export class EmailProcessor {
     });
   }
 }
-

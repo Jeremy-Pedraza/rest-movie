@@ -5,12 +5,7 @@
  * @module modules/user/entities
  */
 
-import {
-  Entity,
-  Column,
-  Index,
-  ManyToMany,
-} from 'typeorm';
+import { Entity, Column, Index, ManyToMany } from 'typeorm';
 import { BaseTimestampEntity } from '@shared/common';
 
 import { RoleEntity } from './role.entity';
@@ -19,7 +14,6 @@ import { RoleEntity } from './role.entity';
 @Index(['name'], { unique: true })
 @Index(['module', 'action'])
 export class PermissionEntity extends BaseTimestampEntity {
-
   /**
    * Nombre del permiso (único) - formato: module.action
    * @example 'users.create', 'users.read', 'users.update', 'users.delete'
@@ -65,5 +59,4 @@ export class PermissionEntity extends BaseTimestampEntity {
    */
   @ManyToMany(() => RoleEntity, (role) => role.permissions)
   roles: RoleEntity[];
-
 }

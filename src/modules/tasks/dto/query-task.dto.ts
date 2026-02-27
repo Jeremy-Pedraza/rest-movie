@@ -4,15 +4,7 @@
  */
 
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsOptional,
-  IsString,
-  IsInt,
-  IsEnum,
-  IsBoolean,
-  IsDateString,
-  Max,
-} from 'class-validator';
+import { IsOptional, IsString, IsInt, IsEnum, IsBoolean, IsDateString, Max } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { PaginationDto, SortOrder } from '@shared/common';
 import { JOB_STATUS, JobStatus } from '../tasks.constants';
@@ -196,4 +188,3 @@ export class RunTaskDto {
   @IsOptional()
   params?: Record<string, unknown>;
 }
-

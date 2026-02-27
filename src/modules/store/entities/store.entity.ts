@@ -446,5 +446,4 @@ export class StoreEntity extends BaseEntity {
     inverseJoinColumn: { name: 'user_id', referencedColumnName: 'id' },
   })
   assigned_users?: UserEntity[];
-
 }

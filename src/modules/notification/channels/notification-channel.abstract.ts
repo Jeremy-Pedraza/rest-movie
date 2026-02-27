@@ -93,9 +93,7 @@ export abstract class NotificationChannelAbstract implements INotificationChanne
    * @returns Estado de la notificación
    */
   getStatus(messageId: string): Promise<NotificationStatus> {
-    this.logWarn(
-      `getStatus() not implemented for ${this.name} channel. MessageId: ${messageId}`,
-    );
+    this.logWarn(`getStatus() not implemented for ${this.name} channel. MessageId: ${messageId}`);
     return Promise.resolve(NotificationStatus.SENT);
   }
 
@@ -273,7 +271,8 @@ export abstract class NotificationChannelAbstract implements INotificationChanne
   }
 
   protected logError(message: string, details?: unknown): void {
-    const stack = details instanceof Error ? details.stack : typeof details === 'string' ? details : undefined;
+    const stack =
+      details instanceof Error ? details.stack : typeof details === 'string' ? details : undefined;
     this.logger.error(message, stack);
     void this.loggerService?.error(message, {
       context: LogContext.EXTERNAL,
@@ -282,4 +281,3 @@ export abstract class NotificationChannelAbstract implements INotificationChanne
     });
   }
 }
-

@@ -78,7 +78,10 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   async validate(payload: IJwtPayload): Promise<UserSessionDto> {
     // Verificar que el payload tenga los campos requeridos
     if (!payload.sub || !payload.email) {
-      this.handleError.unauthorized(RESPONSE_MESSAGES.AUTH.TOKEN_INVALID, ERROR_CODES.AUTH_TOKEN_INVALID);
+      this.handleError.unauthorized(
+        RESPONSE_MESSAGES.AUTH.TOKEN_INVALID,
+        ERROR_CODES.AUTH_TOKEN_INVALID,
+      );
     }
 
     const cacheKey = `${SESSION_CACHE_PREFIX}:${payload.schema}:user:${payload.sub}`;
@@ -103,7 +106,10 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     const user = await this.userService.findByIdWithCompanyAndRoles(payload.sub);
 
     if (!user) {
-      this.handleError.unauthorized(RESPONSE_MESSAGES.AUTH.USER_NOT_FOUND, ERROR_CODES.AUTH_USER_NOT_FOUND);
+      this.handleError.unauthorized(
+        RESPONSE_MESSAGES.AUTH.USER_NOT_FOUND,
+        ERROR_CODES.AUTH_USER_NOT_FOUND,
+      );
     }
 
     // Validar estado del usuario

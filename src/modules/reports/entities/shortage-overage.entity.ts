@@ -11,13 +11,7 @@
  * @version 1.0.0
  */
 
-import {
-  Entity,
-  Column,
-  Index,
-  ManyToOne,
-  JoinColumn,
-} from 'typeorm';
+import { Entity, Column, Index, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseReadOnlyEntity } from '@shared/common';
 import { ReportHeaderEntity } from './report-header.entity';
 
@@ -218,5 +212,4 @@ export class ShortageOverageEntity extends BaseReadOnlyEntity {
   })
   @JoinColumn({ name: 'report_header_id' })
   report_header?: ReportHeaderEntity;
-
 }

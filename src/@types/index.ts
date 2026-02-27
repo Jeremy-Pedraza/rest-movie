@@ -3,11 +3,11 @@
 /**
  * @fileoverview Barrel export para tipos globales
  * @module @types
- * 
+ *
  * Este archivo exporta las referencias a los tipos globales del proyecto.
  * Los archivos .d.ts en este directorio se incluyen automáticamente
  * gracias a la configuración de typeRoots en tsconfig.json.
- * 
+ *
  * Archivos de declaración disponibles:
  * - express.d.ts - Extensiones para Express Request
  * - environment.d.ts - Variables de entorno tipadas

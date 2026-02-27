@@ -6,7 +6,16 @@
  */
 
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString, IsUUID, IsDateString, IsInt, IsIn, Max } from 'class-validator';
+import {
+  IsEnum,
+  IsOptional,
+  IsString,
+  IsUUID,
+  IsDateString,
+  IsInt,
+  IsIn,
+  Max,
+} from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { PaginationDto, SortOrder } from '@shared/common';
 
@@ -164,4 +173,3 @@ export class LogStatsQueryDto {
   @IsString()
   groupBy?: 'level' | 'context' | 'hour' | 'day' = 'level';
 }
-

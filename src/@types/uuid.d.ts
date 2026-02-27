@@ -3,7 +3,7 @@
 /**
  * Declaración de tipos para uuid v13+
  * Fallback en caso de que los tipos built-in no se detecten correctamente
- * 
+ *
  * uuid v13+ incluye sus propios tipos TypeScript, este archivo
  * existe solo como fallback para TypeScript.
  */
@@ -13,31 +13,57 @@ declare module 'uuid' {
    * Genera un UUID v1 (basado en timestamp)
    */
   export function v1(options?: V1Options, buffer?: ArrayLike<number>, offset?: number): string;
-  export function v1(options: V1Options | null | undefined, buffer: ArrayLike<number>, offset?: number): ArrayLike<number>;
+  export function v1(
+    options: V1Options | null | undefined,
+    buffer: ArrayLike<number>,
+    offset?: number,
+  ): ArrayLike<number>;
 
   /**
    * Genera un UUID v4 (aleatorio)
    */
   export function v4(options?: V4Options, buffer?: ArrayLike<number>, offset?: number): string;
-  export function v4(options: V4Options | null | undefined, buffer: ArrayLike<number>, offset?: number): ArrayLike<number>;
+  export function v4(
+    options: V4Options | null | undefined,
+    buffer: ArrayLike<number>,
+    offset?: number,
+  ): ArrayLike<number>;
 
   /**
    * Genera un UUID v5 (basado en namespace + name con SHA-1)
    */
-  export function v5(name: string | ArrayLike<number>, namespace: string | ArrayLike<number>, buffer?: ArrayLike<number>, offset?: number): string;
-  export function v5(name: string | ArrayLike<number>, namespace: string | ArrayLike<number>, buffer: ArrayLike<number>, offset?: number): ArrayLike<number>;
+  export function v5(
+    name: string | ArrayLike<number>,
+    namespace: string | ArrayLike<number>,
+    buffer?: ArrayLike<number>,
+    offset?: number,
+  ): string;
+  export function v5(
+    name: string | ArrayLike<number>,
+    namespace: string | ArrayLike<number>,
+    buffer: ArrayLike<number>,
+    offset?: number,
+  ): ArrayLike<number>;
 
   /**
    * Genera un UUID v6 (ordenable por timestamp)
    */
   export function v6(options?: V6Options, buffer?: ArrayLike<number>, offset?: number): string;
-  export function v6(options: V6Options | null | undefined, buffer: ArrayLike<number>, offset?: number): ArrayLike<number>;
+  export function v6(
+    options: V6Options | null | undefined,
+    buffer: ArrayLike<number>,
+    offset?: number,
+  ): ArrayLike<number>;
 
   /**
    * Genera un UUID v7 (ordenable por timestamp, basado en Unix epoch)
    */
   export function v7(options?: V7Options, buffer?: ArrayLike<number>, offset?: number): string;
-  export function v7(options: V7Options | null | undefined, buffer: ArrayLike<number>, offset?: number): ArrayLike<number>;
+  export function v7(
+    options: V7Options | null | undefined,
+    buffer: ArrayLike<number>,
+    offset?: number,
+  ): ArrayLike<number>;
 
   /**
    * Valida que un string sea un UUID válido

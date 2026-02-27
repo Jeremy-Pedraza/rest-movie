@@ -3,7 +3,7 @@
 /**
  * Declaración de tipos para bull
  * Fallback en caso de que @types/bull no esté disponible
- * 
+ *
  * El módulo @nestjs/bull ya incluye tipos para la mayoría de casos de uso.
  * Este archivo existe solo como fallback para TypeScript.
  */
@@ -106,19 +106,26 @@ declare module 'bull' {
     client: Redis;
     clients: Redis[];
     opts: QueueOptions;
-    
+
     add(data: T, opts?: JobOptions): Promise<Job<T>>;
     add(name: string, data: T, opts?: JobOptions): Promise<Job<T>>;
-    
+
     process(processor: ProcessPromiseFunction<T> | ProcessCallbackFunction<T>): void;
-    process(concurrency: number, processor: ProcessPromiseFunction<T> | ProcessCallbackFunction<T>): void;
+    process(
+      concurrency: number,
+      processor: ProcessPromiseFunction<T> | ProcessCallbackFunction<T>,
+    ): void;
     process(name: string, processor: ProcessPromiseFunction<T> | ProcessCallbackFunction<T>): void;
-    process(name: string, concurrency: number, processor: ProcessPromiseFunction<T> | ProcessCallbackFunction<T>): void;
-    
+    process(
+      name: string,
+      concurrency: number,
+      processor: ProcessPromiseFunction<T> | ProcessCallbackFunction<T>,
+    ): void;
+
     pause(isLocal?: boolean): Promise<void>;
     resume(isLocal?: boolean): Promise<void>;
     isPaused(isLocal?: boolean): Promise<boolean>;
-    
+
     count(): Promise<number>;
     empty(): Promise<void>;
     close(): Promise<void>;
@@ -129,18 +136,22 @@ declare module 'bull' {
     getFailedCount(): Promise<number>;
     getDelayedCount(): Promise<number>;
     getPausedCount(): Promise<number>;
-    
+
     getJob(jobId: string | number): Promise<Job<T> | null>;
     getJobs(types: string[], start?: number, end?: number, asc?: boolean): Promise<Job<T>[]>;
     getJobCounts(): Promise<JobCounts>;
-    getJobLogs(jobId: string, start?: number, end?: number): Promise<{ logs: string[]; count: number }>;
-    
+    getJobLogs(
+      jobId: string,
+      start?: number,
+      end?: number,
+    ): Promise<{ logs: string[]; count: number }>;
+
     getRepeatableJobs(start?: number, end?: number, asc?: boolean): Promise<RepeatableJob[]>;
     removeRepeatableByKey(key: string): Promise<void>;
-    
+
     clean(grace: number, status?: JobStatusClean, limit?: number): Promise<Job<T>[]>;
     obliterate(opts?: { force?: boolean }): Promise<void>;
-    
+
     on(event: 'error', callback: (error: Error) => void): this;
     on(event: 'waiting', callback: (jobId: string) => void): this;
     on(event: 'active', callback: (job: Job<T>, prev: string) => void): this;
@@ -158,7 +169,7 @@ declare module 'bull' {
   export type ProcessPromiseFunction<T> = (job: Job<T>) => Promise<unknown>;
   export type ProcessCallbackFunction<T> = (job: Job<T>, done: DoneCallback) => void;
   export type DoneCallback = (err?: Error | null, result?: unknown) => void;
-  
+
   export type JobStatus = 'completed' | 'waiting' | 'active' | 'delayed' | 'failed' | 'paused';
   export type JobStatusClean = 'completed' | 'wait' | 'active' | 'delayed' | 'failed' | 'paused';
 

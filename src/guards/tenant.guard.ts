@@ -9,7 +9,14 @@
  * y la establece en request.tenant
  */
 
-import { Injectable, CanActivate, ExecutionContext, Logger, Inject, Optional } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  Logger,
+  Inject,
+  Optional,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import { ERROR_CODES, RESPONSE_MESSAGES } from '@constants';
@@ -164,14 +171,13 @@ export class TenantGuard implements CanActivate {
           }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
-          this.logWarn(`Fail-closed: señal de tenant presente pero extracción falló: ${errorMessage}`);
+          this.logWarn(
+            `Fail-closed: señal de tenant presente pero extracción falló: ${errorMessage}`,
+          );
         }
 
         // Fail-closed: hay señal de tenant pero no se pudo resolver => 403
-        this.handleError.forbidden(
-          RESPONSE_MESSAGES.AUTH.FORBIDDEN,
-          ERROR_CODES.AUTH_FORBIDDEN,
-        );
+        this.handleError.forbidden(RESPONSE_MESSAGES.AUTH.FORBIDDEN, ERROR_CODES.AUTH_FORBIDDEN);
       }
 
       // Sin señal de tenant => fallback a public permitido
@@ -218,4 +224,3 @@ export class TenantGuard implements CanActivate {
     });
   }
 }
-

@@ -10,7 +10,9 @@ const envCandidates =
     ? ['api/.env.production', '.env.production', '.env']
     : [`.env.${process.env.NODE_ENV || 'development'}`, '.env'];
 
-const envFile = envCandidates.find((candidate) => fs.existsSync(path.resolve(process.cwd(), candidate)));
+const envFile = envCandidates.find((candidate) =>
+  fs.existsSync(path.resolve(process.cwd(), candidate)),
+);
 if (envFile) {
   config({ path: envFile });
 } else {

@@ -236,10 +236,7 @@ describe('AuthService - Cache Integration', () => {
       mockUserService.findByIdWithCompanyAndRoles.mockResolvedValue(mockUser);
 
       // Act
-      await service.login(
-        { email: 'test@example.com', password: 'password123' },
-        '127.0.0.1',
-      );
+      await service.login({ email: 'test@example.com', password: 'password123' }, '127.0.0.1');
 
       // Assert: buildKey should be called with correct format
       expect(redisService.buildKey).toHaveBeenCalledWith('auth', 'user', mockUser.id, 'full');
@@ -291,8 +288,9 @@ describe('AuthService - Cache Integration', () => {
 
       // Mock bcrypt compare - this is tricky in unit tests
       // We'll skip actual password validation for this test
-      jest.spyOn(require('bcryptjs'), 'compare')
-        .mockResolvedValueOnce(true)  // currentPassword valid
+      jest
+        .spyOn(require('bcryptjs'), 'compare')
+        .mockResolvedValueOnce(true) // currentPassword valid
         .mockResolvedValueOnce(false); // newPassword is different
 
       // Act
@@ -352,17 +350,12 @@ describe('AuthService - Cache Integration', () => {
       mockAuthRepository.createSession.mockResolvedValue(mockSession);
 
       // Act
-      await service.login(
-        { email: 'test@example.com', password: 'password123' },
-        '127.0.0.1',
-      );
+      await service.login({ email: 'test@example.com', password: 'password123' }, '127.0.0.1');
 
       // Assert: TTL should be 3300 seconds (55 minutes)
-      expect(redisService.setJson).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.any(Object),
-        { ttl: 3300 },
-      );
+      expect(redisService.setJson).toHaveBeenCalledWith(expect.any(String), expect.any(Object), {
+        ttl: 3300,
+      });
     });
   });
 });
@@ -383,4 +376,3 @@ describe('RedisService - buildKey and buildPattern', () => {
     expect(result).toBe('session:*:user:123');
   });
 });
-

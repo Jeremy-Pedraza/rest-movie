@@ -81,4 +81,3 @@ export class QueryUserDto extends PaginationDto {
   @IsEnum(SortOrder)
   sortOrder?: SortOrder = SortOrder.DESC;
 }
-

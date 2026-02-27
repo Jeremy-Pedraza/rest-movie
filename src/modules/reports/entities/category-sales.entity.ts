@@ -1,12 +1,6 @@
 // src/modules/reports/entities/category-sales.entity.ts
 
-import {
-  Entity,
-  Column,
-  Index,
-  ManyToOne,
-  JoinColumn,
-} from 'typeorm';
+import { Entity, Column, Index, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseReadOnlyEntity } from '@shared/common';
 import { ReportHeaderEntity } from './report-header.entity';
 
@@ -61,5 +55,4 @@ export class CategorySalesEntity extends BaseReadOnlyEntity {
   })
   @JoinColumn({ name: 'report_header_id' })
   report_header?: ReportHeaderEntity;
-
 }

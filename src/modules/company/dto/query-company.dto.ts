@@ -162,4 +162,3 @@ export class QueryCompanyDto extends PaginationDto {
   @IsOptional()
   sort_order?: 'ASC' | 'DESC';
 }
-

@@ -1,12 +1,6 @@
 // src/modules/reports/entities/revenue-center-sales.entity.ts
 
-import {
-  Entity,
-  Column,
-  Index,
-  ManyToOne,
-  JoinColumn,
-} from 'typeorm';
+import { Entity, Column, Index, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseReadOnlyEntity } from '@shared/common';
 import { ReportHeaderEntity } from './report-header.entity';
 
@@ -70,5 +64,4 @@ export class RevenueCenterSalesEntity extends BaseReadOnlyEntity {
   })
   @JoinColumn({ name: 'report_header_id' })
   report_header?: ReportHeaderEntity;
-
 }

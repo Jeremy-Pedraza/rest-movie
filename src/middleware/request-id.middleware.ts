@@ -14,8 +14,7 @@ export class RequestIdMiddleware implements NestMiddleware {
     const incoming = req.headers['x-request-id'] as string | undefined;
 
     // Validar formato/longitud del request-id entrante; regenerar si inválido
-    const requestId =
-      incoming && this.isValidRequestId(incoming) ? incoming : uuidv7();
+    const requestId = incoming && this.isValidRequestId(incoming) ? incoming : uuidv7();
 
     // Agregar al request
     req.requestId = requestId;

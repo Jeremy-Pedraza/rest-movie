@@ -13,14 +13,7 @@
  * @version 1.0.0
  */
 
-import {
-  Entity,
-  Column,
-  ManyToOne,
-  OneToMany,
-  JoinColumn,
-  Index,
-} from 'typeorm';
+import { Entity, Column, ManyToOne, OneToMany, JoinColumn, Index } from 'typeorm';
 import { BaseTimestampEntity } from '@shared/common';
 import type { GeoCountryEntity } from './country.entity';
 
@@ -43,7 +36,6 @@ import type { GeoCountryEntity } from './country.entity';
 @Entity({ name: 'geo_departments', schema: 'public' })
 @Index(['country_id', 'name'], { unique: true })
 export class GeoDepartmentEntity extends BaseTimestampEntity {
-
   /**
    * ID del país al que pertenece
    */
@@ -182,5 +174,4 @@ export class GeoDepartmentEntity extends BaseTimestampEntity {
    */
   @OneToMany('GeoCityEntity', 'department')
   cities?: any[];
-
 }

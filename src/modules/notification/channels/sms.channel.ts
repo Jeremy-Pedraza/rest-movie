@@ -86,10 +86,7 @@ export class SmsChannel extends NotificationChannelAbstract {
 
       this.logger.log('Twilio client initialized successfully');
     } catch (error) {
-      this.logError(
-        'Failed to initialize Twilio client. Using stub mode.',
-        (error as Error).stack,
-      );
+      this.logError('Failed to initialize Twilio client. Using stub mode.', (error as Error).stack);
       this.stubMode = true;
     }
   }
@@ -364,4 +361,3 @@ export class SmsChannel extends NotificationChannelAbstract {
     }
   }
 }
-

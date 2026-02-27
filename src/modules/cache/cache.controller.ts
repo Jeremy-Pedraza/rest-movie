@@ -17,13 +17,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiParam,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { ROLES } from '@constants/roles.constant';
 import { Roles } from '@decorators/roles.decorator';
@@ -177,7 +171,8 @@ export class CacheController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Limpiar todo el cache',
-    description: 'Elimina todas las keys del cache. Solo admin. Bloqueado en producción si CACHE_FLUSH_ENABLED != true.',
+    description:
+      'Elimina todas las keys del cache. Solo admin. Bloqueado en producción si CACHE_FLUSH_ENABLED != true.',
   })
   @ApiResponse({
     status: 200,
@@ -227,7 +222,8 @@ export class CacheController {
   @Roles(ROLES.ADMIN)
   @ApiOperation({
     summary: 'Listar keys del cache (paginado)',
-    description: 'Lista keys con paginación por cursor usando SCAN. Enviar cursor=0 para la primera página.',
+    description:
+      'Lista keys con paginación por cursor usando SCAN. Enviar cursor=0 para la primera página.',
   })
   @ApiResponse({
     status: 200,

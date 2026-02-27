@@ -88,7 +88,9 @@ export class AddPercentageFieldsToSalesByOrderType1738500000000 implements Migra
       `);
     }
 
-    console.log(`  ✓ Schema ${schemaName}: columnas net_percentage y quantity_percentage agregadas`);
+    console.log(
+      `  ✓ Schema ${schemaName}: columnas net_percentage y quantity_percentage agregadas`,
+    );
   }
 
   private async removeColumnsFromSchema(

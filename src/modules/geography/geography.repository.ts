@@ -8,12 +8,7 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
 import { GeoCountryEntity, GeoDepartmentEntity, GeoCityEntity } from './entities';
-import {
-  QueryCountriesDto,
-  QueryDepartmentsDto,
-  QueryCitiesDto,
-  SearchGeographyDto,
-} from './dto';
+import { QueryCountriesDto, QueryDepartmentsDto, QueryCitiesDto, SearchGeographyDto } from './dto';
 
 @Injectable()
 export class GeographyRepository {

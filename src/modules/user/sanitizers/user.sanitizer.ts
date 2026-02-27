@@ -61,4 +61,3 @@ export function sanitizeUserProfileDto(
     phone: dto.phone ? sanitizer.sanitizePhone(dto.phone) : undefined,
   };
 }
-

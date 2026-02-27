@@ -5,11 +5,11 @@ import { IsNotEmpty, IsNumber, IsOptional, Min, IsString, Length } from 'class-v
 
 /**
  * Tipos de orden disponibles (REFERENCIA)
- * 
+ *
  * @deprecated Este enum se mantiene solo como referencia de tipos comunes.
  * El API ahora acepta cualquier string para order_type, permitiendo valores
  * originales de Simphony como "Mesa VIP", "Domicilios Rappi", etc.
- * 
+ *
  * Valores históricos en la BD pueden seguir usando estos valores normalizados.
  */
 export enum OrderTypeEnum {
@@ -25,7 +25,7 @@ export enum OrderTypeEnum {
  * @description
  * Valida los campos para registrar ventas desglosadas por tipo de orden.
  * Usado dentro de CreateReportDto para el array sales_by_order_type.
- * 
+ *
  * **CAMBIO IMPORTANTE (2025-01-27):**
  * El campo `order_type` ahora acepta cualquier string (1-100 caracteres) en lugar
  * de estar limitado a un enum. Esto permite almacenar valores originales de Simphony
@@ -40,14 +40,14 @@ export enum OrderTypeEnum {
  *   orders_count: 25,
  *   quantity: 100,
  * };
- * 
+ *
  * const dto2: CreateSalesByOrderTypeDto = {
  *   order_type: 'Domicilios Rappi',
  *   total_sales: 3000.00,
  *   orders_count: 40,
  *   quantity: 150,
  * };
- * 
+ *
  * // Valores legacy (anteriores a 2025-01-27) siguen siendo válidos
  * const dto3: CreateSalesByOrderTypeDto = {
  *   order_type: 'dine_in',
@@ -59,7 +59,8 @@ export enum OrderTypeEnum {
  */
 export class CreateSalesByOrderTypeDto {
   @ApiProperty({
-    description: 'Tipo de orden (valor libre desde Simphony, ej: "Mesa VIP", "Domicilios", "Para Llevar")',
+    description:
+      'Tipo de orden (valor libre desde Simphony, ej: "Mesa VIP", "Domicilios", "Para Llevar")',
     example: 'Mesa VIP',
     minLength: 1,
     maxLength: 100,
@@ -159,7 +160,7 @@ export class SalesByOrderTypeResponseDto {
 
   @ApiProperty({
     description: 'Tipo de orden (valor original de Simphony)',
-    example: 'Mesa VIP'
+    example: 'Mesa VIP',
   })
   order_type: string;
 

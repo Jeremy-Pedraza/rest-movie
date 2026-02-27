@@ -92,7 +92,9 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
    */
   protected static safeSchemaIdentifier(schema: string): string {
     if (!BaseRepository.VALID_SCHEMA_REGEX.test(schema)) {
-      throw new Error(`Invalid schema name: "${schema}". Only alphanumeric and underscores allowed.`);
+      throw new Error(
+        `Invalid schema name: "${schema}". Only alphanumeric and underscores allowed.`,
+      );
     }
     // PostgreSQL double-quote identifier escaping
     return `"${schema}"`;
@@ -361,5 +363,3 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
     });
   }
 }
-
-

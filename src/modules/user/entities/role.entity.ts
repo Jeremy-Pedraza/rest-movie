@@ -5,13 +5,7 @@
  * @module modules/user/entities
  */
 
-import {
-  Entity,
-  Column,
-  Index,
-  ManyToMany,
-  JoinTable,
-} from 'typeorm';
+import { Entity, Column, Index, ManyToMany, JoinTable } from 'typeorm';
 import { BaseTimestampEntity } from '@shared/common';
 
 import { UserEntity } from './user.entity';
@@ -20,7 +14,6 @@ import { PermissionEntity } from './permission.entity';
 @Entity({ name: 'roles', schema: 'public' })
 @Index(['name'], { unique: true })
 export class RoleEntity extends BaseTimestampEntity {
-
   /**
    * Nombre del rol (único)
    */

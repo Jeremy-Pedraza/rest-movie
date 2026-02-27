@@ -9,13 +9,7 @@
  * como parámetro en cada función.
  */
 
-import {
-  Injectable,
-  NestInterceptor,
-  ExecutionContext,
-  CallHandler,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler, Logger } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { Request } from 'express';
 import { SchemaContext, ITenantContext } from '@shared/database';
@@ -106,9 +100,7 @@ export class TenantInterceptor implements NestInterceptor {
     // Validar consistencia tenant vs user cuando ambos están presentes
     const user = request.user as { schema?: string } | undefined;
     if (user?.schema && user.schema !== tenant.schema) {
-      this.logError(
-        'Inconsistencia tenant: request.user.schema difiere de request.tenant.schema',
-      );
+      this.logError('Inconsistencia tenant: request.user.schema difiere de request.tenant.schema');
     }
 
     // Establecer contexto en AsyncLocalStorage y ejecutar handler
@@ -124,9 +116,7 @@ export class TenantInterceptor implements NestInterceptor {
         innerSub = next.handle().subscribe({
           next: (data) => observer.next(data),
           error: (err: Error) => {
-            this.logError(
-              `Error durante ejecución con schema ${tenant.schema}: ${err.message}`,
-            );
+            this.logError(`Error durante ejecución con schema ${tenant.schema}: ${err.message}`);
             observer.error(err);
           },
           complete: () => observer.complete(),
@@ -171,4 +161,3 @@ export class TenantInterceptor implements NestInterceptor {
     this.logger.error(message);
   }
 }
-

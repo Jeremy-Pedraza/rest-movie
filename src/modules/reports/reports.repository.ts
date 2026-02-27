@@ -414,17 +414,24 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
         qb.leftJoinAndSelect('report.effective_orders', 'effectiveOrders');
       }
 
+      // Paginación: obtener count ANTES de aplicar ordering y limit
+      // para evitar bug de TypeORM 0.3.x con skip/take + joins
+      // (createOrderByCombinedWithSelectExpression → databaseName undefined)
+      const page = query.page || 1;
+      const limit = query.limit || 10;
+      const total = await qb.getCount();
+
       // Ordenamiento
       const sortBy = query.sortBy || 'report_date';
       const sortOrder = query.sortOrder || 'DESC';
       qb.orderBy(`report.${sortBy}`, sortOrder);
 
-      // Paginación
-      const page = query.page || 1;
-      const limit = query.limit || 10;
-      qb.skip((page - 1) * limit).take(limit);
+      // Usar offset/limit en vez de skip/take para evitar el subquery
+      // interno de TypeORM que falla con PostgreSQL + schemas dinámicos
+      qb.offset((page - 1) * limit).limit(limit);
+      const items = await qb.getMany();
 
-      return await qb.getManyAndCount();
+      return [items, total];
     });
   }
 
@@ -2344,9 +2351,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
         qb.andWhere('report.store_id IN (:...storeIds)', { storeIds });
       }
 
-      qb.groupBy('itt.tender_type')
-        .addGroupBy('itt.tender_name')
-        .orderBy('total_amount', 'DESC');
+      qb.groupBy('itt.tender_type').addGroupBy('itt.tender_name').orderBy('total_amount', 'DESC');
 
       const results = await qb.getRawMany();
       const totalAmount = results.reduce((sum, r) => sum + parseFloat(r.total_amount), 0);
@@ -2356,8 +2361,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
         tender_name: r.tender_name,
         transaction_count: parseInt(r.transaction_count) || 0,
         total_amount: parseFloat(r.total_amount) || 0,
-        percentage_of_total:
-          totalAmount > 0 ? (parseFloat(r.total_amount) / totalAmount) * 100 : 0,
+        percentage_of_total: totalAmount > 0 ? (parseFloat(r.total_amount) / totalAmount) * 100 : 0,
       }));
     });
   }
@@ -2457,8 +2461,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
         service_charge_name: r.service_charge_name,
         total_quantity: parseInt(r.total_quantity) || 0,
         total_amount: parseFloat(r.total_amount) || 0,
-        percentage_of_total:
-          totalAmount > 0 ? (parseFloat(r.total_amount) / totalAmount) * 100 : 0,
+        percentage_of_total: totalAmount > 0 ? (parseFloat(r.total_amount) / totalAmount) * 100 : 0,
       }));
     });
   }
@@ -2518,8 +2521,7 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
         currency_symbol: r.currency_symbol,
         transaction_count: parseInt(r.transaction_count) || 0,
         total_amount: parseFloat(r.total_amount) || 0,
-        percentage_of_total:
-          totalAmount > 0 ? (parseFloat(r.total_amount) / totalAmount) * 100 : 0,
+        percentage_of_total: totalAmount > 0 ? (parseFloat(r.total_amount) / totalAmount) * 100 : 0,
       }));
     });
   }
@@ -2566,10 +2568,8 @@ export class ReportsRepository extends BaseRepository<ReportHeaderEntity> {
         tender_name: r.tender_name,
         total_quantity: parseInt(r.total_quantity) || 0,
         total_amount: parseFloat(r.total_amount) || 0,
-        percentage_of_total:
-          totalAmount > 0 ? (parseFloat(r.total_amount) / totalAmount) * 100 : 0,
+        percentage_of_total: totalAmount > 0 ? (parseFloat(r.total_amount) / totalAmount) * 100 : 0,
       }));
     });
   }
 }
-

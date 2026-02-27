@@ -137,6 +137,4 @@ export class LoggingInterceptor implements NestInterceptor {
   private redactUrl(url: string): string {
     return redactSensitiveUrl(url);
   }
-
 }
-

@@ -65,4 +65,3 @@ export function sanitizeUpdateCompanyDto(
 
   return sanitized;
 }
-

@@ -89,9 +89,10 @@ automáticamente el schema de PostgreSQL con las tablas de reportes clonadas des
     const data = await this.companyService.create(dto);
     return {
       success: true,
-      message: dto.schema && dto.schema !== 'public'
-        ? `Compañía creada exitosamente con schema '${dto.schema}'`
-        : 'Compañía creada exitosamente',
+      message:
+        dto.schema && dto.schema !== 'public'
+          ? `Compañía creada exitosamente con schema '${dto.schema}'`
+          : 'Compañía creada exitosamente',
       data,
     };
   }

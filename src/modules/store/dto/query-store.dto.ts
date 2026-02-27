@@ -219,4 +219,3 @@ export class QueryStoreDto extends PaginationDto {
   @IsOptional()
   sort_order?: 'ASC' | 'DESC';
 }
-

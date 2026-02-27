@@ -223,4 +223,3 @@ export class RedisHealthIndicator extends HealthIndicator {
     });
   }
 }
-

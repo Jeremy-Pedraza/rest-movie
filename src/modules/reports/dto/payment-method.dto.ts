@@ -5,11 +5,11 @@ import { IsNotEmpty, IsNumber, IsOptional, Min, IsString, Length } from 'class-v
 
 /**
  * Métodos de pago disponibles (REFERENCIA)
- * 
+ *
  * @deprecated Este enum se mantiene solo como referencia de tipos comunes.
  * El API ahora acepta cualquier string para payment_method, permitiendo valores
  * originales de Simphony como "Visa Crédito", "Mastercard Débito", "Nequi", etc.
- * 
+ *
  * Valores históricos en la BD pueden seguir usando estos valores normalizados.
  */
 export enum PaymentMethodTypeEnum {
@@ -27,7 +27,7 @@ export enum PaymentMethodTypeEnum {
  * @description
  * Valida los campos para registrar el desglose de ventas por método de pago.
  * Usado dentro de CreateReportDto para el array payment_methods.
- * 
+ *
  * **CAMBIO IMPORTANTE (2025-01-27):**
  * El campo `payment_method` ahora acepta cualquier string (1-100 caracteres) en lugar
  * de estar limitado a un enum. Esto permite almacenar valores originales de Simphony
@@ -41,13 +41,13 @@ export enum PaymentMethodTypeEnum {
  *   total_amount: 3000.00,
  *   transactions_count: 15,
  * };
- * 
+ *
  * const dto2: CreatePaymentMethodDto = {
  *   payment_method: 'Nequi',
  *   total_amount: 1500.50,
  *   transactions_count: 25,
  * };
- * 
+ *
  * // Valores legacy (anteriores a 2025-01-27) siguen siendo válidos
  * const dto3: CreatePaymentMethodDto = {
  *   payment_method: 'cash',
@@ -58,7 +58,8 @@ export enum PaymentMethodTypeEnum {
  */
 export class CreatePaymentMethodDto {
   @ApiProperty({
-    description: 'Método de pago (valor libre desde Simphony, ej: "Visa Crédito", "Nequi", "Efectivo")',
+    description:
+      'Método de pago (valor libre desde Simphony, ej: "Visa Crédito", "Nequi", "Efectivo")',
     example: 'Visa Crédito',
     minLength: 1,
     maxLength: 100,
@@ -117,9 +118,9 @@ export class PaymentMethodResponseDto {
   @ApiProperty({ description: 'ID del reporte padre' })
   report_header_id: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Método de pago (valor original de Simphony)',
-    example: 'Visa Crédito'
+    example: 'Visa Crédito',
   })
   payment_method: string;
 

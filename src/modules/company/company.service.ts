@@ -604,6 +604,3 @@ export class CompanyService {
     });
   }
 }
-
-
-

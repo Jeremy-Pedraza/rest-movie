@@ -130,7 +130,9 @@ export class RedisCleanupJob {
       lockAcquired = lockResult !== null;
 
       if (!lockAcquired) {
-        this.logger.log(`[${this.jobName}] No se pudo adquirir lock distribuido, otra instancia ejecutando`);
+        this.logger.log(
+          `[${this.jobName}] No se pudo adquirir lock distribuido, otra instancia ejecutando`,
+        );
         return {
           success: true,
           message: 'Otra instancia ejecutando (lock distribuido)',
@@ -139,9 +141,7 @@ export class RedisCleanupJob {
         };
       }
 
-      this.logger.log(
-        `[${this.jobName}] Iniciando limpieza de Redis (dryRun: ${dryRun})...`,
-      );
+      this.logger.log(`[${this.jobName}] Iniciando limpieza de Redis (dryRun: ${dryRun})...`);
 
       const metrics = {
         failedJobsCleaned: 0,

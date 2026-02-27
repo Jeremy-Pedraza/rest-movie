@@ -145,5 +145,4 @@ export class LogEntity extends BaseReadOnlyEntity {
    */
   @Column({ type: 'varchar', length: 50, nullable: true, name: 'error_code' })
   error_code: string | null;
-
 }

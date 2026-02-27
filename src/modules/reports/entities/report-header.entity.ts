@@ -14,14 +14,7 @@
  * @version 3.0.0 - FASE 5: Soporte multi-tenant
  */
 
-import {
-  Entity,
-  Column,
-  Index,
-  ManyToOne,
-  OneToMany,
-  JoinColumn,
-} from 'typeorm';
+import { Entity, Column, Index, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
 import { BaseTimestampEntity } from '@shared/common';
 import type { StoreEntity } from '@modules/store/entities';
 import { ReportTypeEnum } from '../enums';
@@ -64,7 +57,6 @@ import { ReportTypeEnum } from '../enums';
 @Index(['storeId', 'report_type'])
 @Index(['employee_id'])
 export class ReportHeaderEntity extends BaseTimestampEntity {
-
   /**
    * ID de la tienda que generó el reporte
    * FK a public.stores (cross-schema)
@@ -359,5 +351,4 @@ export class ReportHeaderEntity extends BaseTimestampEntity {
    */
   @OneToMany('IncomeByTenderTypeEntity', 'report_header')
   income_by_tender_type?: any[];
-
 }

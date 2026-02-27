@@ -120,10 +120,7 @@ export class NotificationService {
 
       return response;
     } catch (error) {
-      this.logError(
-        `Failed to send email: ${(error as Error).message}`,
-        (error as Error).stack,
-      );
+      this.logError(`Failed to send email: ${(error as Error).message}`, (error as Error).stack);
       this.handleError.internalServerError('Error al enviar email', ERROR_CODES.EMAIL_SEND_ERROR);
     }
   }
@@ -492,4 +489,3 @@ export class NotificationService {
     });
   }
 }
-

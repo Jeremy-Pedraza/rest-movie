@@ -19,16 +19,14 @@ export function setupSwagger(app: INestApplication): void {
     .setTitle(title)
     .setDescription(description)
     .setVersion(version)
-    .addBearerAuth(
-      {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-        name: 'JWT',
-        description: 'Enter JWT token',
-        in: 'header',
-      },
-    )
+    .addBearerAuth({
+      type: 'http',
+      scheme: 'bearer',
+      bearerFormat: 'JWT',
+      name: 'JWT',
+      description: 'Enter JWT token',
+      in: 'header',
+    })
     .addTag('Auth', 'Authentication endpoints')
     .addTag('Users', 'User management endpoints')
     .addTag('Health', 'Health check endpoints')

@@ -179,7 +179,10 @@ export class CreateGeographyTables1738700000000 implements MigrationInterface {
       await queryRunner.createIndices('geo_countries', [
         new TableIndex({ name: 'idx_geo_country_code', columnNames: ['code'], isUnique: true }),
         new TableIndex({ name: 'idx_geo_country_name', columnNames: ['name'] }),
-        new TableIndex({ name: 'idx_geo_country_name_normalized', columnNames: ['name_normalized'] }),
+        new TableIndex({
+          name: 'idx_geo_country_name_normalized',
+          columnNames: ['name_normalized'],
+        }),
         new TableIndex({ name: 'idx_geo_country_active', columnNames: ['is_active'] }),
       ]);
     }
@@ -552,11 +555,15 @@ export class CreateGeographyTables1738700000000 implements MigrationInterface {
 
     // Eliminar FK de companies
     const companiesTable = await queryRunner.getTable('companies');
-    const companyFK = companiesTable?.foreignKeys.find((fk) => fk.name === 'fk_company_geo_country');
+    const companyFK = companiesTable?.foreignKeys.find(
+      (fk) => fk.name === 'fk_company_geo_country',
+    );
     if (companyFK) {
       await queryRunner.dropForeignKey('companies', 'fk_company_geo_country');
     }
-    const companyIndex = companiesTable?.indices.find((idx) => idx.name === 'idx_company_geo_country');
+    const companyIndex = companiesTable?.indices.find(
+      (idx) => idx.name === 'idx_company_geo_country',
+    );
     if (companyIndex) {
       await queryRunner.dropIndex('companies', 'idx_company_geo_country');
     }

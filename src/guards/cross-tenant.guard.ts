@@ -120,9 +120,7 @@ export class CrossTenantGuard implements CanActivate {
         `CrossTenantGuard: Intento de acceso cross-tenant detectado. ` +
           `Usuario ${user.id} (schema: ${userSchema}) intentó acceder a schema: ${contextSchema}`,
       );
-      this.handleError.forbidden(
-        'Acceso denegado: No tiene permisos para acceder a este recurso',
-      );
+      this.handleError.forbidden('Acceso denegado: No tiene permisos para acceder a este recurso');
     }
 
     this.logger.debug(
@@ -155,4 +153,3 @@ export class CrossTenantGuard implements CanActivate {
     });
   }
 }
-

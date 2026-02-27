@@ -191,7 +191,8 @@ export class GeographyService {
           id: city.id,
           type: 'city' as const,
           name: city.name,
-          full_name: `${city.name}, ${city.department?.name || ''}, ${city.department?.country?.name || ''}`.trim(),
+          full_name:
+            `${city.name}, ${city.department?.name || ''}, ${city.department?.country?.name || ''}`.trim(),
           country_code: city.department?.country?.code,
           country_name: city.department?.country?.name,
           department_name: city.department?.name,

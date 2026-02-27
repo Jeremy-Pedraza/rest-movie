@@ -362,4 +362,3 @@ export class QueueController {
     });
   }
 }
-

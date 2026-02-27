@@ -576,4 +576,3 @@ export function verifySignedToken<T = object>(token: string, secret: string): T 
     return null;
   }
 }
-

@@ -3,7 +3,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsString, IsBoolean, IsEnum, IsOptional, Length, IsIn } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { PaginationDto } from '@shared/common';
+import { PaginationDto, SortOrder } from '@shared/common';
 import { VALID_COUNTRY_CODES, VALID_CURRENCY_CODES, VALID_TIMEZONES } from './create-company.dto';
 
 /**
@@ -148,7 +148,7 @@ export class QueryCompanyDto extends PaginationDto {
     message: 'sort_by debe ser: name, created_at, pais, ciudad, country_code o currency_code',
   })
   @IsOptional()
-  sort_by?: 'name' | 'created_at' | 'pais' | 'ciudad' | 'country_code' | 'currency_code';
+  sort_by?: 'name' | 'created_at' | 'pais' | 'ciudad' | 'country_code' | 'currency_code' = undefined;
 
   @ApiPropertyOptional({
     description: 'Alias legacy de sortOrder (deprecado)',
@@ -160,5 +160,5 @@ export class QueryCompanyDto extends PaginationDto {
     message: 'sort_order debe ser ASC o DESC',
   })
   @IsOptional()
-  sort_order?: 'ASC' | 'DESC';
+  sort_order?: SortOrder = undefined;
 }

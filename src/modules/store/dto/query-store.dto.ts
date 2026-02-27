@@ -3,7 +3,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsString, IsBoolean, IsUUID, IsEnum, IsOptional, IsIn, IsArray } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { PaginationDto } from '@shared/common';
+import { PaginationDto, SortOrder } from '@shared/common';
 import { VALID_LOCATION_TYPES, VALID_STORE_FORMATS, VALID_SALES_TIERS } from './create-store.dto';
 
 /**
@@ -205,7 +205,7 @@ export class QueryStoreDto extends PaginationDto {
     | 'location_type'
     | 'store_format'
     | 'sales_tier'
-    | 'created_at';
+    | 'created_at' = undefined;
 
   @ApiPropertyOptional({
     description: 'Alias legacy de sortOrder (deprecado)',
@@ -217,5 +217,5 @@ export class QueryStoreDto extends PaginationDto {
     message: 'sort_order debe ser ASC o DESC',
   })
   @IsOptional()
-  sort_order?: 'ASC' | 'DESC';
+  sort_order?: SortOrder = undefined;
 }

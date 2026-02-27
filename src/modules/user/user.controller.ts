@@ -26,7 +26,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@ne
 
 import { UserService } from './user.service';
 import { CreateUserDto, UpdateUserDto, QueryUserDto, UpdatePasswordDto } from './dto';
-import { IUserResponse, IUserProfileResponse } from './interfaces';
+import { IAvailableRoleResponse, IUserResponse, IUserProfileResponse } from './interfaces';
 import { IPaginatedResponse, IApiResponse } from '@shared/common';
 import { Roles } from '@decorators/roles.decorator';
 import { CurrentUser } from '@decorators/current-user.decorator';
@@ -76,6 +76,22 @@ export class UserController {
       message: 'Usuarios obtenidos exitosamente',
       data: result.data,
       meta: result.meta,
+    };
+  }
+
+  /**
+   * Obtiene los roles disponibles del sistema
+   */
+  @Get('roles')
+  @Roles(ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MANAGER)
+  @ApiOperation({ summary: 'Listar roles disponibles' })
+  @ApiResponse({ status: 200, description: 'Lista de roles' })
+  async getAvailableRoles(): Promise<IApiResponse<IAvailableRoleResponse[]>> {
+    const data = await this.userService.getAvailableRoles();
+    return {
+      success: true,
+      message: 'Roles obtenidos exitosamente',
+      data,
     };
   }
 

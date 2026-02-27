@@ -25,6 +25,7 @@ import { Observable, of } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { Request } from 'express';
 
+import { HTTP_CACHE_PREFIX } from '@constants';
 import { LoggerService, LogContext } from '@modules/logger';
 import { RedisService } from '@shared/redis';
 
@@ -40,9 +41,6 @@ export const CACHE_OPTIONS_KEY = 'cache:options';
 
 /** TTL por defecto en segundos */
 const DEFAULT_TTL = 60;
-
-/** Prefijo base para cache HTTP */
-const HTTP_CACHE_PREFIX = 'cache';
 
 /** Query params que NO deben incluirse en la cache key (tracking, timestamps, etc.) */
 const EXCLUDED_CACHE_PARAMS = new Set(['_t', '_', 'timestamp', 'nocache', 'cb', 'cache_bust']);

@@ -17,6 +17,12 @@ import {
   Max,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import {
+  VALID_TIMEZONES,
+  VALID_COUNTRY_CODES,
+  VALID_CURRENCY_CODES,
+  VALID_DATE_FORMATS,
+} from '@constants';
 
 /**
  * DTO para configuración fiscal
@@ -48,46 +54,6 @@ export class TaxConfigDto {
   @IsBoolean({ message: 'tax_included debe ser un valor booleano' })
   tax_included: boolean;
 }
-
-/**
- * Zonas horarias válidas para Centroamérica y Caribe
- */
-const VALID_TIMEZONES = [
-  'America/Santo_Domingo', // República Dominicana
-  'America/Guatemala', // Guatemala
-  'America/El_Salvador', // El Salvador
-  'America/Tegucigalpa', // Honduras
-  'America/Panama', // Panamá
-  'America/Costa_Rica', // Costa Rica
-  'America/Managua', // Nicaragua
-  'America/Bogota', // Colombia
-  'America/Mexico_City', // México
-  'America/New_York', // USA Eastern
-];
-
-/**
- * Códigos de país ISO 3166-1 alpha-2 válidos
- */
-const VALID_COUNTRY_CODES = ['DO', 'GT', 'SV', 'HN', 'PA', 'CR', 'NI', 'CO', 'MX', 'US'];
-
-/**
- * Códigos de moneda ISO 4217 válidos
- */
-const VALID_CURRENCY_CODES = [
-  'DOP', // Peso Dominicano
-  'GTQ', // Quetzal Guatemalteco
-  'USD', // Dólar Estadounidense (El Salvador, Panamá)
-  'HNL', // Lempira Hondureño
-  'CRC', // Colón Costarricense
-  'NIO', // Córdoba Nicaragüense
-  'COP', // Peso Colombiano
-  'MXN', // Peso Mexicano
-];
-
-/**
- * Formatos de fecha válidos
- */
-const VALID_DATE_FORMATS = ['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'];
 
 /**
  * DTO para crear una compañía
@@ -342,9 +308,3 @@ export class CreateCompanyDto {
   @IsOptional()
   settings?: Record<string, any>;
 }
-
-// ============================================
-// CONSTANTES EXPORTADAS (para reutilizar)
-// ============================================
-
-export { VALID_TIMEZONES, VALID_COUNTRY_CODES, VALID_CURRENCY_CODES, VALID_DATE_FORMATS };

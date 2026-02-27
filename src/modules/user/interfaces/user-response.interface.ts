@@ -36,6 +36,18 @@ export interface IRoleResponse {
 }
 
 /**
+ * Respuesta de roles disponibles del sistema
+ */
+export interface IAvailableRoleResponse {
+  id: string;
+  name: string;
+  description: string | null;
+  isSystem: boolean;
+  isActive: boolean;
+  hierarchy: number;
+}
+
+/**
  * Respuesta de usuario mínima (para listas)
  */
 export interface IUserMinimalResponse {

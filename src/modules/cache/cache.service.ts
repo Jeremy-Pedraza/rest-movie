@@ -27,6 +27,7 @@
 
 import { Injectable, Logger, OnModuleInit, Inject, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { CACHE_TAG_PREFIX, CACHE_STATS_PREFIX, CACHE_KEY_TAGS_PREFIX } from '@constants';
 import { LoggerService, LogContext } from '@modules/logger';
 import { RedisService } from '@shared/redis';
 import { HandleErrorService } from '@shared/common';
@@ -34,24 +35,9 @@ import { CacheStatsDto } from './dto';
 import { ICacheConfig, ICacheOptions, ICacheResult, ICacheStats } from './interfaces';
 
 /**
- * Prefijo para keys de tags
- */
-const TAG_PREFIX = 'cache:tag:';
-
-/**
- * Prefijo para keys de stats
- */
-const STATS_PREFIX = 'cache:stats:';
-
-/**
- * Prefijo para índice inverso key->tags
- */
-const KEY_TAGS_PREFIX = 'cache:keytags:';
-
-/**
  * Key para estadísticas globales
  */
-const GLOBAL_STATS_KEY = `${STATS_PREFIX}global`;
+const GLOBAL_STATS_KEY = `${CACHE_STATS_PREFIX}global`;
 
 /**
  * TTL por defecto (1 hora)
@@ -278,7 +264,7 @@ export class CacheService implements OnModuleInit {
    * Invalidar todas las keys con un tag (limpieza bidireccional)
    */
   async invalidateTag(tag: string): Promise<number> {
-    const tagKey = `${TAG_PREFIX}${tag}`;
+    const tagKey = `${CACHE_TAG_PREFIX}${tag}`;
     const keys = await this.redis.sMembers(tagKey);
 
     if (keys.length === 0) {
@@ -376,11 +362,11 @@ export class CacheService implements OnModuleInit {
    * Asociar tags a una key (mantiene índice directo e inverso)
    */
   private async associateTags(key: string, tags: string[], ttl: number): Promise<void> {
-    const inverseKey = `${KEY_TAGS_PREFIX}${key}`;
+    const inverseKey = `${CACHE_KEY_TAGS_PREFIX}${key}`;
 
     for (const tag of tags) {
       // Índice directo: tag -> keys
-      const tagKey = `${TAG_PREFIX}${tag}`;
+      const tagKey = `${CACHE_TAG_PREFIX}${tag}`;
       await this.redis.sAdd(tagKey, key);
       await this.redis.expire(tagKey, ttl + 300);
 
@@ -396,7 +382,7 @@ export class CacheService implements OnModuleInit {
    */
   private async getKeyTags(key: string): Promise<string[]> {
     // Primero intentar índice inverso
-    const inverseKey = `${KEY_TAGS_PREFIX}${key}`;
+    const inverseKey = `${CACHE_KEY_TAGS_PREFIX}${key}`;
     const inverseTags = await this.redis.sMembers(inverseKey);
     if (inverseTags.length > 0) {
       return inverseTags;
@@ -407,13 +393,16 @@ export class CacheService implements OnModuleInit {
     let cursor = '0';
 
     do {
-      const page = await this.redis.scanPage(cursor, { pattern: `${TAG_PREFIX}*`, count: 100 });
+      const page = await this.redis.scanPage(cursor, {
+        pattern: `${CACHE_TAG_PREFIX}*`,
+        count: 100,
+      });
       cursor = page.nextCursor;
 
       for (const tagKey of page.keys) {
         const isMember = await this.redis.sIsMember(tagKey, key);
         if (isMember) {
-          tags.push(tagKey.replace(TAG_PREFIX, ''));
+          tags.push(tagKey.replace(CACHE_TAG_PREFIX, ''));
         }
       }
     } while (cursor !== '0');
@@ -427,12 +416,12 @@ export class CacheService implements OnModuleInit {
    * @param excludeTag - Tag que ya se está eliminando (evitar trabajo doble)
    */
   private async cleanupKeyFromAllTags(key: string, excludeTag?: string): Promise<void> {
-    const inverseKey = `${KEY_TAGS_PREFIX}${key}`;
+    const inverseKey = `${CACHE_KEY_TAGS_PREFIX}${key}`;
     const tags = await this.redis.sMembers(inverseKey);
 
     for (const tag of tags) {
       if (tag === excludeTag) continue;
-      const tagKey = `${TAG_PREFIX}${tag}`;
+      const tagKey = `${CACHE_TAG_PREFIX}${tag}`;
       await this.redis.sRem(tagKey, key);
     }
 
@@ -444,7 +433,7 @@ export class CacheService implements OnModuleInit {
    * Listar todas las keys de un tag
    */
   async getTagKeys(tag: string): Promise<string[]> {
-    const tagKey = `${TAG_PREFIX}${tag}`;
+    const tagKey = `${CACHE_TAG_PREFIX}${tag}`;
     return await this.redis.sMembers(tagKey);
   }
 
@@ -494,7 +483,7 @@ export class CacheService implements OnModuleInit {
 
       // Incremento atómico por tag (con TTL para evitar acumulacion de tags inactivos)
       for (const tag of tags) {
-        const tagStatsKey = `${STATS_PREFIX}tag:${tag}`;
+        const tagStatsKey = `${CACHE_STATS_PREFIX}tag:${tag}`;
         await this.redis.hIncr(tagStatsKey, stat, 1);
         await this.redis.expire(tagStatsKey, STATS_TAG_TTL); // Refrescar TTL (24h)
       }
@@ -521,9 +510,9 @@ export class CacheService implements OnModuleInit {
       scanCursor = page.nextCursor;
       totalKeys += page.keys.filter(
         (k) =>
-          !k.startsWith(STATS_PREFIX) &&
-          !k.startsWith(TAG_PREFIX) &&
-          !k.startsWith(KEY_TAGS_PREFIX),
+          !k.startsWith(CACHE_STATS_PREFIX) &&
+          !k.startsWith(CACHE_TAG_PREFIX) &&
+          !k.startsWith(CACHE_KEY_TAGS_PREFIX),
       ).length;
     } while (scanCursor !== '0');
 
@@ -532,13 +521,13 @@ export class CacheService implements OnModuleInit {
     let tagCursor = '0';
     do {
       const page = await this.redis.scanPage(tagCursor, {
-        pattern: `${STATS_PREFIX}tag:*`,
+        pattern: `${CACHE_STATS_PREFIX}tag:*`,
         count: 100,
       });
       tagCursor = page.nextCursor;
 
       for (const tagStatsKey of page.keys) {
-        const tag = tagStatsKey.replace(`${STATS_PREFIX}tag:`, '');
+        const tag = tagStatsKey.replace(`${CACHE_STATS_PREFIX}tag:`, '');
         const tagRaw = await this.redis.hGetAll(tagStatsKey);
         const tagHits = parseInt(tagRaw.hits || '0', 10);
         const tagMisses = parseInt(tagRaw.misses || '0', 10);
@@ -597,7 +586,7 @@ export class CacheService implements OnModuleInit {
     let cursor = '0';
     do {
       const page = await this.redis.scanPage(cursor, {
-        pattern: `${STATS_PREFIX}tag:*`,
+        pattern: `${CACHE_STATS_PREFIX}tag:*`,
         count: 100,
       });
       cursor = page.nextCursor;
@@ -698,7 +687,7 @@ export class CacheService implements OnModuleInit {
   async info(): Promise<Record<string, any>> {
     const stats = await this.getStats();
     const totalKeys = await this.countKeys();
-    const tagKeys = await this.countKeys(`${TAG_PREFIX}*`);
+    const tagKeys = await this.countKeys(`${CACHE_TAG_PREFIX}*`);
 
     return {
       stats,

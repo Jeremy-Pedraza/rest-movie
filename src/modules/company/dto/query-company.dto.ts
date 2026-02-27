@@ -5,7 +5,7 @@ import { IsString, IsBoolean, IsEnum, IsOptional, Length, IsIn } from 'class-val
 import { Transform } from 'class-transformer';
 import { PaginationDto, SortOrder } from '@shared/common';
 import { toBoolean } from '@shared/utils';
-import { VALID_COUNTRY_CODES, VALID_CURRENCY_CODES, VALID_TIMEZONES } from './create-company.dto';
+import { VALID_COUNTRY_CODES, VALID_CURRENCY_CODES, VALID_TIMEZONES } from '@constants';
 
 /**
  * DTO para consultar/filtrar compañías

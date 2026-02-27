@@ -14,6 +14,7 @@ import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '@decorators/roles.decorator';
 import { ERROR_CODES } from '@constants/error-codes.constant';
 import { RESPONSE_MESSAGES } from '@constants/response-messages.constant';
+import { hasRoleAccess, RoleType } from '@constants/roles.constant';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -45,9 +46,16 @@ export class RolesGuard implements CanActivate {
       });
     }
 
-    // Verificar si el usuario tiene alguno de los roles requeridos (OR lógico)
+    // Verificar acceso por jerarquía de roles (OR lógico):
+    // si alguno de los roles del usuario cubre alguno de los roles requeridos, pasa.
     const userRoles: string[] = user.roles || [];
-    const hasRole = requiredRoles.some((role) => userRoles.includes(role));
+    const hasRole = userRoles.some((userRole) =>
+      requiredRoles.some((requiredRole) => {
+        // Si el rol no está en jerarquía conocida, fallback a comparación exacta.
+        const hierarchicalAccess = hasRoleAccess(userRole as RoleType, requiredRole as RoleType);
+        return hierarchicalAccess || userRole === requiredRole;
+      }),
+    );
 
     if (!hasRole) {
       throw new ForbiddenException({

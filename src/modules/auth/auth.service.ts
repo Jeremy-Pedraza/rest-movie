@@ -20,34 +20,22 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 
-import { ERROR_CODES, RESPONSE_MESSAGES, ROLES } from '@constants';
+import {
+  AUTH_CACHE_TTL,
+  AUTH_CACHE_PREFIX,
+  SESSION_CACHE_PREFIX,
+  DEFAULT_MAX_ACTIVE_SESSIONS,
+  REVOKED_AT_PREFIX,
+  ERROR_CODES,
+  RESPONSE_MESSAGES,
+  ROLES,
+} from '@constants';
 import { EmailProducer } from '@modules/queue';
 import { UserService } from '@modules/user';
 import { LoggerService, LogContext } from '@modules/logger';
 import { HandleErrorService, SanitizerService } from '@shared/common';
 import { RedisService } from '@shared/redis';
 import { UtilsService } from '@shared/utils';
-
-// ============================================
-// CACHE CONSTANTS
-// ============================================
-
-/**
- * TTL del cache de usuario autenticado: 55 minutos
- * (5 min menos que JWT de 60min para evitar edge cases)
- */
-const AUTH_USER_CACHE_TTL = 3300;
-
-/** Prefijo para cache de usuario autenticado */
-const AUTH_CACHE_PREFIX = 'auth';
-
-/** Prefijo para cache de sesión (usado en JwtStrategy) */
-const SESSION_CACHE_PREFIX = 'session';
-/** Máximo por defecto de sesiones activas por usuario */
-const DEFAULT_MAX_ACTIVE_SESSIONS = 5;
-
-/** Prefijo para timestamp de revocación por usuario (revocación instantánea) */
-const REVOKED_AT_PREFIX = 'auth:revoked_at';
 
 import { AuthRepository } from './auth.repository';
 import {
@@ -923,7 +911,9 @@ export class AuthService {
   private async markUserTokensRevoked(userId: string): Promise<void> {
     const key = this.redisService.buildKey(REVOKED_AT_PREFIX, userId);
     const accessTokenTtl = this.configService.get<number>('jwt.expiresIn') || 900;
-    await this.redisService.set(key, Math.floor(Date.now() / 1000).toString(), { ttl: accessTokenTtl });
+    await this.redisService.set(key, Math.floor(Date.now() / 1000).toString(), {
+      ttl: accessTokenTtl,
+    });
   }
 
   // ============================================
@@ -990,7 +980,7 @@ export class AuthService {
           'user',
           userId,
         );
-        await this.redisService.setJson(newCacheKey, legacyCached, { ttl: AUTH_USER_CACHE_TTL });
+        await this.redisService.setJson(newCacheKey, legacyCached, { ttl: AUTH_CACHE_TTL });
         // Eliminar key legacy
         await this.redisService.del(legacyCacheKey);
         this.logger.debug(
@@ -1018,9 +1008,9 @@ export class AuthService {
     const userSchema = user.company?.schema || 'public';
     const newCacheKey = this.redisService.buildKey(AUTH_CACHE_PREFIX, userSchema, 'user', userId);
 
-    await this.redisService.setJson(newCacheKey, user, { ttl: AUTH_USER_CACHE_TTL });
+    await this.redisService.setJson(newCacheKey, user, { ttl: AUTH_CACHE_TTL });
     this.logger.debug(
-      `[${context}] Cached user: ${userId} (schema: ${userSchema}, TTL: ${AUTH_USER_CACHE_TTL}s)`,
+      `[${context}] Cached user: ${userId} (schema: ${userSchema}, TTL: ${AUTH_CACHE_TTL}s)`,
     );
 
     return user;

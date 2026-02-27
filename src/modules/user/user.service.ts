@@ -24,7 +24,7 @@ import { SchemaContext, TransactionService } from '@shared/database';
 import { UtilsService } from '@shared/utils';
 import { UpdatePasswordDto, CreateUserDto, QueryUserDto, UpdateUserDto } from './dto';
 import { UserEntity, UserStatus } from './entities/user.entity';
-import { IUserProfileResponse, IUserResponse } from './interfaces';
+import { IAvailableRoleResponse, IUserProfileResponse, IUserResponse } from './interfaces';
 import { UserRepository } from './user.repository';
 import {
   sanitizeCreateUserDto,
@@ -209,6 +209,21 @@ export class UserService {
       data: result.data.map((user) => this.toUserResponse(user)),
       meta: result.meta,
     };
+  }
+
+  /**
+   * Lista roles activos del sistema
+   */
+  async getAvailableRoles(): Promise<IAvailableRoleResponse[]> {
+    const roles = await this.userRepository.findAllRoles();
+    return roles.map((role) => ({
+      id: role.id,
+      name: role.name,
+      description: role.description,
+      isSystem: role.is_system,
+      isActive: role.is_active,
+      hierarchy: role.hierarchy,
+    }));
   }
 
   /**

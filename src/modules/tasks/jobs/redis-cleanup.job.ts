@@ -18,6 +18,7 @@
 import { Injectable, Logger, Inject, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
+import { CACHE_TAG_PREFIX, CACHE_STATS_PREFIX, CACHE_KEY_TAGS_PREFIX } from '@constants';
 import { LoggerService, LogContext } from '@modules/logger';
 import { QueueService } from '@modules/queue';
 import { QUEUE_NAMES } from '@modules/queue/queue.constants';
@@ -25,15 +26,6 @@ import { RedisService } from '@shared/redis';
 
 import { IJobExecutionResult } from '../interfaces';
 import { CRON_EXPRESSIONS, DEFAULT_JOB_CONFIG, getEnvKey, JOB_NAMES } from '../tasks.constants';
-
-/** Prefijo para claves de tags de cache */
-const TAG_PREFIX = 'cache:tag:';
-
-/** Prefijo para claves de stats de cache */
-const STATS_PREFIX = 'cache:stats:';
-
-/** Prefijo para indice inverso key->tags */
-const KEY_TAGS_PREFIX = 'cache:keytags:';
 
 /** Grace period para jobs fallidos: 7 dias en ms */
 const FAILED_JOBS_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -288,15 +280,15 @@ export class RedisCleanupJob {
 
     do {
       const page = await this.redis.scanPage(cursor, {
-        pattern: `${STATS_PREFIX}tag:*`,
+        pattern: `${CACHE_STATS_PREFIX}tag:*`,
         count: 100,
       });
       cursor = page.nextCursor;
 
       for (const statsKey of page.keys) {
         // Extraer nombre del tag: cache:stats:tag:{tag} -> {tag}
-        const tag = statsKey.replace(`${STATS_PREFIX}tag:`, '');
-        const tagKey = `${TAG_PREFIX}${tag}`;
+        const tag = statsKey.replace(`${CACHE_STATS_PREFIX}tag:`, '');
+        const tagKey = `${CACHE_TAG_PREFIX}${tag}`;
 
         // Si no existe el tag set correspondiente, es huerfano
         const tagExists = await this.redis.exists(tagKey);
@@ -328,14 +320,14 @@ export class RedisCleanupJob {
 
     do {
       const page = await this.redis.scanPage(cursor, {
-        pattern: `${KEY_TAGS_PREFIX}*`,
+        pattern: `${CACHE_KEY_TAGS_PREFIX}*`,
         count: 100,
       });
       cursor = page.nextCursor;
 
       for (const keytagKey of page.keys) {
         // Extraer la key original: cache:keytags:{cacheKey} -> {cacheKey}
-        const cacheKey = keytagKey.replace(KEY_TAGS_PREFIX, '');
+        const cacheKey = keytagKey.replace(CACHE_KEY_TAGS_PREFIX, '');
 
         // Si la clave de cache original ya no existe, el indice inverso es huerfano
         const cacheKeyExists = await this.redis.exists(cacheKey);
@@ -344,7 +336,7 @@ export class RedisCleanupJob {
             // Limpiar las membresías en tags antes de eliminar
             const tags = await this.redis.sMembers(keytagKey);
             for (const tag of tags) {
-              const tagSetKey = `${TAG_PREFIX}${tag}`;
+              const tagSetKey = `${CACHE_TAG_PREFIX}${tag}`;
               await this.redis.sRem(tagSetKey, cacheKey);
             }
             await this.redis.del(keytagKey);

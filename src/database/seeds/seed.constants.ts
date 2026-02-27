@@ -346,16 +346,16 @@ export interface UserDefinition {
 
 export const USER_DEFINITIONS: UserDefinition[] = [
   {
-    email: 'admin@Rest.app',
+    email: 'admin@tacobell.co.cr',
     password: 'Admin123!', // Se hasheará en el seed
     firstName: 'Admin',
-    lastName: 'Rest',
+    lastName: 'TacoBell',
     roles: ['super_admin'],
     emailVerified: true,
     status: 'active',
   },
   {
-    email: 'system@Rest.app',
+    email: 'system@tacobell.co.cr',
     password: 'System123!',
     firstName: 'System',
     lastName: 'User',
@@ -364,7 +364,7 @@ export const USER_DEFINITIONS: UserDefinition[] = [
     status: 'active',
   },
   {
-    email: 'manager@Rest.app',
+    email: 'manager@tacobell.co.cr',
     password: 'Manager123!',
     firstName: 'Manager',
     lastName: 'User',
@@ -373,7 +373,7 @@ export const USER_DEFINITIONS: UserDefinition[] = [
     status: 'active',
   },
   {
-    email: 'user@Rest.app',
+    email: 'user@tacobell.co.cr',
     password: 'User123!',
     firstName: 'Test',
     lastName: 'User',

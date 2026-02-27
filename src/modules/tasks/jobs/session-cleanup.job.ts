@@ -12,12 +12,11 @@ import { Injectable, Logger, Inject, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
 
+import { DEFAULT_MAX_ACTIVE_SESSIONS } from '@constants';
 import { AuthRepository } from '@modules/auth/auth.repository';
 import { LoggerService, LogContext } from '@modules/logger';
 import { IJobExecutionResult } from '../interfaces';
 import { CRON_EXPRESSIONS, DEFAULT_JOB_CONFIG, getEnvKey, JOB_NAMES } from '../tasks.constants';
-
-const DEFAULT_MAX_ACTIVE_SESSIONS = 5;
 
 @Injectable()
 export class SessionCleanupJob {

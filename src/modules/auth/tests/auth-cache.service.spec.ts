@@ -15,6 +15,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 
+import { AUTH_CACHE_TTL } from '@constants';
 import { AuthService } from '../auth.service';
 import { AuthRepository } from '../auth.repository';
 import { UserService } from '@modules/user';
@@ -230,7 +231,7 @@ describe('AuthService - Cache Integration', () => {
       expect(redisService.setJson).toHaveBeenCalledWith(
         expect.stringContaining('auth:user:'),
         mockUser,
-        { ttl: 3300 }, // 55 minutes
+        { ttl: AUTH_CACHE_TTL }, // 55 minutes
       );
     });
 
@@ -380,7 +381,7 @@ describe('AuthService - Cache Integration', () => {
 
       // Assert: TTL should be 3300 seconds (55 minutes)
       expect(redisService.setJson).toHaveBeenCalledWith(expect.any(String), expect.any(Object), {
-        ttl: 3300,
+        ttl: AUTH_CACHE_TTL,
       });
     });
   });

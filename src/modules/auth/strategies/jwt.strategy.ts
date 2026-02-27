@@ -25,20 +25,13 @@ import { IJwtPayload, UserSessionDto } from '../interfaces';
 import { UserService } from '@modules/user/user.service';
 import { RedisService } from '@shared/redis/redis.service';
 import { HandleErrorService } from '@shared/common';
-import { ERROR_CODES, RESPONSE_MESSAGES } from '@constants';
-
-/**
- * TTL del cache de sesión: 55 minutos en segundos
- * (5 min menos que JWT de 60min para evitar edge cases)
- * ✅ FASE 1: Sincronizado con AUTH_USER_CACHE_TTL en AuthService
- */
-const SESSION_CACHE_TTL = 3300;
-
-/** Prefijo para claves de cache de sesión */
-const SESSION_CACHE_PREFIX = 'session';
-
-/** Prefijo para timestamp de revocación por usuario (revocación instantánea) */
-const REVOKED_AT_PREFIX = 'auth:revoked_at';
+import {
+  AUTH_CACHE_TTL,
+  SESSION_CACHE_PREFIX,
+  REVOKED_AT_PREFIX,
+  ERROR_CODES,
+  RESPONSE_MESSAGES,
+} from '@constants';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
@@ -202,7 +195,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     };
 
     // ✅ Guardar en cache con TTL de 3 horas
-    await this.redisService.setJson(cacheKey, userSession, { ttl: SESSION_CACHE_TTL });
+    await this.redisService.setJson(cacheKey, userSession, { ttl: AUTH_CACHE_TTL });
 
     return userSession;
   }

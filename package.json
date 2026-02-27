@@ -1,5 +1,5 @@
 {
-  "name": "rest-backend",
+  "name": "api-reports",
   "version": "1.0.0",
   "description": "NestJS Backend API - Production Ready",
   "author": "Softlogy S.A.S",
@@ -161,6 +161,7 @@
       "^@interceptors/(.*)$": "<rootDir>/interceptors/$1",
       "^@middleware/(.*)$": "<rootDir>/middleware/$1",
       "^@pipes/(.*)$": "<rootDir>/pipes/$1",
+      "^@constants$": "<rootDir>/constants",
       "^@constants/(.*)$": "<rootDir>/constants/$1",
       "^@database/(.*)$": "<rootDir>/database/$1",
       "^@types/(.*)$": "<rootDir>/@types/$1",

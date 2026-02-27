@@ -200,6 +200,18 @@ export class UserRepository extends BaseRepository<UserEntity> {
   }
 
   /**
+   * Obtiene todos los roles existentes
+   */
+  async findAllRoles(): Promise<RoleEntity[]> {
+    return this.roleRepo
+      .createQueryBuilder('role')
+      .where('role.is_active = :is_active', { is_active: true })
+      .orderBy('role.hierarchy', 'DESC')
+      .addOrderBy('role.name', 'ASC')
+      .getMany();
+  }
+
+  /**
    * Actualiza un usuario
    * @param id - ID del usuario
    * @param dto - Datos a actualizar

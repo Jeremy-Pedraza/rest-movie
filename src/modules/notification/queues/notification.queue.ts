@@ -3,6 +3,8 @@
  * @module modules/notification/queues
  */
 
+import { JOB_PRIORITIES, CLEANUP_GRACE_PERIODS } from '@modules/queue/queue.constants';
+
 /**
  * Nombre de la cola de notificaciones
  */
@@ -47,20 +49,13 @@ export const NOTIFICATION_QUEUE_CONFIG = {
   },
 };
 
-/**
- * Prioridades de jobs
- */
-export const JOB_PRIORITIES = {
-  LOW: 1,
-  NORMAL: 5,
-  HIGH: 8,
-  URGENT: 10,
-};
+// Re-export para consumidores existentes
+export { JOB_PRIORITIES, CLEANUP_GRACE_PERIODS };
 
 /**
- * Delays comunes para jobs programados
+ * Delays específicos para notificaciones programadas
  */
-export const JOB_DELAYS = {
+export const NOTIFICATION_DELAYS = {
   IMMEDIATE: 0,
   ONE_MINUTE: 60 * 1000,
   FIVE_MINUTES: 5 * 60 * 1000,
@@ -68,12 +63,4 @@ export const JOB_DELAYS = {
   THIRTY_MINUTES: 30 * 60 * 1000,
   ONE_HOUR: 60 * 60 * 1000,
   ONE_DAY: 24 * 60 * 60 * 1000,
-};
-
-/**
- * Tiempos de gracia para limpieza
- */
-export const CLEANUP_GRACE_PERIODS = {
-  COMPLETED: 3600000, // 1 hora
-  FAILED: 86400000, // 24 horas
 };

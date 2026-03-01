@@ -35,6 +35,17 @@ declare namespace NodeJS {
     SWAGGER_VERSION: string;
     SWAGGER_PATH: string;
 
+    // JWT
+    JWT_SECRET: string;
+    JWT_EXPIRES_IN: string;
+    JWT_ISSUER: string;
+    JWT_AUDIENCE: string;
+    JWT_REFRESH_SECRET: string;
+    JWT_REFRESH_EXPIRES_IN: string;
+
+    // Security
+    BCRYPT_ROUNDS: string;
+
     // Logging
     LOG_LEVEL: string;
     LOG_DB_LEVEL: 'all' | 'warnings' | 'errors' | 'none';

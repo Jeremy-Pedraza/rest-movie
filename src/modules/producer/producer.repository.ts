@@ -15,13 +15,23 @@ export class ProducerRepository {
   ) {}
 
   async create(data: Partial<ProducerEntity>): Promise<ProducerEntity> {
-    const entity = this.repository.create(data);
-    return this.repository.save(entity);
+    const result = await this.repository
+      .createQueryBuilder()
+      .insert()
+      .into(ProducerEntity)
+      .values(data)
+      .returning('id')
+      .execute();
+
+    const id = result.identifiers[0]?.id as string | undefined;
+    if (!id) {
+      throw new Error('No se pudo obtener el ID de la productora insertada');
+    }
+
+    return (await this.findById(id)) as ProducerEntity;
   }
 
-  async findAll(
-    query: QueryProducerDto,
-  ): Promise<{ data: ProducerEntity[]; total: number }> {
+  async findAll(query: QueryProducerDto): Promise<{ data: ProducerEntity[]; total: number }> {
     const qb = this.createBaseQueryBuilder('producer');
 
     if (query.search) {
@@ -34,7 +44,7 @@ export class ProducerRepository {
       qb.andWhere('producer.is_active = :isActive', { isActive: query.isActive });
     }
 
-    const sortBy = query.sortBy || 'created_at';
+    const sortBy = query.sortBy || 'createdAt';
     const sortOrder = query.sortOrder || 'DESC';
     qb.orderBy(`producer.${sortBy}`, sortOrder);
 
@@ -47,16 +57,31 @@ export class ProducerRepository {
   }
 
   async findById(id: string): Promise<ProducerEntity | null> {
-    return this.repository.findOne({ where: { id } });
+    return this.repository
+      .createQueryBuilder('producer')
+      .where('producer.id = :id', { id })
+      .getOne();
   }
 
   async update(id: string, data: Partial<ProducerEntity>): Promise<ProducerEntity | null> {
-    await this.repository.update(id, data);
+    await this.repository
+      .createQueryBuilder()
+      .update(ProducerEntity)
+      .set(data)
+      .where('id = :id', { id })
+      .execute();
+
     return this.findById(id);
   }
 
   async delete(id: string): Promise<boolean> {
-    const result = await this.repository.delete(id);
+    const result = await this.repository
+      .createQueryBuilder()
+      .delete()
+      .from(ProducerEntity)
+      .where('id = :id', { id })
+      .execute();
+
     return (result.affected ?? 0) > 0;
   }
 

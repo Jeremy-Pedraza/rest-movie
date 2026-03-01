@@ -54,14 +54,18 @@ export class PaginationDto {
   limit?: number = 10;
 
   @ApiPropertyOptional({
-    description: 'Campo por el cual ordenar',
+    description: 'Campo por el cual ordenar (acepta snake_case o camelCase)',
     default: 'created_at',
     example: 'created_at',
   })
   @IsOptional()
-  @Transform(({ value, obj }): string => value ?? obj.sort_by ?? 'created_at')
+  @Transform(({ value, obj }): string => {
+    const raw: string = value ?? obj.sort_by ?? 'created_at';
+    // Normalizar snake_case a camelCase para TypeORM query builder
+    return raw.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase());
+  })
   @IsString({ message: 'El campo de ordenamiento debe ser texto' })
-  sortBy?: string = 'created_at';
+  sortBy?: string = 'createdAt';
 
   @ApiPropertyOptional({
     name: 'sort_by',

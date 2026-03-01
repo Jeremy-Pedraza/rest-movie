@@ -38,7 +38,8 @@ export class CreateMediaDto {
 
   @ApiPropertyOptional({
     description: 'Sinopsis del media',
-    example: 'Un ladron que roba secretos corporativos a traves del uso de la tecnologia de suenos compartidos.',
+    example:
+      'Un ladron que roba secretos corporativos a traves del uso de la tecnologia de suenos compartidos.',
   })
   @IsOptional()
   @IsString({ message: 'La sinopsis debe ser texto' })

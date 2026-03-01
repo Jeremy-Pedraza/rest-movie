@@ -13,21 +13,23 @@ import {
   HttpStatus,
   ParseUUIDPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 
-import { Public } from '@decorators/public.decorator';
 import { IApiResponse, IPaginatedResponse } from '@shared/common';
 import { RESPONSE_MESSAGES } from '@constants/response-messages.constant';
+import { ROLES } from '@constants/roles.constant';
+import { Roles } from '@decorators/roles.decorator';
 import { MediaService } from './media.service';
 import { CreateMediaDto, UpdateMediaDto, QueryMediaDto } from './dto';
 import { IMediaResponse } from './interfaces';
 
 @ApiTags('Media')
+@ApiBearerAuth()
+@Roles(ROLES.ADMINISTRADOR)
 @Controller('media')
 export class MediaController {
   constructor(private readonly mediaService: MediaService) {}
 
-  @Public()
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear un nuevo media (pelicula/serie)' })
@@ -43,7 +45,6 @@ export class MediaController {
     };
   }
 
-  @Public()
   @Get()
   @ApiOperation({ summary: 'Listar media con paginacion, filtros y relaciones' })
   @ApiResponse({ status: 200, description: 'Lista de media' })
@@ -58,15 +59,12 @@ export class MediaController {
     };
   }
 
-  @Public()
   @Get(':id')
   @ApiOperation({ summary: 'Obtener un media por ID (con relaciones)' })
   @ApiParam({ name: 'id', description: 'UUID del media' })
   @ApiResponse({ status: 200, description: 'Media encontrado' })
   @ApiResponse({ status: 404, description: 'Media no encontrado' })
-  async findById(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<IApiResponse<IMediaResponse>> {
+  async findById(@Param('id', ParseUUIDPipe) id: string): Promise<IApiResponse<IMediaResponse>> {
     const data = await this.mediaService.findById(id);
     return {
       success: true,
@@ -75,7 +73,6 @@ export class MediaController {
     };
   }
 
-  @Public()
   @Put(':id')
   @ApiOperation({ summary: 'Actualizar un media' })
   @ApiParam({ name: 'id', description: 'UUID del media' })
@@ -94,15 +91,12 @@ export class MediaController {
     };
   }
 
-  @Public()
   @Delete(':id')
   @ApiOperation({ summary: 'Eliminar un media' })
   @ApiParam({ name: 'id', description: 'UUID del media' })
   @ApiResponse({ status: 200, description: 'Media eliminado' })
   @ApiResponse({ status: 404, description: 'Media no encontrado' })
-  async delete(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<IApiResponse<void>> {
+  async delete(@Param('id', ParseUUIDPipe) id: string): Promise<IApiResponse<void>> {
     await this.mediaService.delete(id);
     return {
       success: true,

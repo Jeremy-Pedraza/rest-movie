@@ -15,13 +15,23 @@ export class GenreRepository {
   ) {}
 
   async create(data: Partial<GenreEntity>): Promise<GenreEntity> {
-    const entity = this.repository.create(data);
-    return this.repository.save(entity);
+    const result = await this.repository
+      .createQueryBuilder()
+      .insert()
+      .into(GenreEntity)
+      .values(data)
+      .returning('id')
+      .execute();
+
+    const id = result.identifiers[0]?.id as string | undefined;
+    if (!id) {
+      throw new Error('No se pudo obtener el ID del genero insertado');
+    }
+
+    return (await this.findById(id)) as GenreEntity;
   }
 
-  async findAll(
-    query: QueryGenreDto,
-  ): Promise<{ data: GenreEntity[]; total: number }> {
+  async findAll(query: QueryGenreDto): Promise<{ data: GenreEntity[]; total: number }> {
     const qb = this.createBaseQueryBuilder('genre');
 
     // Filtro por busqueda
@@ -37,7 +47,7 @@ export class GenreRepository {
     }
 
     // Ordenamiento
-    const sortBy = query.sortBy || 'created_at';
+    const sortBy = query.sortBy || 'createdAt';
     const sortOrder = query.sortOrder || 'DESC';
     qb.orderBy(`genre.${sortBy}`, sortOrder);
 
@@ -51,16 +61,28 @@ export class GenreRepository {
   }
 
   async findById(id: string): Promise<GenreEntity | null> {
-    return this.repository.findOne({ where: { id } });
+    return this.repository.createQueryBuilder('genre').where('genre.id = :id', { id }).getOne();
   }
 
   async update(id: string, data: Partial<GenreEntity>): Promise<GenreEntity | null> {
-    await this.repository.update(id, data);
+    await this.repository
+      .createQueryBuilder()
+      .update(GenreEntity)
+      .set(data)
+      .where('id = :id', { id })
+      .execute();
+
     return this.findById(id);
   }
 
   async delete(id: string): Promise<boolean> {
-    const result = await this.repository.delete(id);
+    const result = await this.repository
+      .createQueryBuilder()
+      .delete()
+      .from(GenreEntity)
+      .where('id = :id', { id })
+      .execute();
+
     return (result.affected ?? 0) > 0;
   }
 

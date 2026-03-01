@@ -15,13 +15,23 @@ export class TypeRepository {
   ) {}
 
   async create(data: Partial<TypeEntity>): Promise<TypeEntity> {
-    const entity = this.repository.create(data);
-    return this.repository.save(entity);
+    const result = await this.repository
+      .createQueryBuilder()
+      .insert()
+      .into(TypeEntity)
+      .values(data)
+      .returning('id')
+      .execute();
+
+    const id = result.identifiers[0]?.id as string | undefined;
+    if (!id) {
+      throw new Error('No se pudo obtener el ID del tipo insertado');
+    }
+
+    return (await this.findById(id)) as TypeEntity;
   }
 
-  async findAll(
-    query: QueryTypeDto,
-  ): Promise<{ data: TypeEntity[]; total: number }> {
+  async findAll(query: QueryTypeDto): Promise<{ data: TypeEntity[]; total: number }> {
     const qb = this.createBaseQueryBuilder('type');
 
     if (query.search) {
@@ -30,7 +40,7 @@ export class TypeRepository {
       });
     }
 
-    const sortBy = query.sortBy || 'created_at';
+    const sortBy = query.sortBy || 'createdAt';
     const sortOrder = query.sortOrder || 'DESC';
     qb.orderBy(`type.${sortBy}`, sortOrder);
 
@@ -43,16 +53,28 @@ export class TypeRepository {
   }
 
   async findById(id: string): Promise<TypeEntity | null> {
-    return this.repository.findOne({ where: { id } });
+    return this.repository.createQueryBuilder('type').where('type.id = :id', { id }).getOne();
   }
 
   async update(id: string, data: Partial<TypeEntity>): Promise<TypeEntity | null> {
-    await this.repository.update(id, data);
+    await this.repository
+      .createQueryBuilder()
+      .update(TypeEntity)
+      .set(data)
+      .where('id = :id', { id })
+      .execute();
+
     return this.findById(id);
   }
 
   async delete(id: string): Promise<boolean> {
-    const result = await this.repository.delete(id);
+    const result = await this.repository
+      .createQueryBuilder()
+      .delete()
+      .from(TypeEntity)
+      .where('id = :id', { id })
+      .execute();
+
     return (result.affected ?? 0) > 0;
   }
 

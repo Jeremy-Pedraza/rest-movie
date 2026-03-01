@@ -11,7 +11,7 @@ import { ConfigService } from '@nestjs/config';
 import { LoggerRepository } from './logger.repository';
 import { LogEntity, LogLevel, LogContext } from './entities/log.entity';
 import { CreateLogDto, QueryLogDto, LogStatsQueryDto } from './dto';
-import { IPaginatedResponse } from '@shared/common';
+import { HandleErrorService, IPaginatedResponse } from '@shared/common';
 import { LogDbLevel } from '@config/app.config';
 
 /**
@@ -46,6 +46,7 @@ export class LoggerService {
   constructor(
     private readonly repository: LoggerRepository,
     private readonly configService: ConfigService,
+    private readonly handleError: HandleErrorService,
   ) {
     this.dbLevel = this.configService.get<LogDbLevel>('app.logging.dbLevel') || 'all';
     // Auto-flush periódico
@@ -297,6 +298,14 @@ export class LoggerService {
    */
   async findById(id: string): Promise<LogEntity | null> {
     return this.repository.findById(id);
+  }
+
+  async findByIdOrFail(id: string): Promise<LogEntity> {
+    const log = await this.repository.findById(id);
+    if (!log) {
+      this.handleError.notFound('Log', id);
+    }
+    return log;
   }
 
   /**

@@ -13,21 +13,23 @@ import {
   HttpStatus,
   ParseUUIDPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 
-import { Public } from '@decorators/public.decorator';
 import { IApiResponse, IPaginatedResponse } from '@shared/common';
 import { RESPONSE_MESSAGES } from '@constants/response-messages.constant';
+import { ROLES } from '@constants/roles.constant';
+import { Roles } from '@decorators/roles.decorator';
 import { GenreService } from './genre.service';
 import { CreateGenreDto, UpdateGenreDto, QueryGenreDto } from './dto';
 import { IGenreResponse } from './interfaces';
 
 @ApiTags('Genres')
+@ApiBearerAuth()
+@Roles(ROLES.ADMINISTRADOR)
 @Controller('genres')
 export class GenreController {
   constructor(private readonly genreService: GenreService) {}
 
-  @Public()
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear un nuevo genero' })
@@ -43,7 +45,6 @@ export class GenreController {
     };
   }
 
-  @Public()
   @Get()
   @ApiOperation({ summary: 'Listar generos con paginacion y filtros' })
   @ApiResponse({ status: 200, description: 'Lista de generos' })
@@ -58,15 +59,12 @@ export class GenreController {
     };
   }
 
-  @Public()
   @Get(':id')
   @ApiOperation({ summary: 'Obtener un genero por ID' })
   @ApiParam({ name: 'id', description: 'UUID del genero' })
   @ApiResponse({ status: 200, description: 'Genero encontrado' })
   @ApiResponse({ status: 404, description: 'Genero no encontrado' })
-  async findById(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<IApiResponse<IGenreResponse>> {
+  async findById(@Param('id', ParseUUIDPipe) id: string): Promise<IApiResponse<IGenreResponse>> {
     const data = await this.genreService.findById(id);
     return {
       success: true,
@@ -75,7 +73,6 @@ export class GenreController {
     };
   }
 
-  @Public()
   @Put(':id')
   @ApiOperation({ summary: 'Actualizar un genero' })
   @ApiParam({ name: 'id', description: 'UUID del genero' })
@@ -93,15 +90,12 @@ export class GenreController {
     };
   }
 
-  @Public()
   @Delete(':id')
   @ApiOperation({ summary: 'Eliminar un genero' })
   @ApiParam({ name: 'id', description: 'UUID del genero' })
   @ApiResponse({ status: 200, description: 'Genero eliminado' })
   @ApiResponse({ status: 404, description: 'Genero no encontrado' })
-  async delete(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<IApiResponse<void>> {
+  async delete(@Param('id', ParseUUIDPipe) id: string): Promise<IApiResponse<void>> {
     await this.genreService.delete(id);
     return {
       success: true,

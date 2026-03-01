@@ -16,7 +16,8 @@ describe('AppController', () => {
 
   describe('root', () => {
     it('should return "Hello World!"', () => {
-      const result = appController.getStatus(); expect(result).toHaveProperty('status');
+      const result = appController.getStatus();
+      expect(result).toHaveProperty('status');
     });
   });
 });

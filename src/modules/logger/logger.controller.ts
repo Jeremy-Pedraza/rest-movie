@@ -15,7 +15,7 @@ import {
 import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { Public } from '@decorators/public.decorator';
-import { HandleErrorService, IApiResponse, IPaginatedResponse } from '@shared/common';
+import { IApiResponse, IPaginatedResponse } from '@shared/common';
 import { CreateLogDto, LogStatsQueryDto, QueryLogDto } from './dto';
 import { LogEntity } from './entities/log.entity';
 import { LoggerService } from './logger.service';
@@ -23,10 +23,7 @@ import { LoggerService } from './logger.service';
 @ApiTags('Logs')
 @Controller('logs')
 export class LoggerController {
-  constructor(
-    private readonly loggerService: LoggerService,
-    private readonly handleError: HandleErrorService,
-  ) {}
+  constructor(private readonly loggerService: LoggerService) {}
 
   @Public()
   @Post()
@@ -78,11 +75,7 @@ export class LoggerController {
   @ApiResponse({ status: 200, description: 'Log encontrado' })
   @ApiResponse({ status: 404, description: 'Log no encontrado' })
   async findById(@Param('id', ParseUUIDPipe) id: string): Promise<IApiResponse<LogEntity>> {
-    const log = await this.loggerService.findById(id);
-
-    if (!log) {
-      this.handleError.notFound('Log', id);
-    }
+    const log = await this.loggerService.findByIdOrFail(id);
 
     return {
       success: true,

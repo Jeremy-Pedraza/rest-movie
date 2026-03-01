@@ -1,33 +1,35 @@
 // src/modules/director/director.controller.ts
 
 import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
   Body,
-  Param,
-  Query,
+  Controller,
+  Delete,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
   ParseUUIDPipe,
+  Post,
+  Put,
+  Query,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiResponse, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
-import { Public } from '@decorators/public.decorator';
-import { IApiResponse, IPaginatedResponse } from '@shared/common';
 import { RESPONSE_MESSAGES } from '@constants/response-messages.constant';
+import { ROLES } from '@constants/roles.constant';
+import { Roles } from '@decorators/roles.decorator';
+import { IApiResponse, IPaginatedResponse } from '@shared/common';
 import { DirectorService } from './director.service';
-import { CreateDirectorDto, UpdateDirectorDto, QueryDirectorDto } from './dto';
+import { CreateDirectorDto, QueryDirectorDto, UpdateDirectorDto } from './dto';
 import { IDirectorResponse } from './interfaces';
 
 @ApiTags('Directors')
+@ApiBearerAuth()
+@Roles(ROLES.ADMINISTRADOR)
 @Controller('directors')
 export class DirectorController {
   constructor(private readonly directorService: DirectorService) {}
 
-  @Public()
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear un nuevo director' })
@@ -42,7 +44,6 @@ export class DirectorController {
     };
   }
 
-  @Public()
   @Get()
   @ApiOperation({ summary: 'Listar directores con paginacion y filtros' })
   @ApiResponse({ status: 200, description: 'Lista de directores' })
@@ -57,15 +58,12 @@ export class DirectorController {
     };
   }
 
-  @Public()
   @Get(':id')
   @ApiOperation({ summary: 'Obtener un director por ID' })
   @ApiParam({ name: 'id', description: 'UUID del director' })
   @ApiResponse({ status: 200, description: 'Director encontrado' })
   @ApiResponse({ status: 404, description: 'Director no encontrado' })
-  async findById(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<IApiResponse<IDirectorResponse>> {
+  async findById(@Param('id', ParseUUIDPipe) id: string): Promise<IApiResponse<IDirectorResponse>> {
     const data = await this.directorService.findById(id);
     return {
       success: true,
@@ -74,7 +72,6 @@ export class DirectorController {
     };
   }
 
-  @Public()
   @Put(':id')
   @ApiOperation({ summary: 'Actualizar un director' })
   @ApiParam({ name: 'id', description: 'UUID del director' })
@@ -92,15 +89,12 @@ export class DirectorController {
     };
   }
 
-  @Public()
   @Delete(':id')
   @ApiOperation({ summary: 'Eliminar un director' })
   @ApiParam({ name: 'id', description: 'UUID del director' })
   @ApiResponse({ status: 200, description: 'Director eliminado' })
   @ApiResponse({ status: 404, description: 'Director no encontrado' })
-  async delete(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<IApiResponse<void>> {
+  async delete(@Param('id', ParseUUIDPipe) id: string): Promise<IApiResponse<void>> {
     await this.directorService.delete(id);
     return {
       success: true,

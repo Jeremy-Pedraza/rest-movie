@@ -129,9 +129,12 @@ export class QueryLogDto extends PaginationDto {
     enum: ['created_at', 'level', 'context', 'status_code', 'response_time'],
   })
   @IsOptional()
-  @Transform(({ value, obj }): string => value ?? obj.sort_by ?? 'created_at')
-  @IsIn(['created_at', 'level', 'context', 'status_code', 'response_time'])
-  sortBy?: string = 'created_at';
+  @Transform(({ value, obj }): string => {
+    const raw: string = value ?? obj.sort_by ?? 'createdAt';
+    return raw === 'created_at' ? 'createdAt' : raw;
+  })
+  @IsIn(['createdAt', 'created_at', 'level', 'context', 'status_code', 'response_time'])
+  sortBy?: string = 'createdAt';
 
   @ApiPropertyOptional({
     description: 'Orden',

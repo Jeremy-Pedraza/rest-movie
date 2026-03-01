@@ -12,6 +12,15 @@ declare global {
        * Timestamp de inicio de la peticion
        */
       startTime?: number;
+
+      /**
+       * Usuario autenticado (payload del JWT)
+       */
+      user?: {
+        sub: string;
+        email: string;
+        roles: string[];
+      };
     }
   }
 }

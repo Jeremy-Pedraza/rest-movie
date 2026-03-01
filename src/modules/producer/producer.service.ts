@@ -100,7 +100,9 @@ export class ProducerService {
     }
   }
 
-  private toResponse(producer: import('./entities/producer.entity').ProducerEntity): IProducerResponse {
+  private toResponse(
+    producer: import('./entities/producer.entity').ProducerEntity,
+  ): IProducerResponse {
     return {
       id: producer.id,
       name: producer.name,

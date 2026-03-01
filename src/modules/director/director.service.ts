@@ -90,7 +90,9 @@ export class DirectorService {
     }
   }
 
-  private toResponse(director: import('./entities/director.entity').DirectorEntity): IDirectorResponse {
+  private toResponse(
+    director: import('./entities/director.entity').DirectorEntity,
+  ): IDirectorResponse {
     return {
       id: director.id,
       names: director.names,

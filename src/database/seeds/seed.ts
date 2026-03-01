@@ -3,6 +3,8 @@ import { seedGenres } from './genre.seed';
 import { seedDirectors } from './director.seed';
 import { seedProducers } from './producer.seed';
 import { seedTypes } from './type.seed';
+import { seedRoles } from './role.seed';
+import { seedAdminUser } from './user.seed';
 
 async function runSeeds(): Promise<void> {
   console.log('Initializing database connection...');
@@ -12,6 +14,11 @@ async function runSeeds(): Promise<void> {
   console.log('Running seeds...');
 
   try {
+    // Auth seeds (roles primero, luego admin user)
+    await seedRoles(dataSource);
+    await seedAdminUser(dataSource);
+
+    // Catalog seeds
     await seedGenres(dataSource);
     await seedDirectors(dataSource);
     await seedProducers(dataSource);

@@ -23,13 +23,37 @@ export class LoggerRepository {
   ) {}
 
   async create(dto: CreateLogDto): Promise<LogEntity> {
-    const log = this.repository.create(this.mapDtoToEntity(dto));
-    return this.repository.save(log);
+    const result = await this.repository
+      .createQueryBuilder()
+      .insert()
+      .into(LogEntity)
+      .values(this.mapDtoToEntity(dto) as never)
+      .returning('id')
+      .execute();
+
+    const id = result.identifiers[0]?.id as string | undefined;
+    if (!id) {
+      throw new Error('No se pudo obtener el ID del log insertado');
+    }
+
+    return (await this.findById(id)) as LogEntity;
   }
 
   async createBatch(dtos: CreateLogDto[]): Promise<LogEntity[]> {
-    const logs = this.repository.create(dtos.map((dto) => this.mapDtoToEntity(dto)));
-    return this.repository.save(logs);
+    if (dtos.length === 0) return [];
+
+    const result = await this.repository
+      .createQueryBuilder()
+      .insert()
+      .into(LogEntity)
+      .values(dtos.map((dto) => this.mapDtoToEntity(dto)) as never)
+      .returning('id')
+      .execute();
+
+    const ids = result.identifiers.map((item) => item.id).filter(Boolean) as string[];
+    if (ids.length === 0) return [];
+
+    return this.createQueryBuilder('log').where('log.id IN (:...ids)', { ids }).getMany();
   }
 
   private mapDtoToEntity(dto: CreateLogDto): Partial<LogEntity> {
@@ -72,7 +96,7 @@ export class LoggerRepository {
       toDate,
       page = 1,
       limit = 20,
-      sortBy = 'created_at',
+      sortBy = 'createdAt',
       sortOrder = 'DESC',
     } = query;
 
@@ -112,8 +136,8 @@ export class LoggerRepository {
       qb.andWhere('log.created_at <= :toDate', { toDate: new Date(toDate) });
     }
 
-    const validSortFields = ['created_at', 'level', 'context', 'status_code', 'response_time'];
-    const orderField = validSortFields.includes(sortBy) ? sortBy : 'created_at';
+    const validSortFields = ['createdAt', 'level', 'context', 'status_code', 'response_time'];
+    const orderField = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
     qb.orderBy(`log.${orderField}`, sortOrder);
 
     const skip = (page - 1) * limit;
@@ -138,14 +162,14 @@ export class LoggerRepository {
   async findByRequestId(requestId: string): Promise<LogEntity[]> {
     return this.createQueryBuilder('log')
       .where('log.request_id = :request_id', { request_id: requestId })
-      .orderBy('log.created_at', 'ASC')
+      .orderBy('log.createdAt', 'ASC')
       .getMany();
   }
 
   async findByUserId(userId: string, limit: number = 100): Promise<LogEntity[]> {
     return this.createQueryBuilder('log')
       .where('log.user_id = :user_id', { user_id: userId })
-      .orderBy('log.created_at', 'DESC')
+      .orderBy('log.createdAt', 'DESC')
       .take(limit)
       .getMany();
   }
@@ -157,7 +181,7 @@ export class LoggerRepository {
     return this.createQueryBuilder('log')
       .where('log.level = :level', { level: LogLevel.ERROR })
       .andWhere('log.created_at >= :since', { since })
-      .orderBy('log.created_at', 'DESC')
+      .orderBy('log.createdAt', 'DESC')
       .take(limit)
       .getMany();
   }
@@ -263,7 +287,7 @@ export class LoggerRepository {
   }
 
   async count(): Promise<number> {
-    return this.repository.count();
+    return this.createQueryBuilder('log').getCount();
   }
 
   private createQueryBuilder(alias: string): SelectQueryBuilder<LogEntity> {

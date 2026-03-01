@@ -13,21 +13,23 @@ import {
   HttpStatus,
   ParseUUIDPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 
-import { Public } from '@decorators/public.decorator';
 import { IApiResponse, IPaginatedResponse } from '@shared/common';
 import { RESPONSE_MESSAGES } from '@constants/response-messages.constant';
+import { ROLES } from '@constants/roles.constant';
+import { Roles } from '@decorators/roles.decorator';
 import { ProducerService } from './producer.service';
 import { CreateProducerDto, UpdateProducerDto, QueryProducerDto } from './dto';
 import { IProducerResponse } from './interfaces';
 
 @ApiTags('Producers')
+@ApiBearerAuth()
+@Roles(ROLES.ADMINISTRADOR)
 @Controller('producers')
 export class ProducerController {
   constructor(private readonly producerService: ProducerService) {}
 
-  @Public()
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear una nueva productora' })
@@ -43,7 +45,6 @@ export class ProducerController {
     };
   }
 
-  @Public()
   @Get()
   @ApiOperation({ summary: 'Listar productoras con paginacion y filtros' })
   @ApiResponse({ status: 200, description: 'Lista de productoras' })
@@ -58,15 +59,12 @@ export class ProducerController {
     };
   }
 
-  @Public()
   @Get(':id')
   @ApiOperation({ summary: 'Obtener una productora por ID' })
   @ApiParam({ name: 'id', description: 'UUID de la productora' })
   @ApiResponse({ status: 200, description: 'Productora encontrada' })
   @ApiResponse({ status: 404, description: 'Productora no encontrada' })
-  async findById(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<IApiResponse<IProducerResponse>> {
+  async findById(@Param('id', ParseUUIDPipe) id: string): Promise<IApiResponse<IProducerResponse>> {
     const data = await this.producerService.findById(id);
     return {
       success: true,
@@ -75,7 +73,6 @@ export class ProducerController {
     };
   }
 
-  @Public()
   @Put(':id')
   @ApiOperation({ summary: 'Actualizar una productora' })
   @ApiParam({ name: 'id', description: 'UUID de la productora' })
@@ -93,15 +90,12 @@ export class ProducerController {
     };
   }
 
-  @Public()
   @Delete(':id')
   @ApiOperation({ summary: 'Eliminar una productora' })
   @ApiParam({ name: 'id', description: 'UUID de la productora' })
   @ApiResponse({ status: 200, description: 'Productora eliminada' })
   @ApiResponse({ status: 404, description: 'Productora no encontrada' })
-  async delete(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<IApiResponse<void>> {
+  async delete(@Param('id', ParseUUIDPipe) id: string): Promise<IApiResponse<void>> {
     await this.producerService.delete(id);
     return {
       success: true,

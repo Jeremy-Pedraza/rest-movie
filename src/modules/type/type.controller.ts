@@ -13,21 +13,23 @@ import {
   HttpStatus,
   ParseUUIDPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 
-import { Public } from '@decorators/public.decorator';
 import { IApiResponse, IPaginatedResponse } from '@shared/common';
 import { RESPONSE_MESSAGES } from '@constants/response-messages.constant';
+import { ROLES } from '@constants/roles.constant';
+import { Roles } from '@decorators/roles.decorator';
 import { TypeService } from './type.service';
 import { CreateTypeDto, UpdateTypeDto, QueryTypeDto } from './dto';
 import { ITypeResponse } from './interfaces';
 
 @ApiTags('Types')
+@ApiBearerAuth()
+@Roles(ROLES.ADMINISTRADOR)
 @Controller('types')
 export class TypeController {
   constructor(private readonly typeService: TypeService) {}
 
-  @Public()
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear un nuevo tipo' })
@@ -43,7 +45,6 @@ export class TypeController {
     };
   }
 
-  @Public()
   @Get()
   @ApiOperation({ summary: 'Listar tipos con paginacion y filtros' })
   @ApiResponse({ status: 200, description: 'Lista de tipos' })
@@ -58,15 +59,12 @@ export class TypeController {
     };
   }
 
-  @Public()
   @Get(':id')
   @ApiOperation({ summary: 'Obtener un tipo por ID' })
   @ApiParam({ name: 'id', description: 'UUID del tipo' })
   @ApiResponse({ status: 200, description: 'Tipo encontrado' })
   @ApiResponse({ status: 404, description: 'Tipo no encontrado' })
-  async findById(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<IApiResponse<ITypeResponse>> {
+  async findById(@Param('id', ParseUUIDPipe) id: string): Promise<IApiResponse<ITypeResponse>> {
     const data = await this.typeService.findById(id);
     return {
       success: true,
@@ -75,7 +73,6 @@ export class TypeController {
     };
   }
 
-  @Public()
   @Put(':id')
   @ApiOperation({ summary: 'Actualizar un tipo' })
   @ApiParam({ name: 'id', description: 'UUID del tipo' })
@@ -93,15 +90,12 @@ export class TypeController {
     };
   }
 
-  @Public()
   @Delete(':id')
   @ApiOperation({ summary: 'Eliminar un tipo' })
   @ApiParam({ name: 'id', description: 'UUID del tipo' })
   @ApiResponse({ status: 200, description: 'Tipo eliminado' })
   @ApiResponse({ status: 404, description: 'Tipo no encontrado' })
-  async delete(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<IApiResponse<void>> {
+  async delete(@Param('id', ParseUUIDPipe) id: string): Promise<IApiResponse<void>> {
     await this.typeService.delete(id);
     return {
       success: true,

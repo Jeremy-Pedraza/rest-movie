@@ -4,8 +4,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
 
-import { DirectorEntity } from './entities/director.entity';
 import { QueryDirectorDto } from './dto';
+import { DirectorEntity } from './entities/director.entity';
 
 @Injectable()
 export class DirectorRepository {
@@ -15,13 +15,23 @@ export class DirectorRepository {
   ) {}
 
   async create(data: Partial<DirectorEntity>): Promise<DirectorEntity> {
-    const entity = this.repository.create(data);
-    return this.repository.save(entity);
+    const result = await this.repository
+      .createQueryBuilder()
+      .insert()
+      .into(DirectorEntity)
+      .values(data)
+      .returning('id')
+      .execute();
+
+    const id = result.identifiers[0]?.id as string | undefined;
+    if (!id) {
+      throw new Error('No se pudo obtener el ID del director insertado');
+    }
+
+    return (await this.findById(id)) as DirectorEntity;
   }
 
-  async findAll(
-    query: QueryDirectorDto,
-  ): Promise<{ data: DirectorEntity[]; total: number }> {
+  async findAll(query: QueryDirectorDto): Promise<{ data: DirectorEntity[]; total: number }> {
     const qb = this.createBaseQueryBuilder('director');
 
     if (query.search) {
@@ -34,7 +44,7 @@ export class DirectorRepository {
       qb.andWhere('director.is_active = :isActive', { isActive: query.isActive });
     }
 
-    const sortBy = query.sortBy || 'created_at';
+    const sortBy = query.sortBy || 'createdAt';
     const sortOrder = query.sortOrder || 'DESC';
     qb.orderBy(`director.${sortBy}`, sortOrder);
 
@@ -47,16 +57,31 @@ export class DirectorRepository {
   }
 
   async findById(id: string): Promise<DirectorEntity | null> {
-    return this.repository.findOne({ where: { id } });
+    return this.repository
+      .createQueryBuilder('director')
+      .where('director.id = :id', { id })
+      .getOne();
   }
 
   async update(id: string, data: Partial<DirectorEntity>): Promise<DirectorEntity | null> {
-    await this.repository.update(id, data);
+    await this.repository
+      .createQueryBuilder()
+      .update(DirectorEntity)
+      .set(data)
+      .where('id = :id', { id })
+      .execute();
+
     return this.findById(id);
   }
 
   async delete(id: string): Promise<boolean> {
-    const result = await this.repository.delete(id);
+    const result = await this.repository
+      .createQueryBuilder()
+      .delete()
+      .from(DirectorEntity)
+      .where('id = :id', { id })
+      .execute();
+
     return (result.affected ?? 0) > 0;
   }
 

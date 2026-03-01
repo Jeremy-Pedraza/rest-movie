@@ -21,6 +21,13 @@ import { DirectorModule } from '@modules/director';
 import { ProducerModule } from '@modules/producer';
 import { TypeModule } from '@modules/type';
 import { MediaModule } from '@modules/media';
+import { RoleModule } from '@modules/role';
+import { UserModule } from '@modules/user';
+import { AuthModule } from '@modules/auth';
+
+// Global Guards
+import { JwtAuthGuard } from '@guards/jwt-auth.guard';
+import { RolesGuard } from '@guards/roles.guard';
 
 // Global Interceptors & Filters
 import { LoggingInterceptor } from '@interceptors/logging.interceptor';
@@ -34,7 +41,7 @@ import { RequestIdMiddleware, LoggerMiddleware } from '@middleware/index';
 // Configurations
 import appConfig from '@config/app.config';
 import { databaseConfig, typeOrmAsyncConfig } from '@config/database';
-import { throttlerConfig } from '@config/security';
+import { throttlerConfig, jwtConfig } from '@config/security';
 
 @Module({
   imports: [
@@ -45,7 +52,7 @@ import { throttlerConfig } from '@config/security';
         process.env.NODE_ENV === 'production'
           ? ['api/.env.production', '.env.production', '.env']
           : [`.env.${process.env.NODE_ENV}`, '.env'],
-      load: [appConfig, databaseConfig, throttlerConfig],
+      load: [appConfig, databaseConfig, throttlerConfig, jwtConfig],
       cache: true,
       expandVariables: true,
     }),
@@ -79,6 +86,9 @@ import { throttlerConfig } from '@config/security';
     ProducerModule,
     TypeModule,
     MediaModule,
+    RoleModule,
+    UserModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [
@@ -108,6 +118,14 @@ import { throttlerConfig } from '@config/security';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
     },
   ],
 })

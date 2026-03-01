@@ -2,16 +2,16 @@
 
 import { Injectable, Logger } from '@nestjs/common';
 
-import { SanitizerService, HandleErrorService, IPaginatedResponse } from '@shared/common';
-import { PaginationMetaDto } from '@shared/common/dto/pagination.dto';
-import { GenreRepository } from '@modules/genre/genre.repository';
 import { DirectorRepository } from '@modules/director/director.repository';
+import { GenreRepository } from '@modules/genre/genre.repository';
 import { ProducerRepository } from '@modules/producer/producer.repository';
 import { TypeRepository } from '@modules/type/type.repository';
-import { MediaRepository } from './media.repository';
-import { CreateMediaDto, UpdateMediaDto, QueryMediaDto } from './dto';
-import { IMediaResponse } from './interfaces';
+import { HandleErrorService, IPaginatedResponse, SanitizerService } from '@shared/common';
+import { PaginationMetaDto } from '@shared/common/dto/pagination.dto';
+import { CreateMediaDto, QueryMediaDto, UpdateMediaDto } from './dto';
 import { MediaEntity } from './entities/media.entity';
+import { IMediaResponse } from './interfaces';
+import { MediaRepository } from './media.repository';
 
 @Injectable()
 export class MediaService {
@@ -100,9 +100,7 @@ export class MediaService {
         sanitizedData.title = this.sanitizer.sanitizeString(dto.title);
       }
       if (dto.synopsis !== undefined) {
-        sanitizedData.synopsis = dto.synopsis
-          ? this.sanitizer.sanitizeString(dto.synopsis)
-          : null;
+        sanitizedData.synopsis = dto.synopsis ? this.sanitizer.sanitizeString(dto.synopsis) : null;
       }
       if (dto.url !== undefined) {
         sanitizedData.url = dto.url.trim();
@@ -199,18 +197,10 @@ export class MediaService {
       directorId: media.directorId,
       producerId: media.producerId,
       typeId: media.typeId,
-      genre: media.genre
-        ? { id: media.genre.id, name: media.genre.name }
-        : undefined,
-      director: media.director
-        ? { id: media.director.id, names: media.director.names }
-        : undefined,
-      producer: media.producer
-        ? { id: media.producer.id, name: media.producer.name }
-        : undefined,
-      type: media.type
-        ? { id: media.type.id, name: media.type.name }
-        : undefined,
+      genre: media.genre ? { id: media.genre.id, name: media.genre.name } : undefined,
+      director: media.director ? { id: media.director.id, names: media.director.names } : undefined,
+      producer: media.producer ? { id: media.producer.id, name: media.producer.name } : undefined,
+      type: media.type ? { id: media.type.id, name: media.type.name } : undefined,
       createdAt: media.createdAt,
       updatedAt: media.updatedAt,
     };

@@ -114,10 +114,6 @@ export {
 // CRYPTO HELPERS
 // ============================================
 export {
-  hashPassword,
-  verifyPassword,
-  hashPasswordSync,
-  verifyPasswordSync,
   sha256,
   sha512,
   md5,

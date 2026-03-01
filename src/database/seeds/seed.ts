@@ -1,93 +1,30 @@
-/**
- * @fileoverview Runner principal de seeds
- * @module database/seeds
- *
- * Ejecuta todos los seeds en orden:
- * 1. Permissions (primero, son independientes)
- * 2. Roles (dependen de permissions)
- * 3. Geography (catálogo base)
- * 4. Companies (dependen parcialmente de geography)
- * 5. Tenant Schemas (dependen de companies)
- * 6. Stores (dependen de companies y geography)
- * 7. Users (dependen de roles y companies)
- *
- * @example
- * # Ejecutar seeds
- * yarn seed
- *
- * # O con npm
- * npm run seed
- */
+import dataSource from '../../config/database/data-source';
+import { seedGenres } from './genre.seed';
+import { seedDirectors } from './director.seed';
+import { seedProducers } from './producer.seed';
+import { seedTypes } from './type.seed';
 
-import { DataSource } from 'typeorm';
-import { dataSourceOptions } from '@config/database/data-source';
+async function runSeeds(): Promise<void> {
+  console.log('Initializing database connection...');
+  await dataSource.initialize();
+  console.log('Database connected.\n');
 
-// Seeds
-import { seedPermissions } from './permission.seed';
-import { seedRoles } from './role.seed';
-import { seedCompanies } from './company.seed';
-import { seedTenantSchemas } from './tenant-schema.seed';
-import { seedUsers } from './user.seed';
-import { seedGeography } from './latam-geography.seed';
-import { seedStores } from './store.seed';
-
-async function seed() {
-  const startTime = Date.now();
-
-  console.log('╔══════════════════════════════════════════════════════╗');
-  console.log('║           🌱 Rest BACKEND - DATABASE SEED           ║');
-  console.log('╚══════════════════════════════════════════════════════╝');
-  console.log(`\n📅 ${new Date().toISOString()}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-
-  const dataSource = new DataSource(dataSourceOptions);
+  console.log('Running seeds...');
 
   try {
-    // Conectar a la BD
-    console.log('\n🔌 Connecting to database...');
-    await dataSource.initialize();
-    console.log('✅ Database connected successfully');
+    await seedGenres(dataSource);
+    await seedDirectors(dataSource);
+    await seedProducers(dataSource);
+    await seedTypes(dataSource);
 
-    // Ejecutar seeds en orden
-    // 1. Permissions (independientes)
-    await seedPermissions(dataSource);
-
-    // 2. Roles (dependen de permissions)
-    await seedRoles(dataSource);
-
-    // 3. Geografia (requerida para geo_country_id y geo_city_id)
-    await seedGeography(dataSource);
-
-    // 4. Companies (dependen parcialmente de geografia)
-    await seedCompanies(dataSource);
-
-    // 5. Tenant Schemas (dependen de companies)
-    await seedTenantSchemas(dataSource);
-
-    // 6. Stores (dependen de companies y geografia)
-    await seedStores(dataSource);
-
-    // 7. Users (dependen de roles y companies)
-    await seedUsers(dataSource);
-
-    // Resumen
-    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-    console.log('\n╔══════════════════════════════════════════════════════╗');
-    console.log('║              ✅ SEEDING COMPLETED                    ║');
-    console.log('╚══════════════════════════════════════════════════════╝');
-    console.log(`⏱  Duration: ${duration}s`);
+    console.log('\nAll seeds completed successfully!');
   } catch (error) {
-    console.error('\n❌ Error during seeding:');
-    console.error(error);
+    console.error('Error running seeds:', error);
     process.exit(1);
   } finally {
     await dataSource.destroy();
-    console.log('\n🔌 Database connection closed');
+    console.log('Database connection closed.');
   }
 }
 
-// Ejecutar si se llama directamente
-seed().catch((error) => {
-  console.error('Fatal error:', error);
-  process.exit(1);
-});
+runSeeds();

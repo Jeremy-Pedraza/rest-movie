@@ -154,14 +154,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
     // Log en base de datos (según configuración)
     if (this.shouldLogToDb(status)) {
       const stack = exception instanceof Error ? exception.stack : undefined;
-      const userId = request.user?.id;
 
       void this.loggerService?.error(message, {
         context: this.getLogContext(exception),
         errorCode,
         stack,
         requestId: request.requestId,
-        userId,
         ip: request.ip,
         userAgent: request.get('user-agent'),
         method: request.method,

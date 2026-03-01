@@ -155,12 +155,6 @@ export class UtilsService {
    * Utilidades criptográficas
    */
   readonly crypto = {
-    // Hash bcrypt
-    hashPassword: CryptoHelpers.hashPassword,
-    verifyPassword: CryptoHelpers.verifyPassword,
-    hashPasswordSync: CryptoHelpers.hashPasswordSync,
-    verifyPasswordSync: CryptoHelpers.verifyPasswordSync,
-
     // Hash crypto
     sha256: CryptoHelpers.sha256,
     sha512: CryptoHelpers.sha512,
@@ -302,25 +296,6 @@ export class UtilsService {
    */
   generateSecureToken(length: number = 32): string {
     return CryptoHelpers.generateToken(length);
-  }
-
-  /**
-   * Hash de password con bcrypt
-   * @param password - Password a hashear
-   * @returns Hash bcrypt
-   */
-  async hashPassword(password: string): Promise<string> {
-    return CryptoHelpers.hashPassword(password);
-  }
-
-  /**
-   * Verifica password contra hash
-   * @param password - Password plano
-   * @param hash - Hash bcrypt
-   * @returns true si coinciden
-   */
-  async verifyPassword(password: string, hash: string): Promise<boolean> {
-    return CryptoHelpers.verifyPassword(password, hash);
   }
 
   /**

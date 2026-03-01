@@ -1,12 +1,5 @@
 // src/modules/logger/logger.controller.ts
 
-/**
- * @fileoverview Controller para logs
- * @module modules/logger
- *
- * Los errores son manejados globalmente por AllExceptionsFilter.
- */
-
 import {
   Body,
   Controller,
@@ -19,25 +12,15 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiParam,
-  ApiQuery,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 
-import { ROLES } from '@constants/roles.constant';
-import { Roles } from '@decorators/roles.decorator';
-import { Cacheable } from '@decorators/cacheable.decorator';
+import { Public } from '@decorators/public.decorator';
 import { HandleErrorService, IApiResponse, IPaginatedResponse } from '@shared/common';
 import { CreateLogDto, LogStatsQueryDto, QueryLogDto } from './dto';
 import { LogEntity } from './entities/log.entity';
 import { LoggerService } from './logger.service';
 
 @ApiTags('Logs')
-@ApiBearerAuth()
 @Controller('logs')
 export class LoggerController {
   constructor(
@@ -45,19 +28,11 @@ export class LoggerController {
     private readonly handleError: HandleErrorService,
   ) {}
 
-  // ============================================
-  // CRUD ENDPOINTS
-  // ============================================
-
-  /**
-   * Crea un nuevo log
-   */
+  @Public()
   @Post()
-  @Roles(ROLES.ADMIN, ROLES.SYSTEM)
   @ApiOperation({ summary: 'Crear un log' })
   @ApiResponse({ status: 201, description: 'Log creado' })
-  @ApiResponse({ status: 400, description: 'Datos inválidos' })
-  @ApiResponse({ status: 401, description: 'No autorizado' })
+  @ApiResponse({ status: 400, description: 'Datos invalidos' })
   async create(@Body() dto: CreateLogDto): Promise<IApiResponse<null>> {
     await this.loggerService.log(dto.level, dto.message, {
       context: dto.context,
@@ -83,14 +58,10 @@ export class LoggerController {
     };
   }
 
-  /**
-   * Obtiene todos los logs con paginación
-   */
+  @Public()
   @Get()
-  @Roles(ROLES.ADMIN, ROLES.SYSTEM)
   @ApiOperation({ summary: 'Listar logs con filtros' })
   @ApiResponse({ status: 200, description: 'Lista de logs paginada' })
-  @ApiResponse({ status: 401, description: 'No autorizado' })
   async findAll(@Query() query: QueryLogDto): Promise<IApiResponse<IPaginatedResponse<LogEntity>>> {
     const result = await this.loggerService.findAll(query);
     return {
@@ -100,11 +71,8 @@ export class LoggerController {
     };
   }
 
-  /**
-   * Obtiene un log por ID
-   */
+  @Public()
   @Get(':id')
-  @Roles(ROLES.ADMIN, ROLES.SYSTEM)
   @ApiOperation({ summary: 'Obtener log por ID' })
   @ApiParam({ name: 'id', description: 'ID del log', type: 'string' })
   @ApiResponse({ status: 200, description: 'Log encontrado' })
@@ -123,18 +91,11 @@ export class LoggerController {
     };
   }
 
-  // ============================================
-  // TRACING ENDPOINTS
-  // ============================================
-
-  /**
-   * Obtiene logs por request ID (tracing)
-   */
+  @Public()
   @Get('trace/:requestId')
-  @Roles(ROLES.ADMIN, ROLES.SYSTEM)
   @ApiOperation({ summary: 'Obtener logs por request ID (tracing)' })
-  @ApiParam({ name: 'requestId', description: 'ID de la petición', type: 'string' })
-  @ApiResponse({ status: 200, description: 'Logs de la petición' })
+  @ApiParam({ name: 'requestId', description: 'ID de la peticion', type: 'string' })
+  @ApiResponse({ status: 200, description: 'Logs de la peticion' })
   async findByRequestId(
     @Param('requestId', ParseUUIDPipe) requestId: string,
   ): Promise<IApiResponse<LogEntity[]>> {
@@ -146,11 +107,8 @@ export class LoggerController {
     };
   }
 
-  /**
-   * Obtiene logs por usuario
-   */
+  @Public()
   @Get('user/:userId')
-  @Roles(ROLES.ADMIN, ROLES.SYSTEM)
   @ApiOperation({ summary: 'Obtener logs por usuario' })
   @ApiParam({ name: 'userId', description: 'ID del usuario', type: 'string' })
   @ApiQuery({ name: 'limit', required: false, type: 'number' })
@@ -167,13 +125,10 @@ export class LoggerController {
     };
   }
 
-  /**
-   * Obtiene errores recientes
-   */
+  @Public()
   @Get('errors/recent')
-  @Roles(ROLES.ADMIN, ROLES.SYSTEM)
   @ApiOperation({ summary: 'Obtener errores recientes' })
-  @ApiQuery({ name: 'hours', required: false, type: 'number', description: 'Horas hacia atrás' })
+  @ApiQuery({ name: 'hours', required: false, type: 'number', description: 'Horas hacia atras' })
   @ApiQuery({ name: 'limit', required: false, type: 'number' })
   @ApiResponse({ status: 200, description: 'Errores recientes' })
   async findRecentErrors(
@@ -188,37 +143,23 @@ export class LoggerController {
     };
   }
 
-  // ============================================
-  // STATISTICS ENDPOINTS
-  // ============================================
-
-  /**
-   * Obtiene estadísticas de logs
-   * Cache: 30 segundos
-   */
+  @Public()
   @Get('stats/grouped')
-  @Cacheable(30)
-  @Roles(ROLES.ADMIN, ROLES.SYSTEM)
-  @ApiOperation({ summary: 'Obtener estadísticas de logs' })
-  @ApiResponse({ status: 200, description: 'Estadísticas de logs' })
+  @ApiOperation({ summary: 'Obtener estadisticas de logs' })
+  @ApiResponse({ status: 200, description: 'Estadisticas de logs' })
   async getStats(
     @Query() query: LogStatsQueryDto,
   ): Promise<IApiResponse<Record<string, unknown>[]>> {
     const stats = await this.loggerService.getStats(query);
     return {
       success: true,
-      message: 'Estadísticas obtenidas',
+      message: 'Estadisticas obtenidas',
       data: stats,
     };
   }
 
-  /**
-   * Obtiene resumen de logs
-   * Cache: 30 segundos
-   */
+  @Public()
   @Get('stats/summary')
-  @Cacheable(30)
-  @Roles(ROLES.ADMIN, ROLES.SYSTEM)
   @ApiOperation({ summary: 'Obtener resumen de logs' })
   @ApiResponse({ status: 200, description: 'Resumen de logs' })
   async getSummary(): Promise<IApiResponse<Record<string, unknown>>> {
@@ -230,22 +171,15 @@ export class LoggerController {
     };
   }
 
-  // ============================================
-  // CLEANUP ENDPOINTS
-  // ============================================
-
-  /**
-   * Elimina logs antiguos
-   */
+  @Public()
   @Delete('cleanup')
-  @Roles(ROLES.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Eliminar logs antiguos' })
   @ApiQuery({
     name: 'days',
     required: false,
     type: 'number',
-    description: 'Días de retención (default: 30)',
+    description: 'Dias de retencion (default: 30)',
   })
   @ApiResponse({ status: 200, description: 'Logs eliminados' })
   async deleteOldLogs(@Query('days') days?: number): Promise<IApiResponse<{ deleted: number }>> {
@@ -257,18 +191,15 @@ export class LoggerController {
     };
   }
 
-  /**
-   * Limpia logs de debug
-   */
+  @Public()
   @Delete('cleanup/debug')
-  @Roles(ROLES.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Eliminar logs de debug antiguos' })
   @ApiQuery({
     name: 'days',
     required: false,
     type: 'number',
-    description: 'Días de retención (default: 3)',
+    description: 'Dias de retencion (default: 3)',
   })
   @ApiResponse({ status: 200, description: 'Logs de debug eliminados' })
   async cleanupDebugLogs(@Query('days') days?: number): Promise<IApiResponse<{ deleted: number }>> {
@@ -280,11 +211,8 @@ export class LoggerController {
     };
   }
 
-  /**
-   * Fuerza el flush del buffer
-   */
+  @Public()
   @Post('flush')
-  @Roles(ROLES.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Forzar flush del buffer de logs' })
   @ApiResponse({ status: 200, description: 'Buffer vaciado' })

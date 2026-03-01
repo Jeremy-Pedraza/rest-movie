@@ -1,10 +1,5 @@
 // src/modules/health/health.controller.ts
 
-/**
- * @fileoverview Controller para health checks
- * @module modules/health
- */
-
 import { Controller, Get, Logger, Inject, Optional } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import {
@@ -17,21 +12,17 @@ import {
 import * as os from 'os';
 
 import { Public } from '@decorators/public.decorator';
-import { SkipTenant } from '@decorators/skip-tenant.decorator';
 import { LoggerService, LogContext } from '@modules/logger';
 import { DatabaseHealthIndicator } from './indicators/database.indicator';
-import { RedisHealthIndicator } from './indicators/redis.indicator';
 
 @ApiTags('Health')
 @Controller('health')
-@SkipTenant() // Health checks no requieren contexto de tenant
 export class HealthController {
   private readonly logger = new Logger(HealthController.name);
 
   constructor(
     private readonly health: HealthCheckService,
     private readonly database: DatabaseHealthIndicator,
-    private readonly redis: RedisHealthIndicator,
     private readonly memory: MemoryHealthIndicator,
     private readonly disk: DiskHealthIndicator,
     @Optional()
@@ -39,18 +30,13 @@ export class HealthController {
     private readonly loggerService?: LoggerService,
   ) {}
 
-  // ============================================
-  // HEALTH CHECK ENDPOINTS
-  // ============================================
-
   /**
-   * Health check básico - Liveness probe
-   * Verifica que la aplicación está corriendo
+   * Health check basico - Liveness probe
    */
   @Public()
   @Get()
-  @ApiOperation({ summary: 'Health check básico (liveness)' })
-  @ApiResponse({ status: 200, description: 'Aplicación corriendo' })
+  @ApiOperation({ summary: 'Health check basico (liveness)' })
+  @ApiResponse({ status: 200, description: 'Aplicacion corriendo' })
   liveness(): { status: string; timestamp: string } {
     return {
       status: 'ok',
@@ -60,21 +46,19 @@ export class HealthController {
 
   /**
    * Health check completo - Readiness probe
-   * Verifica que todos los servicios están listos
    */
   @Public()
   @Get('ready')
   @HealthCheck()
   @ApiOperation({ summary: 'Readiness check (todos los servicios)' })
-  @ApiResponse({ status: 200, description: 'Todos los servicios están listos' })
-  @ApiResponse({ status: 503, description: 'Algún servicio no está disponible' })
+  @ApiResponse({ status: 200, description: 'Todos los servicios estan listos' })
+  @ApiResponse({ status: 503, description: 'Algun servicio no esta disponible' })
   async readiness(): Promise<HealthCheckResult> {
     try {
       return await this.health.check([
         () => this.database.isHealthy('database'),
-        () => this.redis.isHealthy('redis'),
-        () => this.memory.checkHeap('memory_heap', 300 * 1024 * 1024), // 300MB
-        () => this.memory.checkRSS('memory_rss', 500 * 1024 * 1024), // 500MB
+        () => this.memory.checkHeap('memory_heap', 300 * 1024 * 1024),
+        () => this.memory.checkRSS('memory_rss', 500 * 1024 * 1024),
       ]);
     } catch (error) {
       this.logError('Readiness check failed', error);
@@ -101,32 +85,14 @@ export class HealthController {
   }
 
   /**
-   * Health check de Redis
-   */
-  @Public()
-  @Get('redis')
-  @HealthCheck()
-  @ApiOperation({ summary: 'Health check de Redis' })
-  @ApiResponse({ status: 200, description: 'Redis disponible' })
-  @ApiResponse({ status: 503, description: 'Redis no disponible' })
-  async checkRedis(): Promise<HealthCheckResult> {
-    try {
-      return await this.health.check([() => this.redis.isHealthy('redis')]);
-    } catch (error) {
-      this.logError('Redis health check failed', error);
-      throw error;
-    }
-  }
-
-  /**
    * Health check de memoria
    */
   @Public()
   @Get('memory')
   @HealthCheck()
   @ApiOperation({ summary: 'Health check de memoria' })
-  @ApiResponse({ status: 200, description: 'Memoria dentro de límites' })
-  @ApiResponse({ status: 503, description: 'Memoria excede límites' })
+  @ApiResponse({ status: 200, description: 'Memoria dentro de limites' })
+  @ApiResponse({ status: 503, description: 'Memoria excede limites' })
   async checkMemory(): Promise<HealthCheckResult> {
     try {
       return await this.health.check([
@@ -146,15 +112,15 @@ export class HealthController {
   @Get('disk')
   @HealthCheck()
   @ApiOperation({ summary: 'Health check de disco' })
-  @ApiResponse({ status: 200, description: 'Disco dentro de límites' })
-  @ApiResponse({ status: 503, description: 'Disco excede límites' })
+  @ApiResponse({ status: 200, description: 'Disco dentro de limites' })
+  @ApiResponse({ status: 503, description: 'Disco excede limites' })
   async checkDisk(): Promise<HealthCheckResult> {
     try {
       return await this.health.check([
         () =>
           this.disk.checkStorage('disk', {
             path: '/',
-            thresholdPercent: 0.9, // 90%
+            thresholdPercent: 0.9,
           }),
       ]);
     } catch (error) {
@@ -163,17 +129,13 @@ export class HealthController {
     }
   }
 
-  // ============================================
-  // METRICS ENDPOINTS
-  // ============================================
-
   /**
-   * Métricas detalladas de la base de datos
+   * Metricas detalladas de la base de datos
    */
   @Public()
   @Get('metrics/database')
-  @ApiOperation({ summary: 'Métricas de PostgreSQL' })
-  @ApiResponse({ status: 200, description: 'Métricas de la base de datos' })
+  @ApiOperation({ summary: 'Metricas de PostgreSQL' })
+  @ApiResponse({ status: 200, description: 'Metricas de la base de datos' })
   async databaseMetrics(): Promise<Record<string, unknown>> {
     try {
       const [metrics, poolStatus] = await Promise.all([
@@ -198,44 +160,12 @@ export class HealthController {
   }
 
   /**
-   * Métricas detalladas de Redis
-   */
-  @Public()
-  @Get('metrics/redis')
-  @ApiOperation({ summary: 'Métricas de Redis' })
-  @ApiResponse({ status: 200, description: 'Métricas de Redis' })
-  async redisMetrics(): Promise<Record<string, unknown>> {
-    try {
-      const [metrics, latency, memory] = await Promise.all([
-        this.redis.getMetrics(),
-        this.redis.getLatency(),
-        this.redis.getMemoryStatus(),
-      ]);
-
-      return {
-        status: 'ok',
-        timestamp: new Date().toISOString(),
-        metrics,
-        latency: `${latency}ms`,
-        memory,
-      };
-    } catch (error) {
-      this.logError('Failed to get Redis metrics', error);
-      return {
-        status: 'error',
-        timestamp: new Date().toISOString(),
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
-    }
-  }
-
-  /**
-   * Métricas de memoria del proceso
+   * Metricas de memoria del proceso
    */
   @Public()
   @Get('metrics/memory')
-  @ApiOperation({ summary: 'Métricas de memoria del proceso' })
-  @ApiResponse({ status: 200, description: 'Métricas de memoria' })
+  @ApiOperation({ summary: 'Metricas de memoria del proceso' })
+  @ApiResponse({ status: 200, description: 'Metricas de memoria' })
   memoryMetrics(): Record<string, unknown> {
     const memUsage = process.memoryUsage();
 
@@ -259,12 +189,12 @@ export class HealthController {
   }
 
   /**
-   * Información del sistema
+   * Informacion del sistema
    */
   @Public()
   @Get('info')
-  @ApiOperation({ summary: 'Información del sistema' })
-  @ApiResponse({ status: 200, description: 'Información del sistema' })
+  @ApiOperation({ summary: 'Informacion del sistema' })
+  @ApiResponse({ status: 200, description: 'Informacion del sistema' })
   systemInfo(): Record<string, unknown> {
     return {
       status: 'ok',
@@ -285,15 +215,6 @@ export class HealthController {
       },
       pid: process.pid,
     };
-  }
-
-  private logWarn(message: string, details?: unknown): void {
-    this.logger.warn(message);
-    void this.loggerService?.warn(message, {
-      context: LogContext.SYSTEM,
-      service: HealthController.name,
-      metadata: details ? { details: String(details) } : undefined,
-    });
   }
 
   private logError(message: string, details?: unknown): void {

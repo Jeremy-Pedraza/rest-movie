@@ -124,13 +124,10 @@ export class ValidationExceptionFilter implements ExceptionFilter {
 
     // Log en base de datos (según configuración LOG_DB_LEVEL)
     if (this.loggerService && checkShouldLogToDb(this.dbLevel, status)) {
-      const userId = request.user?.id;
-
       void this.loggerService.warn(message, {
         context: LogContext.HTTP,
         errorCode,
         requestId: request.requestId,
-        userId,
         ip: request.ip,
         userAgent: request.get('user-agent'),
         method: request.method,

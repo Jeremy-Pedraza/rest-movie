@@ -10,8 +10,10 @@ export function setupSwagger(app: INestApplication): void {
     return;
   }
 
-  const title = configService.get<string>('SWAGGER_TITLE') || 'Rest Backend API';
-  const description = configService.get<string>('SWAGGER_DESCRIPTION') || 'API REST Documentation';
+  const title = configService.get<string>('SWAGGER_TITLE') || 'IDA Media API';
+  const description =
+    configService.get<string>('SWAGGER_DESCRIPTION') ||
+    'API REST para gestion de peliculas y series - IDA';
   const version = configService.get<string>('SWAGGER_VERSION') || '1.0';
   const path = configService.get<string>('SWAGGER_PATH') || 'docs';
 
@@ -19,17 +21,12 @@ export function setupSwagger(app: INestApplication): void {
     .setTitle(title)
     .setDescription(description)
     .setVersion(version)
-    .addBearerAuth({
-      type: 'http',
-      scheme: 'bearer',
-      bearerFormat: 'JWT',
-      name: 'JWT',
-      description: 'Enter JWT token',
-      in: 'header',
-    })
-    .addTag('Auth', 'Authentication endpoints')
-    .addTag('Users', 'User management endpoints')
     .addTag('Health', 'Health check endpoints')
+    .addTag('Genres', 'Gestion de generos')
+    .addTag('Directors', 'Gestion de directores')
+    .addTag('Producers', 'Gestion de productoras')
+    .addTag('Types', 'Gestion de tipos (pelicula, serie)')
+    .addTag('Media', 'Gestion de peliculas y series')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

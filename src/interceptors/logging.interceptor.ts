@@ -69,8 +69,6 @@ export class LoggingInterceptor implements NestInterceptor {
           const contentLength = response.get('content-length') || '0';
           const responseTime = Date.now() - startTime;
 
-          // Leer userId y userAgent DESPUÉS del handler (login setea request.user durante ejecución)
-          const userId = request.user?.id;
           const userAgent = request.get('user-agent') || '';
 
           // Log en consola (si está habilitado)
@@ -89,7 +87,6 @@ export class LoggingInterceptor implements NestInterceptor {
                 statusCode,
                 responseTime,
                 requestId: requestId !== '-' ? requestId : undefined,
-                userId,
                 ip: ip || undefined,
                 userAgent: userAgent || undefined,
               })

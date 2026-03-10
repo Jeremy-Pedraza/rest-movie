@@ -15,12 +15,4 @@ export class AppController {
   getStatus() {
     return this.appService.getStatus();
   }
-
-  @Public()
-  @Get('health')
-  @ApiOperation({ summary: 'Health check' })
-  @ApiResponse({ status: 200, description: 'Health check passed' })
-  healthCheck() {
-    return this.appService.healthCheck();
-  }
 }

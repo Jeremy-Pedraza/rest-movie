@@ -35,7 +35,6 @@ export class AuthService {
         lastName: dto.lastName,
         email: dto.email,
         password: dto.password,
-        roleIds: dto.roleIds,
       });
 
       const userResponse = this.userService.toResponse(user);
@@ -80,6 +79,8 @@ export class AuthService {
     try {
       const payload = this.jwtService.verify<ITokenPayload>(dto.refreshToken, {
         secret: this.configService.get<string>('jwt.refreshSecret'),
+        issuer: this.configService.get<string>('jwt.issuer'),
+        audience: this.configService.get<string>('jwt.audience'),
       });
 
       const user = await this.userService.findById(payload.sub);
@@ -131,6 +132,8 @@ export class AuthService {
       {
         secret: this.configService.get<string>('jwt.refreshSecret'),
         expiresIn: refreshExpiresIn,
+        issuer: this.configService.get<string>('jwt.issuer'),
+        audience: this.configService.get<string>('jwt.audience'),
       } as Record<string, unknown>,
     );
 

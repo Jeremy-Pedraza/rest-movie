@@ -4,6 +4,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
 
+import { QUERY_SORT_CONFIGS } from '@constants';
+import { resolveOrderBy } from '@shared/utils';
 import { QueryMediaDto } from './dto';
 import { MediaEntity } from './entities/media.entity';
 
@@ -66,9 +68,8 @@ export class MediaRepository {
     }
 
     // Ordenamiento
-    const sortBy = query.sortBy || 'createdAt';
-    const sortOrder = query.sortOrder || 'DESC';
-    qb.orderBy(`media.${sortBy}`, sortOrder);
+    const orderBy = resolveOrderBy(query.sortBy, query.sortOrder, QUERY_SORT_CONFIGS.media);
+    qb.orderBy(orderBy.column, orderBy.direction);
 
     // Paginacion
     const page = query.page ?? 1;

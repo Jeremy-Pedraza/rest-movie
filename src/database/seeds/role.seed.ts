@@ -1,22 +1,15 @@
 import { DataSource } from 'typeorm';
-
-const DEFAULT_ROLES = [
-  { name: 'administrador', description: 'Acceso completo al sistema', isActive: true },
-  { name: 'estudiante', description: 'Acceso de estudiante', isActive: true },
-  { name: 'docente', description: 'Acceso de docente', isActive: true },
-  { name: 'colaborador', description: 'Acceso de colaborador', isActive: true },
-  { name: 'publico', description: 'Acceso publico limitado', isActive: true },
-];
+import { SEED_DATA } from '@constants';
 
 export async function seedRoles(dataSource: DataSource): Promise<void> {
   const repository = dataSource.getRepository('RoleEntity');
 
-  for (const role of DEFAULT_ROLES) {
+  for (const role of SEED_DATA.roles) {
     const exists = await repository.findOne({ where: { name: role.name } });
     if (!exists) {
-      await repository.save(repository.create(role));
+      await repository.save(repository.create({ ...role }));
     }
   }
 
-  console.log(`  -> Roles seeded: ${DEFAULT_ROLES.length} records`);
+  console.log(`  -> Roles seeded: ${SEED_DATA.roles.length} records`);
 }

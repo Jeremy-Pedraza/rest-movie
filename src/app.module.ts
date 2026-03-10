@@ -3,7 +3,7 @@
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD, APP_INTERCEPTOR, APP_FILTER } from '@nestjs/core';
 
 import { AppController } from './app.controller';
@@ -42,6 +42,8 @@ import { RequestIdMiddleware, LoggerMiddleware } from '@middleware/index';
 import appConfig from '@config/app.config';
 import { databaseConfig, typeOrmAsyncConfig } from '@config/database';
 import { throttlerConfig, jwtConfig } from '@config/security';
+import { validateEnvironment } from '@config/env.validation';
+import { ThrottlerBehindProxyGuard } from '@guards/throttler-behind-proxy.guard';
 
 @Module({
   imports: [
@@ -55,6 +57,7 @@ import { throttlerConfig, jwtConfig } from '@config/security';
       load: [appConfig, databaseConfig, throttlerConfig, jwtConfig],
       cache: true,
       expandVariables: true,
+      validate: validateEnvironment,
     }),
 
     // TypeORM Database
@@ -117,7 +120,7 @@ import { throttlerConfig, jwtConfig } from '@config/security';
     // GLOBAL GUARDS
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard,
+      useClass: ThrottlerBehindProxyGuard,
     },
     {
       provide: APP_GUARD,

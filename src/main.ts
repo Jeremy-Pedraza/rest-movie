@@ -3,7 +3,6 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { WinstonModule } from 'nest-winston';
 import compression from 'compression';
-import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 
 import { AppModule } from './app.module';
@@ -42,9 +41,6 @@ async function bootstrap() {
 
   // Compression
   app.use(compression());
-
-  // Cookie parser
-  app.use(cookieParser());
 
   // Global validation pipe
   const isProduction = nodeEnv === 'production';
@@ -86,7 +82,6 @@ bootstrap().catch((error) => {
   try {
     fallbackLogger.error(`Fatal error during bootstrap: ${error?.message || error}`, error?.stack);
   } catch {
-    // eslint-disable-next-line no-console
     console.error('Fatal error during bootstrap:', error);
   }
   process.exit(1);

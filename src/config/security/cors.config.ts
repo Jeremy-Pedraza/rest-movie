@@ -10,21 +10,24 @@ import type { ConfigService } from '@nestjs/config';
  * @returns Opciones de CORS para app.enableCors()
  */
 export function getCorsOptions(configService: ConfigService): CorsOptions {
+  const allowedOrigins = (configService.get<string>('CORS_ORIGIN') || '')
+    .split(',')
+    .map((origin: string) => origin.trim())
+    .filter(Boolean);
+  const allowAllOrigins = allowedOrigins.includes('*');
+  const credentials = configService.get<string>('CORS_CREDENTIALS') === 'true';
+
   return {
     origin: (origin: string, callback: (err: Error | null, allow?: boolean) => void) => {
-      // Sin origin = request directo (Postman, cURL, server-to-server)
       if (!origin) {
         return callback(null, true);
       }
 
-      const allowedOrigins = configService.get<string>('CORS_ORIGIN') || '*';
-
-      if (allowedOrigins === '*') {
+      if (allowAllOrigins && !credentials) {
         return callback(null, true);
       }
 
-      const origins = allowedOrigins.split(',').map((o: string) => o.trim());
-      if (origins.includes(origin)) {
+      if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
         callback(new Error(`Dominio no permitido por CORS: ${origin}`));
@@ -38,7 +41,7 @@ export function getCorsOptions(configService: ConfigService): CorsOptions {
         : ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
     })(),
 
-    credentials: configService.get<string>('CORS_CREDENTIALS') === 'true',
+    credentials,
 
     allowedHeaders: [
       'Content-Type',

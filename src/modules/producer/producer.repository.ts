@@ -4,6 +4,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
 
+import { QUERY_SORT_CONFIGS } from '@constants';
+import { resolveOrderBy } from '@shared/utils';
 import { ProducerEntity } from './entities/producer.entity';
 import { QueryProducerDto } from './dto';
 
@@ -44,9 +46,8 @@ export class ProducerRepository {
       qb.andWhere('producer.is_active = :isActive', { isActive: query.isActive });
     }
 
-    const sortBy = query.sortBy || 'createdAt';
-    const sortOrder = query.sortOrder || 'DESC';
-    qb.orderBy(`producer.${sortBy}`, sortOrder);
+    const orderBy = resolveOrderBy(query.sortBy, query.sortOrder, QUERY_SORT_CONFIGS.producer);
+    qb.orderBy(orderBy.column, orderBy.direction);
 
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;

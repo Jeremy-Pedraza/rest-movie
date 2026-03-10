@@ -1,15 +1,7 @@
 // src/modules/auth/dto/register.dto.ts
 
-import {
-  IsString,
-  IsEmail,
-  IsOptional,
-  IsArray,
-  IsUUID,
-  MinLength,
-  MaxLength,
-} from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsEmail, MinLength, MaxLength } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class RegisterDto {
   @ApiProperty({
@@ -51,14 +43,4 @@ export class RegisterDto {
   @MinLength(6, { message: 'La contraseña debe tener al menos 6 caracteres' })
   @MaxLength(100, { message: 'La contraseña no puede exceder 100 caracteres' })
   password: string;
-
-  @ApiPropertyOptional({
-    description: 'IDs de roles a asignar',
-    type: [String],
-    example: [],
-  })
-  @IsOptional()
-  @IsArray({ message: 'roleIds debe ser un array' })
-  @IsUUID('4', { each: true, message: 'Cada roleId debe ser un UUID valido' })
-  roleIds?: string[];
 }

@@ -2,6 +2,7 @@ import { DataSource, DataSourceOptions } from 'typeorm';
 import { config } from 'dotenv';
 import * as fs from 'fs';
 import * as path from 'path';
+import { validateEnvironment } from '@config/env.validation';
 
 // Load environment variables
 // En produccion prioriza api/.env.production (build output).
@@ -19,13 +20,15 @@ if (envFile) {
   config();
 }
 
+validateEnvironment(process.env);
+
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
-  host: process.env.DB_HOST || 'localhost',
+  host: process.env.DB_HOST,
   port: parseInt(process.env.DB_PORT || '5432', 10),
-  username: process.env.DB_USERNAME || 'postgres',
-  password: process.env.DB_PASSWORD || 'pftbEl1RR4qG0GBz20dm',
-  database: process.env.DB_DATABASE || 'Rest_db',
+  username: process.env.DB_USERNAME,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_DATABASE,
   synchronize: false,
   logging: process.env.DB_LOGGING === 'true',
   ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,

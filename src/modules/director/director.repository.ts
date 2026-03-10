@@ -4,6 +4,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
 
+import { QUERY_SORT_CONFIGS } from '@constants';
+import { resolveOrderBy } from '@shared/utils';
 import { QueryDirectorDto } from './dto';
 import { DirectorEntity } from './entities/director.entity';
 
@@ -44,9 +46,8 @@ export class DirectorRepository {
       qb.andWhere('director.is_active = :isActive', { isActive: query.isActive });
     }
 
-    const sortBy = query.sortBy || 'createdAt';
-    const sortOrder = query.sortOrder || 'DESC';
-    qb.orderBy(`director.${sortBy}`, sortOrder);
+    const orderBy = resolveOrderBy(query.sortBy, query.sortOrder, QUERY_SORT_CONFIGS.director);
+    qb.orderBy(orderBy.column, orderBy.direction);
 
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;

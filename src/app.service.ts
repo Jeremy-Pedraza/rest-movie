@@ -17,20 +17,4 @@ export class AppService {
       },
     };
   }
-
-  healthCheck() {
-    return {
-      success: true,
-      message: 'Health check passed',
-      data: {
-        status: 'ok',
-        uptime: process.uptime(),
-        timestamp: new Date().toISOString(),
-        memory: {
-          heapUsed: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + ' MB',
-          heapTotal: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + ' MB',
-        },
-      },
-    };
-  }
 }

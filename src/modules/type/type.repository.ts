@@ -4,6 +4,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
 
+import { QUERY_SORT_CONFIGS } from '@constants';
+import { resolveOrderBy } from '@shared/utils';
 import { TypeEntity } from './entities/type.entity';
 import { QueryTypeDto } from './dto';
 
@@ -40,9 +42,8 @@ export class TypeRepository {
       });
     }
 
-    const sortBy = query.sortBy || 'createdAt';
-    const sortOrder = query.sortOrder || 'DESC';
-    qb.orderBy(`type.${sortBy}`, sortOrder);
+    const orderBy = resolveOrderBy(query.sortBy, query.sortOrder, QUERY_SORT_CONFIGS.type);
+    qb.orderBy(orderBy.column, orderBy.direction);
 
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;

@@ -12,20 +12,29 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 
-import { Public } from '@decorators/public.decorator';
+import { LOGGER_MESSAGES, ROLES } from '@constants';
+import { Roles } from '@decorators/roles.decorator';
 import { IApiResponse, IPaginatedResponse } from '@shared/common';
 import { CreateLogDto, LogStatsQueryDto, QueryLogDto } from './dto';
 import { LogEntity } from './entities/log.entity';
 import { LoggerService } from './logger.service';
 
 @ApiTags('Logs')
+@ApiBearerAuth()
+@Roles(ROLES.ADMINISTRADOR)
 @Controller('logs')
 export class LoggerController {
   constructor(private readonly loggerService: LoggerService) {}
 
-  @Public()
   @Post()
   @ApiOperation({ summary: 'Crear un log' })
   @ApiResponse({ status: 201, description: 'Log creado' })
@@ -50,12 +59,11 @@ export class LoggerController {
 
     return {
       success: true,
-      message: 'Log creado exitosamente',
+      message: LOGGER_MESSAGES.CREATED,
       data: null,
     };
   }
 
-  @Public()
   @Get()
   @ApiOperation({ summary: 'Listar logs con filtros' })
   @ApiResponse({ status: 200, description: 'Lista de logs paginada' })
@@ -63,12 +71,11 @@ export class LoggerController {
     const result = await this.loggerService.findAll(query);
     return {
       success: true,
-      message: 'Logs obtenidos exitosamente',
+      message: LOGGER_MESSAGES.FETCHED,
       data: result,
     };
   }
 
-  @Public()
   @Get(':id')
   @ApiOperation({ summary: 'Obtener log por ID' })
   @ApiParam({ name: 'id', description: 'ID del log', type: 'string' })
@@ -79,12 +86,11 @@ export class LoggerController {
 
     return {
       success: true,
-      message: 'Log encontrado',
+      message: LOGGER_MESSAGES.FOUND,
       data: log,
     };
   }
 
-  @Public()
   @Get('trace/:requestId')
   @ApiOperation({ summary: 'Obtener logs por request ID (tracing)' })
   @ApiParam({ name: 'requestId', description: 'ID de la peticion', type: 'string' })
@@ -95,12 +101,11 @@ export class LoggerController {
     const logs = await this.loggerService.findByRequestId(requestId);
     return {
       success: true,
-      message: `Se encontraron ${logs.length} logs`,
+      message: LOGGER_MESSAGES.foundMany(logs.length),
       data: logs,
     };
   }
 
-  @Public()
   @Get('user/:userId')
   @ApiOperation({ summary: 'Obtener logs por usuario' })
   @ApiParam({ name: 'userId', description: 'ID del usuario', type: 'string' })
@@ -113,12 +118,11 @@ export class LoggerController {
     const logs = await this.loggerService.findByUserId(userId, limit);
     return {
       success: true,
-      message: `Se encontraron ${logs.length} logs`,
+      message: LOGGER_MESSAGES.foundMany(logs.length),
       data: logs,
     };
   }
 
-  @Public()
   @Get('errors/recent')
   @ApiOperation({ summary: 'Obtener errores recientes' })
   @ApiQuery({ name: 'hours', required: false, type: 'number', description: 'Horas hacia atras' })
@@ -131,12 +135,11 @@ export class LoggerController {
     const logs = await this.loggerService.findRecentErrors(hours, limit);
     return {
       success: true,
-      message: `Se encontraron ${logs.length} errores`,
+      message: LOGGER_MESSAGES.foundErrors(logs.length),
       data: logs,
     };
   }
 
-  @Public()
   @Get('stats/grouped')
   @ApiOperation({ summary: 'Obtener estadisticas de logs' })
   @ApiResponse({ status: 200, description: 'Estadisticas de logs' })
@@ -146,12 +149,11 @@ export class LoggerController {
     const stats = await this.loggerService.getStats(query);
     return {
       success: true,
-      message: 'Estadisticas obtenidas',
+      message: LOGGER_MESSAGES.STATS_FETCHED,
       data: stats,
     };
   }
 
-  @Public()
   @Get('stats/summary')
   @ApiOperation({ summary: 'Obtener resumen de logs' })
   @ApiResponse({ status: 200, description: 'Resumen de logs' })
@@ -159,12 +161,11 @@ export class LoggerController {
     const summary = await this.loggerService.getSummary();
     return {
       success: true,
-      message: 'Resumen obtenido',
+      message: LOGGER_MESSAGES.SUMMARY_FETCHED,
       data: summary,
     };
   }
 
-  @Public()
   @Delete('cleanup')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Eliminar logs antiguos' })
@@ -179,12 +180,11 @@ export class LoggerController {
     const deleted = await this.loggerService.deleteOldLogs(days);
     return {
       success: true,
-      message: `Se eliminaron ${deleted} logs`,
+      message: LOGGER_MESSAGES.deleted(deleted),
       data: { deleted },
     };
   }
 
-  @Public()
   @Delete('cleanup/debug')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Eliminar logs de debug antiguos' })
@@ -199,12 +199,11 @@ export class LoggerController {
     const deleted = await this.loggerService.cleanupDebugLogs(days);
     return {
       success: true,
-      message: `Se eliminaron ${deleted} logs de debug/verbose`,
+      message: LOGGER_MESSAGES.deletedDebug(deleted),
       data: { deleted },
     };
   }
 
-  @Public()
   @Post('flush')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Forzar flush del buffer de logs' })
@@ -213,7 +212,7 @@ export class LoggerController {
     await this.loggerService.flush();
     return {
       success: true,
-      message: 'Buffer vaciado exitosamente',
+      message: LOGGER_MESSAGES.FLUSHED,
       data: null,
     };
   }

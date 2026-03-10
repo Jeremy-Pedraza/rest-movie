@@ -10,10 +10,17 @@ import { ITokenPayload } from '../interfaces';
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(configService: ConfigService) {
+    const secret = configService.get<string>('jwt.secret');
+    if (!secret) {
+      throw new Error('JWT secret no configurado');
+    }
+
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('jwt.secret') || 'default-secret-change-me',
+      secretOrKey: secret,
+      issuer: configService.get<string>('jwt.issuer'),
+      audience: configService.get<string>('jwt.audience'),
     });
   }
 

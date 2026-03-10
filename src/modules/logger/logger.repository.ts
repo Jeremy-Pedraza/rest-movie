@@ -4,9 +4,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
 
+import { LOGGER_DEFAULTS, QUERY_SORT_CONFIGS } from '@constants';
 import { LogEntity, LogLevel } from './entities/log.entity';
 import { CreateLogDto, QueryLogDto, LogStatsQueryDto } from './dto';
 import { IPaginatedResponse } from '@shared/common';
+import { resolveOrderBy } from '@shared/utils';
 
 interface CountResult {
   level: LogLevel;
@@ -136,9 +138,8 @@ export class LoggerRepository {
       qb.andWhere('log.created_at <= :toDate', { toDate: new Date(toDate) });
     }
 
-    const validSortFields = ['createdAt', 'level', 'context', 'status_code', 'response_time'];
-    const orderField = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
-    qb.orderBy(`log.${orderField}`, sortOrder);
+    const orderBy = resolveOrderBy(sortBy, sortOrder, QUERY_SORT_CONFIGS.logger);
+    qb.orderBy(orderBy.column, orderBy.direction);
 
     const skip = (page - 1) * limit;
     qb.skip(skip).take(limit);
@@ -166,7 +167,10 @@ export class LoggerRepository {
       .getMany();
   }
 
-  async findByUserId(userId: string, limit: number = 100): Promise<LogEntity[]> {
+  async findByUserId(
+    userId: string,
+    limit: number = LOGGER_DEFAULTS.FIND_BY_USER_LIMIT,
+  ): Promise<LogEntity[]> {
     return this.createQueryBuilder('log')
       .where('log.user_id = :user_id', { user_id: userId })
       .orderBy('log.createdAt', 'DESC')
@@ -174,7 +178,10 @@ export class LoggerRepository {
       .getMany();
   }
 
-  async findRecentErrors(hours: number = 24, limit: number = 100): Promise<LogEntity[]> {
+  async findRecentErrors(
+    hours: number = LOGGER_DEFAULTS.RECENT_ERRORS_HOURS,
+    limit: number = LOGGER_DEFAULTS.RECENT_ERRORS_LIMIT,
+  ): Promise<LogEntity[]> {
     const since = new Date();
     since.setHours(since.getHours() - hours);
 
@@ -240,7 +247,7 @@ export class LoggerRepository {
     return counts;
   }
 
-  async getAverageResponseTime(hours: number = 24): Promise<number> {
+  async getAverageResponseTime(hours: number = LOGGER_DEFAULTS.SUMMARY_AVG_HOURS): Promise<number> {
     const since = new Date();
     since.setHours(since.getHours() - hours);
 
@@ -253,7 +260,7 @@ export class LoggerRepository {
     return result?.avg ? parseFloat(result.avg) : 0;
   }
 
-  async deleteOldLogs(days: number = 30): Promise<number> {
+  async deleteOldLogs(days: number = LOGGER_DEFAULTS.DELETE_OLD_DAYS): Promise<number> {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
 
@@ -269,7 +276,10 @@ export class LoggerRepository {
     return deletedCount;
   }
 
-  async deleteByLevel(level: LogLevel, olderThanDays: number = 7): Promise<number> {
+  async deleteByLevel(
+    level: LogLevel,
+    olderThanDays: number = LOGGER_DEFAULTS.DELETE_DEBUG_DAYS,
+  ): Promise<number> {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - olderThanDays);
 

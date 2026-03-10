@@ -8,6 +8,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+import { LOGGER_DEFAULTS, LOGGER_REDACT_KEYS } from '@constants';
 import { LoggerRepository } from './logger.repository';
 import { LogEntity, LogLevel, LogContext } from './entities/log.entity';
 import { CreateLogDto, QueryLogDto, LogStatsQueryDto } from './dto';
@@ -39,9 +40,9 @@ export class LoggerService {
   private readonly logger = new Logger(LoggerService.name);
   private readonly dbLevel: LogDbLevel;
   private buffer: CreateLogDto[] = [];
-  private readonly bufferSize = 100;
+  private readonly bufferSize = LOGGER_DEFAULTS.BUFFER_SIZE;
   private flushTimeout: NodeJS.Timeout | null = null;
-  private readonly flushInterval = 5000; // 5 segundos
+  private readonly flushInterval = LOGGER_DEFAULTS.FLUSH_INTERVAL_MS;
 
   constructor(
     private readonly repository: LoggerRepository,
@@ -113,21 +114,24 @@ export class LoggerService {
       return;
     }
 
+    const sanitizedMessage = this.redactText(message);
+    const sanitizedMetadata = this.redactMetadata(options.metadata);
+
     const dto: CreateLogDto = {
       level,
-      message,
+      message: sanitizedMessage,
       context: options.context || LogContext.SYSTEM,
-      metadata: options.metadata,
+      metadata: sanitizedMetadata,
       requestId: options.requestId,
       userId: options.userId,
       service: options.service,
       action: options.action,
       errorCode: options.errorCode,
-      stack: options.stack,
-      ip: options.ip,
-      userAgent: options.userAgent,
+      stack: options.stack ? this.redactText(options.stack) : undefined,
+      ip: options.ip ? this.maskIp(options.ip) : undefined,
+      userAgent: options.userAgent ? this.redactText(options.userAgent) : undefined,
       method: options.method,
-      url: options.url,
+      url: options.url ? this.redactUrl(options.url) : undefined,
       statusCode: options.statusCode,
       responseTime: options.responseTime,
     };
@@ -276,6 +280,54 @@ export class LoggerService {
     }
     // Flush final
     await this.flush();
+  }
+
+  private redactMetadata(metadata?: Record<string, unknown>): Record<string, unknown> | undefined {
+    if (!metadata) {
+      return undefined;
+    }
+
+    return Object.entries(metadata).reduce<Record<string, unknown>>((acc, [key, value]) => {
+      const normalizedKey = key.toLowerCase();
+      if (LOGGER_REDACT_KEYS.some((sensitiveKey) => normalizedKey.includes(sensitiveKey))) {
+        acc[key] = '[REDACTED]';
+        return acc;
+      }
+
+      acc[key] =
+        typeof value === 'string'
+          ? this.redactText(value)
+          : Array.isArray(value)
+            ? value.map((item) => (typeof item === 'string' ? this.redactText(item) : item))
+            : value;
+      return acc;
+    }, {});
+  }
+
+  private redactText(value: string): string {
+    return value
+      .replace(/(authorization|token|password|secret)=([^&\s]+)/gi, '$1=[REDACTED]')
+      .replace(/bearer\s+[a-z0-9\-._~+/]+=*/gi, 'Bearer [REDACTED]');
+  }
+
+  private redactUrl(value: string): string {
+    return value.replace(
+      /([?&](token|password|secret|authorization|refreshToken)=)([^&]+)/gi,
+      '$1[REDACTED]',
+    );
+  }
+
+  private maskIp(value: string): string {
+    if (value.includes(':')) {
+      return value.split(':').slice(0, 4).join(':') + '::';
+    }
+
+    const parts = value.split('.');
+    if (parts.length !== 4) {
+      return '[REDACTED_IP]';
+    }
+
+    return `${parts[0]}.${parts[1]}.${parts[2]}.0`;
   }
 
   // ============================================

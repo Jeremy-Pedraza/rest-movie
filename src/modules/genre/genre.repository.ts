@@ -4,6 +4,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
 
+import { QUERY_SORT_CONFIGS } from '@constants';
+import { resolveOrderBy } from '@shared/utils';
 import { GenreEntity } from './entities/genre.entity';
 import { QueryGenreDto } from './dto';
 
@@ -47,9 +49,8 @@ export class GenreRepository {
     }
 
     // Ordenamiento
-    const sortBy = query.sortBy || 'createdAt';
-    const sortOrder = query.sortOrder || 'DESC';
-    qb.orderBy(`genre.${sortBy}`, sortOrder);
+    const orderBy = resolveOrderBy(query.sortBy, query.sortOrder, QUERY_SORT_CONFIGS.genre);
+    qb.orderBy(orderBy.column, orderBy.direction);
 
     // Paginacion
     const page = query.page ?? 1;

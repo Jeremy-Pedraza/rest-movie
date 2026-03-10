@@ -8,6 +8,7 @@ declare namespace NodeJS {
     APP_URL: string;
     API_PREFIX: string;
     APP_DEBUG: string;
+    APP_REQUEST_TIMEOUT: string;
 
     // Database
     DB_HOST: string;
@@ -15,6 +16,7 @@ declare namespace NodeJS {
     DB_USERNAME: string;
     DB_PASSWORD: string;
     DB_DATABASE: string;
+    DB_SCHEMA: string;
     DB_SYNCHRONIZE: string;
     DB_LOGGING: string;
     DB_SSL: string;
@@ -23,6 +25,7 @@ declare namespace NodeJS {
     CORS_ORIGIN: string;
     CORS_METHODS: string;
     CORS_CREDENTIALS: string;
+    HEALTH_DISK_PATH: string;
 
     // Throttler
     THROTTLE_TTL: string;
@@ -54,5 +57,11 @@ declare namespace NodeJS {
     LOG_DIR: string;
     LOG_MAX_SIZE: string;
     LOG_MAX_FILES: string;
+
+    BOOTSTRAP_ADMIN_EMAIL: string;
+    BOOTSTRAP_ADMIN_PASSWORD: string;
+    BOOTSTRAP_ADMIN_FIRST_NAME: string;
+    BOOTSTRAP_ADMIN_LAST_NAME: string;
+    ALLOW_ADMIN_BOOTSTRAP: string;
   }
 }

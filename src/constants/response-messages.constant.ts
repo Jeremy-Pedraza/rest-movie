@@ -25,6 +25,11 @@ export const RESPONSE_MESSAGES = {
     USER_LOCKED: 'Usuario bloqueado temporalmente',
     TOKEN_EXPIRED: 'Token expirado',
     TOKEN_INVALID: 'Token inválido',
+    PENDING_APPROVAL: 'Tu cuenta está pendiente de aprobación por un administrador',
+    REGISTER_PENDING:
+      'Cuenta creada exitosamente. Debe ser aprobada por un administrador antes de poder iniciar sesión',
+    USER_APPROVED: 'Usuario aprobado exitosamente',
+    USER_REJECTED: 'Usuario desactivado exitosamente',
     TOKEN_TYPE: 'Bearer',
     UNAUTHORIZED: 'No autorizado',
     FORBIDDEN: 'Acceso denegado',

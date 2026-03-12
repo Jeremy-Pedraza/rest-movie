@@ -58,5 +58,5 @@ function RoleForm({ initialData, onSubmit, loading, isEditing }: FormComponentPr
 }
 
 export default function RolesPage() {
-  return <CrudPage title="Roles" service={rolesService} columns={columns} FormComponent={RoleForm} />;
+  return <CrudPage title="Roles" service={rolesService} columns={columns} FormComponent={RoleForm} hideDelete />;
 }

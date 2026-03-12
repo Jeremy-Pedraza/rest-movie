@@ -1,6 +1,7 @@
 type Environment = Record<string, string | undefined>;
 
 const NODE_ENV_VALUES = ['development', 'production', 'test'] as const;
+const LOG_DB_LEVEL_VALUES = ['all', 'info', 'warnings', 'errors', 'none'] as const;
 
 function requireString(env: Environment, key: string, errors: string[]): string {
   const value = env[key]?.trim();
@@ -115,7 +116,13 @@ export function validateEnvironment(env: Environment): Environment {
   requireString(env, 'JWT_AUDIENCE', errors);
 
   requirePort(env, 'BCRYPT_ROUNDS', errors);
-  requireString(env, 'LOG_DB_LEVEL', errors);
+  const logDbLevel = requireString(env, 'LOG_DB_LEVEL', errors);
+  if (
+    logDbLevel &&
+    !LOG_DB_LEVEL_VALUES.includes(logDbLevel as (typeof LOG_DB_LEVEL_VALUES)[number])
+  ) {
+    errors.push(`LOG_DB_LEVEL debe ser uno de: ${LOG_DB_LEVEL_VALUES.join(', ')}`);
+  }
   requireString(env, 'LOG_IGNORE_PATHS', errors);
 
   if (errors.length > 0) {

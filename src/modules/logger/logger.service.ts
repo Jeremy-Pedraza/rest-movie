@@ -5,14 +5,15 @@
  * @module modules/logger
  */
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { LOGGER_DEFAULTS, LOGGER_REDACT_KEYS } from '@constants';
+import { ERROR_CODES } from '@constants/error-codes.constant';
 import { LoggerRepository } from './logger.repository';
 import { LogEntity, LogLevel, LogContext } from './entities/log.entity';
 import { CreateLogDto, QueryLogDto, LogStatsQueryDto } from './dto';
-import { HandleErrorService, IPaginatedResponse } from '@shared/common';
+import { IPaginatedResponse } from '@shared/common/interfaces/paginated-response.interface';
 import { LogDbLevel } from '@config/app.config';
 
 /**
@@ -47,9 +48,8 @@ export class LoggerService {
   constructor(
     private readonly repository: LoggerRepository,
     private readonly configService: ConfigService,
-    private readonly handleError: HandleErrorService,
   ) {
-    this.dbLevel = this.configService.get<LogDbLevel>('app.logging.dbLevel') || 'all';
+    this.dbLevel = this.configService.get<LogDbLevel>('app.logging.dbLevel') || 'info';
     // Auto-flush periódico
     this.startAutoFlush();
   }
@@ -156,6 +156,8 @@ export class LoggerService {
         return level === LogLevel.ERROR;
       case 'warnings':
         return level === LogLevel.ERROR || level === LogLevel.WARN;
+      case 'info':
+        return level === LogLevel.ERROR || level === LogLevel.WARN || level === LogLevel.INFO;
       case 'all':
       default:
         return true;
@@ -355,7 +357,13 @@ export class LoggerService {
   async findByIdOrFail(id: string): Promise<LogEntity> {
     const log = await this.repository.findById(id);
     if (!log) {
-      this.handleError.notFound('Log', id);
+      throw new NotFoundException({
+        success: false,
+        statusCode: 404,
+        message: `Log con ID '${id}' no encontrado`,
+        error: 'Not Found',
+        code: ERROR_CODES.RESOURCE_NOT_FOUND,
+      });
     }
     return log;
   }

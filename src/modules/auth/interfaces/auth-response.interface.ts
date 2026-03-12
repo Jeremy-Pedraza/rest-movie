@@ -19,3 +19,8 @@ export interface ILoginResponse {
   user: IUserResponse;
   tokens: IAuthTokens;
 }
+
+export interface IRegisterResponse {
+  user: IUserResponse;
+  message: string;
+}

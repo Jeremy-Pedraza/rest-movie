@@ -1,8 +1,9 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
+import type { ReactNode } from 'react';
+
+// Admin
 import Layout from './components/Layout';
-import Login from './pages/Login';
-import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import MediaPage from './pages/MediaPage';
 import DirectorsPage from './pages/DirectorsPage';
@@ -10,9 +11,17 @@ import GenresPage from './pages/GenresPage';
 import ProducersPage from './pages/ProducersPage';
 import TypesPage from './pages/TypesPage';
 import RolesPage from './pages/RolesPage';
-import type { ReactNode } from 'react';
+import UsersPage from './pages/UsersPage';
 
-function ProtectedRoute({ children }: { children: ReactNode }) {
+// Catalog (público)
+import CatalogLayout from './components/catalog/CatalogLayout';
+import HomePage from './pages/catalog/HomePage';
+import CatalogPage from './pages/catalog/CatalogPage';
+import MediaDetailPage from './pages/catalog/MediaDetailPage';
+import Login from './pages/Login';
+import Register from './pages/Register';
+
+function AdminRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -23,24 +32,34 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
     );
   }
 
-  return user ? children : <Navigate to="/login" />;
-}
+  if (!user) return <Navigate to="/login" />;
 
-function PublicRoute({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuth();
-  if (loading) return null;
-  return user ? <Navigate to="/" /> : children;
+  const isAdmin = user.roles
+    ? (user.roles as { name: string }[]).some((r) => r.name?.toLowerCase() === 'administrador')
+    : false;
+
+  if (!isAdmin) return <Navigate to="/" />;
+
+  return children;
 }
 
 export default function App() {
   return (
     <Routes>
-      <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-      <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+      {/* Rutas públicas con CatalogLayout */}
+      <Route element={<CatalogLayout />}>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/catalog" element={<CatalogPage />} />
+        <Route path="/catalog/:id" element={<MediaDetailPage />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+      </Route>
+
+      {/* Rutas admin protegidas */}
       <Route
-        path="/*"
+        path="/admin/*"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <Layout>
               <Routes>
                 <Route path="/" element={<Dashboard />} />
@@ -50,11 +69,14 @@ export default function App() {
                 <Route path="/producers" element={<ProducersPage />} />
                 <Route path="/types" element={<TypesPage />} />
                 <Route path="/roles" element={<RolesPage />} />
+                <Route path="/users" element={<UsersPage />} />
               </Routes>
             </Layout>
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
+
+      <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   );
 }

@@ -14,16 +14,27 @@ export interface User {
 }
 
 export interface AuthTokens {
-  access_token: string;
-  refresh_token: string;
+  accessToken: string;
+  refreshToken: string;
+  tokenType: string;
+  expiresIn: string;
+}
+
+export interface LoginResponse {
   user: User;
+  tokens: AuthTokens;
+}
+
+export interface RegisterResponse {
+  user: User;
+  message: string;
 }
 
 export interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<User>;
-  register: (data: RegisterData) => Promise<User>;
+  register: (data: RegisterData) => Promise<string>;
   logout: () => void;
 }
 
@@ -96,6 +107,7 @@ export interface CrudPageProps {
   columns: Column[];
   FormComponent: React.ComponentType<FormComponentProps & Record<string, unknown>>;
   defaultValues?: Record<string, unknown>;
+  hideDelete?: boolean;
 }
 
 // ============================================
@@ -184,6 +196,40 @@ export interface Role {
   description?: string;
   isActive?: boolean;
   [key: string]: unknown;
+}
+
+// ============================================
+// Tipos del catálogo público
+// ============================================
+
+export interface CatalogParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  genreId?: string;
+  typeId?: string;
+  directorId?: string;
+  producerId?: string;
+  releaseYear?: number;
+  sortBy?: string;
+  sortOrder?: 'ASC' | 'DESC';
+}
+
+export interface CatalogItem {
+  id: string;
+  serial: string;
+  title: string;
+  synopsis?: string;
+  coverImage?: string;
+  releaseYear: number;
+  genre?: { id: string; name: string };
+  director?: { id: string; names: string };
+  producer?: { id: string; name: string };
+  type?: { id: string; name: string };
+}
+
+export interface CatalogDetail extends CatalogItem {
+  url?: string;
 }
 
 export interface MediaRelations {

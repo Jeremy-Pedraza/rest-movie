@@ -1,6 +1,6 @@
 // src/modules/director/director.service.ts
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { SanitizerService, HandleErrorService, IPaginatedResponse } from '@shared/common';
 import { PaginationMetaDto } from '@shared/common/dto/pagination.dto';
@@ -10,8 +10,6 @@ import { IDirectorResponse } from './interfaces';
 
 @Injectable()
 export class DirectorService {
-  private readonly logger = new Logger(DirectorService.name);
-
   constructor(
     private readonly directorRepository: DirectorRepository,
     private readonly sanitizer: SanitizerService,

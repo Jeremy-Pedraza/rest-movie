@@ -23,7 +23,8 @@ import {
 
 import { LOGGER_MESSAGES, ROLES } from '@constants';
 import { Roles } from '@decorators/roles.decorator';
-import { IApiResponse, IPaginatedResponse } from '@shared/common';
+import { IApiResponse } from '@shared/common/interfaces/api-response.interface';
+import { IPaginatedResponse } from '@shared/common/interfaces/paginated-response.interface';
 import { CreateLogDto, LogStatsQueryDto, QueryLogDto } from './dto';
 import { LogEntity } from './entities/log.entity';
 import { LoggerService } from './logger.service';

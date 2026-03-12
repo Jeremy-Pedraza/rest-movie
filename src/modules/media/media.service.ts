@@ -1,6 +1,6 @@
 // src/modules/media/media.service.ts
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { DirectorRepository } from '@modules/director/director.repository';
 import { GenreRepository } from '@modules/genre/genre.repository';
@@ -15,8 +15,6 @@ import { MediaRepository } from './media.repository';
 
 @Injectable()
 export class MediaService {
-  private readonly logger = new Logger(MediaService.name);
-
   constructor(
     private readonly mediaRepository: MediaRepository,
     private readonly genreRepository: GenreRepository,

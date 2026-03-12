@@ -1,6 +1,7 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import alert from './alert';
 import { HTTP_STATUS } from '../constants';
+import { AUTH_GATEWAY } from './gateway';
 
 interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
@@ -44,13 +45,13 @@ api.interceptors.response.use(
 
       if (refreshToken) {
         try {
-          const { data } = await axios.post(`${API_BASE}/auth/refresh`, {
+          const { data } = await axios.post(`${API_BASE}${AUTH_GATEWAY.POST.REFRESH}`, {
             refreshToken,
           });
-          const tokens = (data as { data: { access_token: string; refresh_token: string } }).data;
-          localStorage.setItem('access_token', tokens.access_token);
-          localStorage.setItem('refresh_token', tokens.refresh_token);
-          originalRequest.headers.Authorization = `Bearer ${tokens.access_token}`;
+          const tokens = (data as { data: { accessToken: string; refreshToken: string } }).data;
+          localStorage.setItem('access_token', tokens.accessToken);
+          localStorage.setItem('refresh_token', tokens.refreshToken);
+          originalRequest.headers.Authorization = `Bearer ${tokens.accessToken}`;
           return api(originalRequest);
         } catch {
           localStorage.removeItem('access_token');

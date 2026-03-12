@@ -1,6 +1,6 @@
 // src/modules/genre/genre.service.ts
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { SanitizerService, HandleErrorService, IPaginatedResponse } from '@shared/common';
 import { PaginationMetaDto } from '@shared/common/dto/pagination.dto';
@@ -10,8 +10,6 @@ import { IGenreResponse } from './interfaces';
 
 @Injectable()
 export class GenreService {
-  private readonly logger = new Logger(GenreService.name);
-
   constructor(
     private readonly genreRepository: GenreRepository,
     private readonly sanitizer: SanitizerService,

@@ -130,6 +130,11 @@ export const SUCCESS_MESSAGES: Record<string, AlertMessage> = {
     text: 'Tu cuenta fue registrada exitosamente.',
     icon: 'success',
   },
+  REGISTER_PENDING: {
+    title: 'Cuenta creada',
+    text: 'Tu cuenta fue creada exitosamente. Un administrador debe aprobarla antes de que puedas iniciar sesión.',
+    icon: 'info',
+  },
   LOGOUT: {
     title: 'Sesión cerrada',
     text: 'Has cerrado sesión correctamente.',
@@ -146,6 +151,13 @@ export const CONFIRM_MESSAGES: Record<string, ConfirmMessage> = {
     text: 'Esta acción no se puede deshacer.',
     icon: 'warning',
     confirmButtonText: 'Sí, eliminar',
+    cancelButtonText: 'Cancelar',
+  },
+  SAVE: {
+    title: '¿Guardar cambios?',
+    text: 'Se guardarán los datos ingresados.',
+    icon: 'question',
+    confirmButtonText: 'Sí, guardar',
     cancelButtonText: 'Cancelar',
   },
   LOGOUT: {

@@ -116,6 +116,14 @@ const alert = {
     });
   },
 
+  confirmSave(customText?: string) {
+    return swal.fire({
+      ...CONFIRM_MESSAGES.SAVE,
+      text: customText || CONFIRM_MESSAGES.SAVE.text,
+      showCancelButton: true,
+    });
+  },
+
   confirmLogout() {
     return swal.fire({
       ...CONFIRM_MESSAGES.LOGOUT,
@@ -205,6 +213,15 @@ const alert = {
     return Toast.fire({
       icon: SUCCESS_MESSAGES.REGISTER.icon,
       title: SUCCESS_MESSAGES.REGISTER.title,
+    });
+  },
+
+  registerPending() {
+    return swal.fire({
+      icon: SUCCESS_MESSAGES.REGISTER_PENDING.icon,
+      title: SUCCESS_MESSAGES.REGISTER_PENDING.title,
+      text: SUCCESS_MESSAGES.REGISTER_PENDING.text,
+      showConfirmButton: true,
     });
   },
 };

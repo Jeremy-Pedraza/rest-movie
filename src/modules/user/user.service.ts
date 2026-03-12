@@ -1,6 +1,6 @@
 // src/modules/user/user.service.ts
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 
 import { HandleErrorService } from '@shared/common';
@@ -8,8 +8,9 @@ import { SanitizerService } from '@shared/common';
 import { ROLES } from '@constants/roles.constant';
 import { RoleService } from '@modules/role/role.service';
 import { RoleEntity } from '@modules/role/entities/role.entity';
+import { IPaginatedResponse } from '@shared/common';
 import { UserRepository } from './user.repository';
-import { CreateUserDto } from './dto';
+import { CreateUserDto, QueryUserDto } from './dto';
 import { IUserResponse } from './interfaces';
 import { UserEntity } from './entities/user.entity';
 
@@ -19,8 +20,6 @@ interface CreateUserOptions {
 
 @Injectable()
 export class UserService {
-  private readonly logger = new Logger(UserService.name);
-
   constructor(
     private readonly userRepository: UserRepository,
     private readonly roleService: RoleService,
@@ -73,6 +72,34 @@ export class UserService {
 
   async findById(id: string): Promise<UserEntity | null> {
     return this.userRepository.findById(id);
+  }
+
+  async findAll(query: QueryUserDto): Promise<IPaginatedResponse<IUserResponse>> {
+    const result = await this.userRepository.findAll(query);
+    return {
+      data: result.data.map((u) => this.toResponse(u)),
+      meta: result.meta,
+    };
+  }
+
+  async approve(id: string): Promise<IUserResponse> {
+    const user = await this.userRepository.findById(id);
+    if (!user) {
+      this.handleError.notFound('Usuario', id);
+      throw new Error(); // unreachable - satisfies TS
+    }
+    const updated = await this.userRepository.updateIsActive(id, true);
+    return this.toResponse(updated!);
+  }
+
+  async deactivate(id: string): Promise<IUserResponse> {
+    const user = await this.userRepository.findById(id);
+    if (!user) {
+      this.handleError.notFound('Usuario', id);
+      throw new Error(); // unreachable - satisfies TS
+    }
+    const updated = await this.userRepository.updateIsActive(id, false);
+    return this.toResponse(updated!);
   }
 
   toResponse(user: UserEntity): IUserResponse {

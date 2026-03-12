@@ -7,7 +7,7 @@ import { Repository, SelectQueryBuilder } from 'typeorm';
 import { LOGGER_DEFAULTS, QUERY_SORT_CONFIGS } from '@constants';
 import { LogEntity, LogLevel } from './entities/log.entity';
 import { CreateLogDto, QueryLogDto, LogStatsQueryDto } from './dto';
-import { IPaginatedResponse } from '@shared/common';
+import { IPaginatedResponse } from '@shared/common/interfaces/paginated-response.interface';
 import { resolveOrderBy } from '@shared/utils';
 
 interface CountResult {

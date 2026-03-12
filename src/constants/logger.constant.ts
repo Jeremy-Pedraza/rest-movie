@@ -24,4 +24,10 @@ export const LOGGER_DEFAULTS = {
   SUMMARY_RECENT_ERROR_LIMIT: 5,
 } as const;
 
-export const LOGGER_REDACT_KEYS = ['password', 'token', 'secret', 'authorization', 'cookie'] as const;
+export const LOGGER_REDACT_KEYS = [
+  'password',
+  'token',
+  'secret',
+  'authorization',
+  'cookie',
+] as const;

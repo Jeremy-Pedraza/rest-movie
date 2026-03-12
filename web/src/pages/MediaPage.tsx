@@ -137,6 +137,9 @@ export default function MediaPage() {
   const handleSearch = (search: string) => setParams((prev) => ({ ...prev, search, page: 1 }));
 
   const handleSubmit = async (data: Record<string, unknown>) => {
+    const result = await alert.confirmSave();
+    if (!result.isConfirmed) return;
+
     setFormLoading(true);
     try {
       if (editing) await update(editing.id as number, data);

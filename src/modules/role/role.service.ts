@@ -1,9 +1,10 @@
 // src/modules/role/role.service.ts
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { SanitizerService, HandleErrorService } from '@shared/common';
 import { DEFAULT_ROLES } from '@constants/roles.constant';
+import { LoggerService, LogContext } from '@modules/logger';
 import { RoleRepository } from './role.repository';
 import { CreateRoleDto, UpdateRoleDto } from './dto';
 import { IRoleResponse } from './interfaces';
@@ -11,12 +12,11 @@ import { RoleEntity } from './entities/role.entity';
 
 @Injectable()
 export class RoleService {
-  private readonly logger = new Logger(RoleService.name);
-
   constructor(
     private readonly roleRepository: RoleRepository,
     private readonly sanitizer: SanitizerService,
     private readonly handleError: HandleErrorService,
+    private readonly loggerService: LoggerService,
   ) {}
 
   async create(dto: CreateRoleDto): Promise<IRoleResponse> {
@@ -109,7 +109,14 @@ export class RoleService {
           description: roleData.description,
           isActive: true,
         });
-        this.logger.log(`Rol '${roleData.name}' creado`);
+        await this.loggerService.info(`Rol '${roleData.name}' creado`, {
+          context: LogContext.BUSINESS,
+          service: RoleService.name,
+          action: 'seedRoles',
+          metadata: {
+            roleName: roleData.name,
+          },
+        });
       }
     }
   }

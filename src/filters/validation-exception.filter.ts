@@ -68,7 +68,7 @@ export class ValidationExceptionFilter implements ExceptionFilter {
     @Inject(LoggerService)
     private readonly loggerService?: LoggerService,
   ) {
-    this.dbLevel = this.configService.get<LogDbLevel>('app.logging.dbLevel') || 'all';
+    this.dbLevel = this.configService.get<LogDbLevel>('app.logging.dbLevel') || 'info';
   }
 
   catch(exception: BadRequestException, host: ArgumentsHost): void {

@@ -23,7 +23,7 @@ export class UserEntity extends BaseEntity {
   @Index()
   isActive: boolean;
 
-  @ManyToMany(() => RoleEntity, { eager: true })
+  @ManyToMany(() => RoleEntity, { eager: true, onDelete: 'CASCADE' })
   @JoinTable({
     name: 'user_roles',
     joinColumn: { name: 'user_id', referencedColumnName: 'id' },

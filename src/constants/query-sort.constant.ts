@@ -41,6 +41,15 @@ export const QUERY_SORT_CONFIGS = {
       releaseYear: 'releaseYear',
     },
   },
+  catalog: {
+    alias: 'media',
+    defaultSortBy: 'createdAt',
+    allowedSortBy: {
+      createdAt: 'createdAt',
+      title: 'title',
+      releaseYear: 'releaseYear',
+    },
+  },
   producer: {
     alias: 'producer',
     defaultSortBy: 'createdAt',

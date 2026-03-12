@@ -21,15 +21,11 @@ describe('LoggerService', () => {
     get: jest.fn().mockReturnValue('all'),
   };
 
-  const handleError = {
-    notFound: jest.fn(),
-  };
-
   let service: LoggerService;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new LoggerService(repository as never, configService as never, handleError as never);
+    service = new LoggerService(repository as never, configService as never);
   });
 
   afterEach(async () => {

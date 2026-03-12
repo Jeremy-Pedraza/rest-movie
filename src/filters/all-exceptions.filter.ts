@@ -71,7 +71,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     @Inject(LoggerService)
     private readonly loggerService?: LoggerService,
   ) {
-    this.dbLevel = this.configService.get<LogDbLevel>('app.logging.dbLevel') || 'all';
+    this.dbLevel = this.configService.get<LogDbLevel>('app.logging.dbLevel') || 'info';
     this.retryAfter429Seconds = Number(process.env.HTTP_RETRY_AFTER_429_SECONDS || 60);
     this.retryAfter503Seconds = Number(process.env.HTTP_RETRY_AFTER_503_SECONDS || 30);
   }

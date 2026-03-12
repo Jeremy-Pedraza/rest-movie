@@ -21,6 +21,7 @@ import { DirectorModule } from '@modules/director';
 import { ProducerModule } from '@modules/producer';
 import { TypeModule } from '@modules/type';
 import { MediaModule } from '@modules/media';
+import { CatalogModule } from '@modules/catalog';
 import { RoleModule } from '@modules/role';
 import { UserModule } from '@modules/user';
 import { AuthModule } from '@modules/auth';
@@ -89,6 +90,7 @@ import { ThrottlerBehindProxyGuard } from '@guards/throttler-behind-proxy.guard'
     ProducerModule,
     TypeModule,
     MediaModule,
+    CatalogModule,
     RoleModule,
     UserModule,
     AuthModule,

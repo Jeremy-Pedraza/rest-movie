@@ -41,19 +41,19 @@ export class MediaEntity extends BaseTimestampEntity {
   @Column({ type: 'uuid', name: 'type_id' })
   typeId: string;
 
-  @ManyToOne(() => GenreEntity, { eager: false })
+  @ManyToOne(() => GenreEntity, { eager: false, onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'genre_id' })
   genre: GenreEntity;
 
-  @ManyToOne(() => DirectorEntity, { eager: false })
+  @ManyToOne(() => DirectorEntity, { eager: false, onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'director_id' })
   director: DirectorEntity;
 
-  @ManyToOne(() => ProducerEntity, { eager: false })
+  @ManyToOne(() => ProducerEntity, { eager: false, onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'producer_id' })
   producer: ProducerEntity;
 
-  @ManyToOne(() => TypeEntity, { eager: false })
+  @ManyToOne(() => TypeEntity, { eager: false, onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'type_id' })
   type: TypeEntity;
 }

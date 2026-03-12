@@ -39,7 +39,7 @@ export class LoggingInterceptor implements NestInterceptor {
     @Inject(LoggerService)
     private readonly loggerService?: LoggerService,
   ) {
-    this.dbLevel = this.configService.get<LogDbLevel>('app.logging.dbLevel') || 'all';
+    this.dbLevel = this.configService.get<LogDbLevel>('app.logging.dbLevel') || 'info';
     this.logConsole = this.configService.get<boolean>('app.logging.console') ?? true;
     this.ignorePaths = this.configService.get<string[]>('app.logging.ignorePaths') || [];
   }

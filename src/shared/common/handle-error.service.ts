@@ -10,6 +10,8 @@
 import {
   Injectable,
   Logger,
+  Inject,
+  Optional,
   HttpException,
   HttpStatus,
   BadRequestException,
@@ -24,6 +26,7 @@ import { QueryFailedError } from 'typeorm';
 
 import { ERROR_CODES, ErrorCode } from '@constants/error-codes.constant';
 import { RESPONSE_MESSAGES } from '@constants/response-messages.constant';
+import { LoggerService, LogContext } from '@modules/logger';
 
 /**
  * Interfaz para errores estructurados
@@ -72,6 +75,12 @@ export const PG_ERROR_CODES = {
 export class HandleErrorService {
   private readonly logger = new Logger(HandleErrorService.name);
 
+  constructor(
+    @Optional()
+    @Inject(LoggerService)
+    private readonly loggerService?: LoggerService,
+  ) {}
+
   /**
    * Maneja cualquier tipo de error y lo transforma en una HttpException apropiada
    *
@@ -101,6 +110,16 @@ export class HandleErrorService {
     const errorStack = error instanceof Error ? error.stack : undefined;
 
     this.logger.error(`${context || 'Error'}: ${errorMessage}`, errorStack);
+    void this.loggerService?.error(`${context || 'Error'}: ${errorMessage}`, {
+      context: LogContext.SYSTEM,
+      service: HandleErrorService.name,
+      action: 'handle',
+      errorCode: ERROR_CODES.INTERNAL_SERVER_ERROR,
+      stack: errorStack,
+      metadata: {
+        originalError: error instanceof Error ? error.name : 'UnknownError',
+      },
+    });
 
     return new InternalServerErrorException({
       success: false,
@@ -125,6 +144,18 @@ export class HandleErrorService {
     this.logger.error(`Database Error [${code}]: ${error.message}`, {
       context,
       code,
+    });
+    void this.loggerService?.error(`Database Error [${code}]: ${error.message}`, {
+      context: LogContext.DATABASE,
+      service: HandleErrorService.name,
+      action: 'handleDatabaseError',
+      errorCode: ERROR_CODES.DATABASE_ERROR,
+      stack: error.stack,
+      metadata: {
+        context,
+        code,
+        detail: pgError.detail || pgError.driverError?.detail,
+      },
     });
 
     switch (code) {
@@ -224,6 +255,16 @@ export class HandleErrorService {
     const err = error as Record<string, unknown>;
     const details = err.errors || err.constraints || [];
 
+    void this.loggerService?.warn(`${context || 'Validation Error'}: Invalid request payload`, {
+      context: LogContext.HTTP,
+      service: HandleErrorService.name,
+      action: 'handleValidationError',
+      errorCode: ERROR_CODES.VALIDATION_ERROR,
+      metadata: {
+        details,
+      },
+    });
+
     return new BadRequestException({
       success: false,
       statusCode: HttpStatus.BAD_REQUEST,
@@ -241,11 +282,53 @@ export class HandleErrorService {
     const err = error as Error & { status?: number };
     const message = err.message || 'Unknown error';
     const statusCode = error instanceof HttpException ? error.getStatus() : 500;
+    const errorCode = this.getErrorCodeFromStatus(statusCode);
+    const logMessage = `${context || (statusCode >= 500 ? 'Error' : 'Warning')}: ${message}`;
 
     if (statusCode >= 500) {
-      this.logger.error(`${context || 'Error'}: ${message}`, err.stack);
+      this.logger.error(logMessage, err.stack);
+      void this.loggerService?.error(logMessage, {
+        context: LogContext.SYSTEM,
+        service: HandleErrorService.name,
+        action: 'logError',
+        errorCode,
+        stack: err.stack,
+        metadata: {
+          statusCode,
+          exceptionName: err.name || 'Error',
+        },
+      });
     } else {
-      this.logger.warn(`${context || 'Warning'}: ${message}`);
+      this.logger.warn(logMessage);
+      void this.loggerService?.warn(logMessage, {
+        context: statusCode === 401 || statusCode === 403 ? LogContext.AUTH : LogContext.HTTP,
+        service: HandleErrorService.name,
+        action: 'logError',
+        errorCode,
+        metadata: {
+          statusCode,
+          exceptionName: err.name || 'HttpException',
+        },
+      });
+    }
+  }
+
+  private getErrorCodeFromStatus(statusCode: number): ErrorCode {
+    switch (statusCode) {
+      case 400:
+        return ERROR_CODES.VALIDATION_ERROR;
+      case 401:
+        return ERROR_CODES.AUTH_UNAUTHORIZED;
+      case 403:
+        return ERROR_CODES.AUTH_FORBIDDEN;
+      case 404:
+        return ERROR_CODES.RESOURCE_NOT_FOUND;
+      case 409:
+        return ERROR_CODES.RESOURCE_CONFLICT;
+      case 408:
+        return ERROR_CODES.REQUEST_TIMEOUT;
+      default:
+        return ERROR_CODES.INTERNAL_SERVER_ERROR;
     }
   }
 
@@ -261,6 +344,15 @@ export class HandleErrorService {
     details?: unknown,
     code: ErrorCode = ERROR_CODES.VALIDATION_ERROR,
   ): never {
+    void this.loggerService?.warn(message, {
+      context: LogContext.HTTP,
+      service: HandleErrorService.name,
+      action: 'badRequest',
+      errorCode: code,
+      metadata: {
+        details,
+      },
+    });
     throw new BadRequestException({
       success: false,
       statusCode: HttpStatus.BAD_REQUEST,
@@ -278,6 +370,12 @@ export class HandleErrorService {
     message: string = RESPONSE_MESSAGES.AUTH.UNAUTHORIZED,
     code: ErrorCode = ERROR_CODES.AUTH_UNAUTHORIZED,
   ): never {
+    void this.loggerService?.warn(message, {
+      context: LogContext.AUTH,
+      service: HandleErrorService.name,
+      action: 'unauthorized',
+      errorCode: code,
+    });
     throw new UnauthorizedException({
       success: false,
       statusCode: HttpStatus.UNAUTHORIZED,
@@ -294,6 +392,12 @@ export class HandleErrorService {
     message: string = RESPONSE_MESSAGES.AUTH.FORBIDDEN,
     code: ErrorCode = ERROR_CODES.AUTH_FORBIDDEN,
   ): never {
+    void this.loggerService?.warn(message, {
+      context: LogContext.AUTH,
+      service: HandleErrorService.name,
+      action: 'forbidden',
+      errorCode: code,
+    });
     throw new ForbiddenException({
       success: false,
       statusCode: HttpStatus.FORBIDDEN,
@@ -315,6 +419,16 @@ export class HandleErrorService {
       ? `${resource} con ID '${identifier}' no encontrado`
       : `${resource} no encontrado`;
 
+    void this.loggerService?.warn(message, {
+      context: LogContext.HTTP,
+      service: HandleErrorService.name,
+      action: 'notFound',
+      errorCode: code,
+      metadata: {
+        resource,
+        identifier,
+      },
+    });
     throw new NotFoundException({
       success: false,
       statusCode: HttpStatus.NOT_FOUND,
@@ -332,6 +446,15 @@ export class HandleErrorService {
     field?: string,
     code: ErrorCode = ERROR_CODES.RESOURCE_CONFLICT,
   ): never {
+    void this.loggerService?.warn(message, {
+      context: LogContext.HTTP,
+      service: HandleErrorService.name,
+      action: 'conflict',
+      errorCode: code,
+      metadata: {
+        field,
+      },
+    });
     throw new ConflictException({
       success: false,
       statusCode: HttpStatus.CONFLICT,
@@ -349,6 +472,12 @@ export class HandleErrorService {
     message: string = RESPONSE_MESSAGES.ERROR.INTERNAL_SERVER,
     code: ErrorCode = ERROR_CODES.INTERNAL_SERVER_ERROR,
   ): never {
+    void this.loggerService?.error(message, {
+      context: LogContext.SYSTEM,
+      service: HandleErrorService.name,
+      action: 'internal',
+      errorCode: code,
+    });
     throw new InternalServerErrorException({
       success: false,
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
@@ -376,6 +505,12 @@ export class HandleErrorService {
     message: string = RESPONSE_MESSAGES.ERROR.REQUEST_TIMEOUT,
     code: ErrorCode = ERROR_CODES.REQUEST_TIMEOUT,
   ): never {
+    void this.loggerService?.warn(message, {
+      context: LogContext.HTTP,
+      service: HandleErrorService.name,
+      action: 'timeout',
+      errorCode: code,
+    });
     throw new RequestTimeoutException({
       success: false,
       statusCode: HttpStatus.REQUEST_TIMEOUT,

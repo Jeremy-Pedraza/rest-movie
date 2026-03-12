@@ -1,0 +1,11 @@
+export { type CrudGateway, createCrudGateway } from './crud.gateway';
+export { AUTH_GATEWAY } from './auth.gateway';
+export { CATALOG_GATEWAY } from './catalog.gateway';
+export { HEALTH_GATEWAY } from './health.gateway';
+export { MEDIA_GATEWAY } from './media.gateway';
+export { DIRECTORS_GATEWAY } from './directors.gateway';
+export { GENRES_GATEWAY } from './genres.gateway';
+export { PRODUCERS_GATEWAY } from './producers.gateway';
+export { TYPES_GATEWAY } from './types.gateway';
+export { ROLES_GATEWAY } from './roles.gateway';
+export { USERS_GATEWAY } from './users.gateway';

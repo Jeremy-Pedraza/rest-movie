@@ -1,6 +1,6 @@
 // src/modules/type/type.service.ts
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { SanitizerService, HandleErrorService, IPaginatedResponse } from '@shared/common';
 import { PaginationMetaDto } from '@shared/common/dto/pagination.dto';
@@ -10,8 +10,6 @@ import { ITypeResponse } from './interfaces';
 
 @Injectable()
 export class TypeService {
-  private readonly logger = new Logger(TypeService.name);
-
   constructor(
     private readonly typeRepository: TypeRepository,
     private readonly sanitizer: SanitizerService,

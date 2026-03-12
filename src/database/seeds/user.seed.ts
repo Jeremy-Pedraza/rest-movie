@@ -1,6 +1,6 @@
-import { DataSource } from 'typeorm';
-import * as bcrypt from 'bcrypt';
 import { AUTH_BOOTSTRAP_DEFAULTS, AUTH_BOOTSTRAP_MESSAGES, ROLES } from '@constants';
+import * as bcrypt from 'bcrypt';
+import { DataSource } from 'typeorm';
 
 export async function seedAdminUser(dataSource: DataSource): Promise<void> {
   const userRepo = dataSource.getRepository('UserEntity');
@@ -10,8 +10,7 @@ export async function seedAdminUser(dataSource: DataSource): Promise<void> {
   const adminPassword = process.env.BOOTSTRAP_ADMIN_PASSWORD;
   const adminFirstName =
     process.env.BOOTSTRAP_ADMIN_FIRST_NAME || AUTH_BOOTSTRAP_DEFAULTS.FIRST_NAME;
-  const adminLastName =
-    process.env.BOOTSTRAP_ADMIN_LAST_NAME || AUTH_BOOTSTRAP_DEFAULTS.LAST_NAME;
+  const adminLastName = process.env.BOOTSTRAP_ADMIN_LAST_NAME || AUTH_BOOTSTRAP_DEFAULTS.LAST_NAME;
 
   if (!adminEmail || !adminPassword) {
     console.log(AUTH_BOOTSTRAP_MESSAGES.OMITTED);

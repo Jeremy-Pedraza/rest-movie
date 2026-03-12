@@ -9,6 +9,7 @@ import { AppModule } from './app.module';
 import { setupSwagger } from '@config/swagger';
 import { winstonConfig } from '@config/winston';
 import { helmetConfig, getCorsOptions } from '@config/security';
+import { LoggerService } from '@modules/logger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -16,6 +17,7 @@ async function bootstrap() {
   });
 
   const configService = app.get(ConfigService);
+  const loggerService = app.get(LoggerService);
   const logger = new Logger('Bootstrap');
 
   const port = configService.get<number>('app.port') || 3000;
@@ -65,6 +67,10 @@ async function bootstrap() {
   if (nodeEnv !== 'production') {
     setupSwagger(app);
     logger.log(`Swagger documentation available at: http://${host}:${port}/docs`);
+    await loggerService.info(`Swagger documentation available at: http://${host}:${port}/docs`, {
+      service: 'Bootstrap',
+      action: 'setupSwagger',
+    });
   }
 
   // Graceful shutdown
@@ -75,6 +81,17 @@ async function bootstrap() {
 
   logger.log(`Application is running on: http://${host}:${port}/${apiPrefix}`);
   logger.log(`Environment: ${nodeEnv}`);
+  await loggerService.info(`Application is running on: http://${host}:${port}/${apiPrefix}`, {
+    service: 'Bootstrap',
+    action: 'bootstrap',
+    metadata: {
+      environment: nodeEnv,
+    },
+  });
+  await loggerService.info(`Environment: ${nodeEnv}`, {
+    service: 'Bootstrap',
+    action: 'bootstrap',
+  });
 }
 
 bootstrap().catch((error) => {

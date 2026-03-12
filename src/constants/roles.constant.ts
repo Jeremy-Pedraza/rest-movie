@@ -6,10 +6,10 @@ export enum ROLES {
   PUBLICO = 'publico',
 }
 
-export const DEFAULT_ROLES: { name: string; description: string }[] = [
-  { name: ROLES.ADMINISTRADOR, description: 'Acceso completo al sistema' },
-  { name: ROLES.ESTUDIANTE, description: 'Acceso de estudiante' },
-  { name: ROLES.DOCENTE, description: 'Acceso de docente' },
-  { name: ROLES.COLABORADOR, description: 'Acceso de colaborador' },
-  { name: ROLES.PUBLICO, description: 'Acceso publico limitado' },
+export const DEFAULT_ROLES: { name: string; description: string; isActive: boolean }[] = [
+  { name: ROLES.ADMINISTRADOR, description: 'Acceso completo al sistema', isActive: true },
+  { name: ROLES.ESTUDIANTE, description: 'Acceso de estudiante', isActive: true },
+  { name: ROLES.DOCENTE, description: 'Acceso de docente', isActive: true },
+  { name: ROLES.COLABORADOR, description: 'Acceso de colaborador', isActive: true },
+  { name: ROLES.PUBLICO, description: 'Acceso publico limitado', isActive: true },
 ];

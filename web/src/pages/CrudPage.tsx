@@ -7,7 +7,7 @@ import Modal from '../components/Modal';
 import alert from '../services/alert';
 import type { CrudPageProps } from '../types';
 
-export default function CrudPage({ title, service, columns, FormComponent, defaultValues = {} }: CrudPageProps) {
+export default function CrudPage({ title, service, columns, FormComponent, defaultValues = {}, hideDelete = false }: CrudPageProps) {
   const { items, meta, loading, params, setParams, create, update, remove } = useCrud(service);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Record<string, unknown> | null>(null);
@@ -28,6 +28,9 @@ export default function CrudPage({ title, service, columns, FormComponent, defau
   };
 
   const handleSubmit = async (data: Record<string, unknown>) => {
+    const result = await alert.confirmSave();
+    if (!result.isConfirmed) return;
+
     setFormLoading(true);
     try {
       if (editing) {
@@ -107,13 +110,15 @@ export default function CrudPage({ title, service, columns, FormComponent, defau
                         >
                           <Pencil size={15} />
                         </button>
-                        <button
-                          onClick={() => handleDelete(item)}
-                          className="p-1.5 hover:bg-red-50 rounded text-red-600"
-                          title="Eliminar"
-                        >
-                          <Trash2 size={15} />
-                        </button>
+                        {!hideDelete && (
+                          <button
+                            onClick={() => handleDelete(item)}
+                            className="p-1.5 hover:bg-red-50 rounded text-red-600"
+                            title="Eliminar"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

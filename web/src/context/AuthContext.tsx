@@ -26,20 +26,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string): Promise<User> => {
     const res = await authService.login({ email, password });
-    const { access_token, refresh_token, user: userData } = res.data.data;
-    localStorage.setItem('access_token', access_token);
-    localStorage.setItem('refresh_token', refresh_token);
+    const { tokens, user: userData } = res.data.data;
+    localStorage.setItem('access_token', tokens.accessToken);
+    localStorage.setItem('refresh_token', tokens.refreshToken);
     setUser(userData);
     return userData;
   };
 
-  const register = async (data: RegisterData): Promise<User> => {
+  const register = async (data: RegisterData): Promise<string> => {
     const res = await authService.register(data);
-    const { access_token, refresh_token, user: userData } = res.data.data;
-    localStorage.setItem('access_token', access_token);
-    localStorage.setItem('refresh_token', refresh_token);
-    setUser(userData);
-    return userData;
+    return res.data.data.message;
   };
 
   const logout = () => {

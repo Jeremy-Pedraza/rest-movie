@@ -15,9 +15,12 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     try {
-      await login(email, password);
+      const user = await login(email, password);
+      const isAdmin = user.roles
+        ? user.roles.some((role) => role.name?.toLowerCase() === 'administrador')
+        : false;
       alert.loginSuccess();
-      navigate('/');
+      navigate(isAdmin ? '/admin' : '/');
     } catch {
       // El interceptor global ya maneja el error
     } finally {
@@ -26,47 +29,47 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex items-center justify-center px-4 pt-20 pb-12">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Film size={48} className="mx-auto text-blue-600 mb-3" />
-          <h1 className="text-2xl font-bold">REST API Panel</h1>
-          <p className="text-gray-500 mt-1">Inicia sesión para continuar</p>
+          <Film size={48} className="mx-auto text-red-500 mb-3" />
+          <h1 className="text-2xl font-bold text-white">Iniciar sesión</h1>
+          <p className="text-gray-400 mt-1">Accede para disfrutar el contenido completo</p>
         </div>
-        <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow-sm border space-y-4">
+        <form onSubmit={handleSubmit} className="bg-gray-900 border border-gray-800 p-6 rounded-xl space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Email</label>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Email</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full px-3 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none placeholder-gray-500"
               placeholder="correo@ejemplo.com"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Contraseña</label>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Contraseña</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
-              className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full px-3 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none placeholder-gray-500"
               placeholder="••••••••"
             />
           </div>
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            className="w-full py-2.5 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 transition-colors"
           >
             {loading ? 'Ingresando...' : 'Iniciar sesión'}
           </button>
-          <p className="text-center text-sm text-gray-500">
+          <p className="text-center text-sm text-gray-400">
             ¿No tienes cuenta?{' '}
-            <Link to="/register" className="text-blue-600 hover:underline">
+            <Link to="/register" className="text-red-500 hover:underline">
               Regístrate
             </Link>
           </p>

@@ -6,7 +6,10 @@ const { combine, timestamp, printf, colorize, errors } = winston.format;
 const nodeEnv = process.env.NODE_ENV || 'development';
 const isProduction = nodeEnv === 'production';
 const isTest = nodeEnv === 'test';
-const effectiveLogLevel = process.env.LOG_LEVEL || (isProduction ? 'warn' : 'debug');
+const effectiveLogLevel = process.env.LOG_LEVEL || (isProduction ? 'error' : 'info');
+const enableConsole =
+  process.env.LOG_CONSOLE === 'true' ||
+  (process.env.LOG_CONSOLE !== 'false' && nodeEnv === 'development');
 const writeLogsToFiles = process.env.LOG_TO_FILE === 'true';
 
 // Custom log format
@@ -58,7 +61,7 @@ export const winstonConfig: WinstonModuleOptions = {
   level: effectiveLogLevel,
   format: combine(timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }), errors({ stack: true }), logFormat),
   transports: [
-    consoleTransport,
+    ...(enableConsole ? [consoleTransport] : []),
     ...(!isTest && writeLogsToFiles ? [errorFileTransport, combinedFileTransport] : []),
   ],
   exceptionHandlers: writeLogsToFiles

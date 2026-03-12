@@ -1,6 +1,6 @@
 // src/modules/auth/auth.service.ts
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -10,12 +10,10 @@ import { RESPONSE_MESSAGES } from '@constants/response-messages.constant';
 import { UserService } from '@modules/user/user.service';
 import { IUserResponse } from '@modules/user/interfaces';
 import { RegisterDto, LoginDto, RefreshTokenDto } from './dto';
-import { ITokenPayload, IAuthTokens, ILoginResponse } from './interfaces';
+import { ITokenPayload, IAuthTokens, ILoginResponse, IRegisterResponse } from './interfaces';
 
 @Injectable()
 export class AuthService {
-  private readonly logger = new Logger(AuthService.name);
-
   constructor(
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
@@ -23,7 +21,7 @@ export class AuthService {
     private readonly handleError: HandleErrorService,
   ) {}
 
-  async register(dto: RegisterDto): Promise<ILoginResponse> {
+  async register(dto: RegisterDto): Promise<IRegisterResponse> {
     try {
       const existing = await this.userService.findByEmail(dto.email);
       if (existing) {
@@ -35,16 +33,14 @@ export class AuthService {
         lastName: dto.lastName,
         email: dto.email,
         password: dto.password,
+        isActive: false,
       });
 
       const userResponse = this.userService.toResponse(user);
-      const tokens = this.generateTokens(
-        user.id,
-        user.email,
-        userResponse.roles.map((r) => r.name),
-      );
-
-      return { user: userResponse, tokens };
+      return {
+        user: userResponse,
+        message: RESPONSE_MESSAGES.AUTH.PENDING_APPROVAL,
+      };
     } catch (error) {
       throw this.handleError.handle(error, 'Error en registro');
     }
@@ -57,7 +53,7 @@ export class AuthService {
     }
 
     if (!user.isActive) {
-      this.handleError.unauthorized(RESPONSE_MESSAGES.AUTH.USER_INACTIVE);
+      this.handleError.unauthorized(RESPONSE_MESSAGES.AUTH.PENDING_APPROVAL);
     }
 
     const isPasswordValid = await bcrypt.compare(dto.password, user.password);
@@ -89,7 +85,7 @@ export class AuthService {
       }
 
       if (!user.isActive) {
-        this.handleError.unauthorized(RESPONSE_MESSAGES.AUTH.USER_INACTIVE);
+        this.handleError.unauthorized(RESPONSE_MESSAGES.AUTH.PENDING_APPROVAL);
       }
 
       const userResponse = this.userService.toResponse(user);

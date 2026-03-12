@@ -4,6 +4,7 @@ import alert from '../services/alert';
 import {
   Film,
   Users,
+  UserCheck,
   Tag,
   Clapperboard,
   Factory,
@@ -12,6 +13,7 @@ import {
   LogOut,
   Menu,
   X,
+  Home,
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 
@@ -22,13 +24,14 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/media', label: 'Media', icon: Film },
-  { to: '/directors', label: 'Directores', icon: Clapperboard },
-  { to: '/genres', label: 'Géneros', icon: Tag },
-  { to: '/producers', label: 'Productoras', icon: Factory },
-  { to: '/types', label: 'Tipos', icon: Users },
-  { to: '/roles', label: 'Roles', icon: Shield },
+  { to: '/admin', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/admin/media', label: 'Media', icon: Film },
+  { to: '/admin/directors', label: 'Directores', icon: Clapperboard },
+  { to: '/admin/genres', label: 'Géneros', icon: Tag },
+  { to: '/admin/producers', label: 'Productoras', icon: Factory },
+  { to: '/admin/types', label: 'Tipos', icon: Users },
+  { to: '/admin/roles', label: 'Roles', icon: Shield },
+  { to: '/admin/users', label: 'Usuarios', icon: UserCheck },
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {
@@ -41,11 +44,11 @@ export default function Layout({ children }: { children: ReactNode }) {
     const result = await alert.confirmLogout();
     if (!result.isConfirmed) return;
     logout();
-    navigate('/login');
+    navigate('/');
   };
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex bg-gray-50">
       {/* Overlay móvil */}
       {sidebarOpen && (
         <div
@@ -62,10 +65,17 @@ export default function Layout({ children }: { children: ReactNode }) {
       >
         <div className="p-4 border-b border-gray-700">
           <h1 className="text-xl font-bold flex items-center gap-2">
-            <Film size={24} /> REST API
+            <Film size={24} /> Admin Panel
           </h1>
         </div>
         <nav className="p-2 flex-1">
+          <Link
+            to="/"
+            className="flex items-center gap-3 px-4 py-2.5 rounded-lg mb-1 text-gray-400 hover:bg-gray-800 hover:text-white transition-colors text-sm"
+          >
+            <Home size={18} /> Ir al catálogo
+          </Link>
+          <div className="border-t border-gray-700 my-2" />
           {navItems.map(({ to, label, icon: Icon }) => (
             <Link
               key={to}
@@ -101,7 +111,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           <button onClick={() => setSidebarOpen(true)}>
             {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
-          <h1 className="ml-3 text-lg font-semibold">REST API</h1>
+          <h1 className="ml-3 text-lg font-semibold">Admin Panel</h1>
         </header>
         <main className="flex-1 p-4 lg:p-6 overflow-auto">{children}</main>
       </div>

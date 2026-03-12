@@ -9,7 +9,7 @@ import { RESPONSE_MESSAGES } from '@constants/response-messages.constant';
 import { IUserResponse } from '@modules/user/interfaces';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto, RefreshTokenDto } from './dto';
-import { ILoginResponse, IAuthTokens } from './interfaces';
+import { ILoginResponse, IAuthTokens, IRegisterResponse } from './interfaces';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -23,11 +23,11 @@ export class AuthController {
   @ApiResponse({ status: 201, description: 'Usuario registrado exitosamente' })
   @ApiResponse({ status: 400, description: 'Datos invalidos' })
   @ApiResponse({ status: 409, description: 'El correo ya existe' })
-  async register(@Body() dto: RegisterDto): Promise<IApiResponse<ILoginResponse>> {
+  async register(@Body() dto: RegisterDto): Promise<IApiResponse<IRegisterResponse>> {
     const data = await this.authService.register(dto);
     return {
       success: true,
-      message: RESPONSE_MESSAGES.AUTH.REGISTER_SUCCESS,
+      message: RESPONSE_MESSAGES.AUTH.REGISTER_PENDING,
       data,
     };
   }

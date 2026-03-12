@@ -6,7 +6,7 @@
  */
 
 import { Entity, Column, Index } from 'typeorm';
-import { BaseReadOnlyEntity } from '@shared/common';
+import { BaseReadOnlyEntity } from '@shared/common/entities/base-readonly.entity';
 
 /**
  * Niveles de log

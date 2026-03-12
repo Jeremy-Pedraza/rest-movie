@@ -39,7 +39,7 @@ export default function Dashboard() {
     },
     {
       title: 'Node.js',
-      value: info?.node || '-',
+      value: (info?.node as Record<string, string>)?.version || '-',
       icon: Cpu,
       color: 'bg-blue-100 text-blue-700',
     },
@@ -80,11 +80,11 @@ export default function Dashboard() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div>
               <span className="text-gray-500">App</span>
-              <p className="font-medium">{info.app as string || '-'}</p>
+              <p className="font-medium">{(info.app as Record<string, string>)?.name || '-'}</p>
             </div>
             <div>
               <span className="text-gray-500">Uptime</span>
-              <p className="font-medium">{info.uptime || '-'}</p>
+              <p className="font-medium">{(info.uptime as Record<string, string>)?.process || '-'}</p>
             </div>
             <div>
               <span className="text-gray-500">PID</span>

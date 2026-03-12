@@ -32,6 +32,7 @@ export function shouldLogToDb(dbLevel: LogDbLevel, statusCode: number): boolean 
       return statusCode >= 500;
     case 'warnings':
       return statusCode >= 400;
+    case 'info':
     case 'all':
     default:
       return true;

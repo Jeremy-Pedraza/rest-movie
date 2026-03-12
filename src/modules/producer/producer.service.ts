@@ -1,6 +1,6 @@
 // src/modules/producer/producer.service.ts
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { SanitizerService, HandleErrorService, IPaginatedResponse } from '@shared/common';
 import { PaginationMetaDto } from '@shared/common/dto/pagination.dto';
@@ -10,8 +10,6 @@ import { IProducerResponse } from './interfaces';
 
 @Injectable()
 export class ProducerService {
-  private readonly logger = new Logger(ProducerService.name);
-
   constructor(
     private readonly producerRepository: ProducerRepository,
     private readonly sanitizer: SanitizerService,

@@ -17,7 +17,7 @@ import {
   Max,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
-import { PaginationDto, SortOrder } from '@shared/common';
+import { PaginationDto, SortOrder } from '@shared/common/dto/pagination.dto';
 
 import { LogLevel, LogContext } from '../entities/log.entity';
 

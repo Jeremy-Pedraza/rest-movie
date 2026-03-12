@@ -144,3 +144,11 @@ public/uploads/
 # RAR Archives
 # ============================================
 *.rar
+ 
+# Repository-local generated and tooling folders 
+docs/ 
+.claude/ 
+.github/ 
+tools/ 
+.vscode/ 
+skills/
